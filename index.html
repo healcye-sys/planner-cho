@@ -55,6 +55,9 @@ input,select{font:inherit;color:inherit}
 .box{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 textarea.inp{height:auto;padding:8px 12px;font-size:13px;font-family:ui-monospace,monospace}
 .sync{color:var(--onHdr);font-size:12px;background:var(--hdrChip);border-radius:999px;padding:6px 10px;white-space:nowrap;max-width:46vw;overflow:hidden;text-overflow:ellipsis}
+.instBtn{background:#fff;color:#1f2a27;font-size:14px;font-weight:800;border-radius:999px;padding:7px 16px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.22);animation:instPulse 1.6s ease-in-out 3}
+@keyframes instPulse{50%{transform:scale(1.08)}}
+@media (prefers-reduced-motion:reduce){.instBtn{animation:none}}
 .sync.err{background:rgba(255,110,90,.35)}
 .icon-btn{width:38px;height:38px;border-radius:12px;background:var(--hdrChip);color:var(--onHdr);font-size:18px;display:grid;place-items:center}
 .ddays{display:flex;gap:8px;margin-top:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
@@ -334,7 +337,7 @@ td.nmc{white-space:normal;min-width:120px;font-weight:600}
   <div class="top-row">
     <h1 id="ttl" data-act="editTitle" title="눌러서 제목 바꾸기">📚 한의대 편입 플래너</h1>
     <div class="spacer"></div>
-    <button class="sync hidden" id="instBtn" data-act="install">📲 앱 설치</button>
+    <button class="instBtn hidden" id="instBtn" data-act="install">설치</button>
     <button class="sync" id="sync" data-act="settings">이 기기에만 저장</button>
     <button class="icon-btn" data-act="settings" title="설정">⚙</button>
   </div>
