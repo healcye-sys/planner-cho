@@ -237,10 +237,13 @@ td.nmc{white-space:normal;min-width:120px;font-weight:600}
 .inp:focus{outline:2px solid var(--brandSoft);border-color:var(--brand)}
 .g3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,.9fr);gap:8px}
 .mbox{margin:4px 0 14px}
+.trow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px}
+.trow .inrow.hm{gap:4px}.trow .inrow.hm .inp{flex:0 0 52px;padding:0 4px}.trow .inrow.hm span{font-size:13px}
 .mtabs{display:flex;gap:4px;padding:0 6px}
 .mtabs button{flex:1;height:38px;border:1.5px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;background:var(--soft);color:var(--sub);font-size:14px;font-weight:700;position:relative;top:1.5px}
-.mtabs button.on{background:var(--brandSoft);color:var(--ink);border-color:var(--brand);z-index:1}
-.mpanel{border:1.5px solid var(--brand);border-radius:14px;background:var(--brandSoft);padding:10px 10px 0}
+.mtabs button.on{background:linear-gradient(var(--brandSoft),var(--brandSoft)),var(--card);color:var(--ink);border-color:var(--brand);z-index:2}
+.mtabs button.on:after{content:"";position:absolute;left:0;right:0;bottom:-4px;height:6px;background:linear-gradient(var(--brandSoft),var(--brandSoft)),var(--card)}
+.mpanel{border:1.5px solid var(--brand);border-radius:14px;background:linear-gradient(var(--brandSoft),var(--brandSoft)),var(--card);padding:10px 10px 0;position:relative;z-index:1}
 .mpanel .g2{gap:8px}.mpanel input[type=date]{padding:0 8px}
 .mpanel .inp{background:var(--card)}
 .radios{display:flex;gap:8px}
@@ -839,10 +842,8 @@ function openSubject(id){
      </div>
     </div>
    </div>
-   <div class="g2">
+   <div class="trow">
     <div class="fld"><label>하루 소요시간</label><div class="inrow hm"><input class="inp" id="fH" type="number" inputmode="numeric" min="0" max="18" value="${h}"><span>시간</span><input class="inp" id="fM" type="number" inputmode="numeric" min="0" max="59" step="5" value="${m}"><span>분</span></div></div>
-   </div>
-   <div class="g2">
     <div class="fld"><label>시작 시각 (선택)</label><input class="inp" id="fTime" type="time" step="600" value="${F.time==null?'':hm(F.time)}"></div>
    </div>
    <div class="fld"><label>공부하는 요일</label><div class="dayts" id="fDays">${[1,2,3,4,5,6,0].map(x=>`<button data-d="${x}" class="${F.days.includes(x)?'on':''} ${x===6?'sat':x===0?'sun':''}">${DOW[x]}</button>`).join('')}</div>
