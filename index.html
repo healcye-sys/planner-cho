@@ -222,7 +222,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;color:var(--sub);font-weight:600;font-size:13px;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 td{padding:10px 8px;border-bottom:1px solid var(--line2);white-space:nowrap;vertical-align:middle}
 td.nmc{white-space:normal;min-width:120px;font-weight:600}
-.hdl{display:inline-grid;place-items:center;width:30px;height:30px;margin:-6px 4px -6px -6px;font-size:20px;color:var(--sub);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;vertical-align:middle;border-radius:8px}
+.hdl{display:inline-grid;place-items:center;width:40px;height:34px;margin:0 -4px 0 auto;color:var(--sub);opacity:.6;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;vertical-align:middle;border-radius:8px}
 .hdl:active{background:var(--line2)}
 tbody tr{transition:transform .15s}
 tbody tr.lrow{transition:none;position:relative;z-index:5;background:var(--card);box-shadow:0 6px 16px rgba(0,0,0,.18);border-radius:10px}
@@ -231,7 +231,7 @@ tbody tr.lrow{transition:none;position:relative;z-index:5;background:var(--card)
 .ok{color:var(--green);font-weight:700}
 .minibar{height:5px;background:var(--line2);border-radius:4px;overflow:hidden;width:70px;margin-top:4px}
 .minibar i{display:block;height:100%}
-.acts{display:flex;gap:4px}
+.acts{display:flex;gap:4px;align-items:center;width:100%}
 
 /* fab */
 .fab{position:fixed;right:22px;bottom:24px;width:60px;height:60px;border-radius:20px;background:var(--brand);color:var(--onBrand);font-size:32px;
@@ -882,12 +882,12 @@ function renderList(){
     const p=plan(s),pe=projEnd(s);const done=doneAll(s);const pct=Math.round(done/s.total*100);
     const late=!pe.done&&pe.date>p.end;
     const endTxt=pe.done?`<span class="ok">완료 ✓</span>`:late?`<span class="late">${md(pe.date)} (계획 ${md(p.end)})</span>`:`<span class="ok">${md(p.end)}</span>`;
-    return `<tr data-id="${s.id}"><td class="nmc"><span class="hdl" title="끌어서 순서 바꾸기">≡</span><span class="sw" style="background:${s.color}"></span>${esc(s.name)}</td>
+    return `<tr data-id="${s.id}"><td class="nmc"><span class="sw" style="background:${s.color}"></span>${esc(s.name)}</td>
       <td class="rem">${fmtN(Math.round((s.total-done)*10)/10)}${esc(s.unit||'')} <span class="hint">/ ${fmtN(s.total)}</span><div class="minibar"><i style="width:${pct}%;background:${s.color}"></i></div></td>
       <td class="st">${md(p.dates[0])}</td><td class="en">${endTxt}</td>
       <td class="hint cfgc">${fmtN(s.daily)}${esc(s.unit||'')}/일 · ${daysLabel(s.days)} · ${hm(s.time)}~${hm(s.time+s.mins)}</td>
       <td class="ac"><div class="acts">${late?`<button class="btn sm" data-act="resched" data-id="${s.id}">오늘부터 재배치</button>`:''}
-        <button class="btn sm" data-act="editSub" data-id="${s.id}">수정</button><button class="btn sm danger" data-act="delSub" data-id="${s.id}">삭제</button></div></td></tr>`}).join('');
+        <button class="btn sm" data-act="editSub" data-id="${s.id}">수정</button><button class="btn sm danger" data-act="delSub" data-id="${s.id}">삭제</button><span class="hdl" title="끌어서 순서 바꾸기"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M1.5 1.5h13M1.5 6h13M1.5 10.5h13"/></svg></span></div></td></tr>`}).join('');
   V.innerHTML=`<div class="card">
     <div class="toolbar wrap" style="margin:0 0 6px"><div class="sec-title" style="margin:0;white-space:nowrap">과목 리스트</div><div class="spacer"></div>
       ${lateN?`<button class="btn" data-act="reschedAll">밀린 ${lateN}과목 오늘부터 재배치</button>`:''}
