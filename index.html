@@ -334,6 +334,7 @@ td.nmc{white-space:normal;min-width:120px;font-weight:600}
   <div class="top-row">
     <h1 id="ttl" data-act="editTitle" title="눌러서 제목 바꾸기">📚 한의대 편입 플래너</h1>
     <div class="spacer"></div>
+    <button class="sync hidden" id="instBtn" data-act="install">📲 앱 설치</button>
     <button class="sync" id="sync" data-act="settings">이 기기에만 저장</button>
     <button class="icon-btn" data-act="settings" title="설정">⚙</button>
   </div>
@@ -1064,6 +1065,7 @@ document.addEventListener('click',e=>{
     case 'fbConnect':{const c=parseCfg(document.getElementById('fbCfg').value);if(!c||!c.apiKey||!c.projectId)return toast('firebaseConfig 내용을 그대로 붙여넣어 주세요');
       try{localStorage.setItem(CFGKEY,JSON.stringify(c))}catch(e){}closeModal();toast('연결했어요. 이제 Google로 로그인해 주세요');startSync().then(openSettings);break}
     case 'fbLogin':login();break;
+    case 'install':if(INST){INST.prompt();INST.userChoice.finally(()=>{INST=null;document.getElementById('instBtn').classList.add('hidden')})}break;
     case 'fbLogout':ask('로그아웃할까요? 이 기기의 기록은 그대로 남아요.','로그아웃',()=>{firebase.auth().signOut();closeModal()});break;
     case 'fbForget':ask('이 기기의 동기화 설정을 지울까요? 기록은 이 기기에 그대로 남아요.','지우기',()=>{try{localStorage.removeItem(CFGKEY)}catch(e){}location.reload()});break;
     case 'askYes':{const f=ASK;ASK=null;closeModal();if(f)f();break}
@@ -1099,6 +1101,10 @@ if(!S.ui.seen&&innerWidth<700)S.ui.view='day'; // phone opens on the daily check
 S.ui.seen=1;
 render();
 startSync();
+// "앱 설치" button: Chrome hands us the install prompt only when the page is installable and not installed yet
+let INST=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();INST=e;document.getElementById('instBtn').classList.remove('hidden')});
+addEventListener('appinstalled',()=>{INST=null;document.getElementById('instBtn').classList.add('hidden');toast('설치했어요. 홈 화면의 클로버 아이콘으로 열어 주세요')});
 if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 // keep the daily "지금" highlight current
 setInterval(()=>{if(S.ui.view==='day'&&M.classList.contains('hidden')&&!drag&&!hold){const y=scrollY;render();scrollTo({top:y})}},60000);
