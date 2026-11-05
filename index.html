@@ -160,6 +160,8 @@ main{padding:0 14px}
 .wblk .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wblk .rg{color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wblk.done{opacity:.55}
+.wblk.ov{border-style:dashed;border-left-style:solid}
+.wblk .ovr{pointer-events:auto;position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:var(--card);color:var(--ink);font-size:12px;font-weight:800;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer}
 .wblk:not(.ghost){cursor:grab;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .wblk *{pointer-events:none}
 .wblk.hold{transform:scale(1.03);transition:transform .35s}
@@ -457,10 +459,11 @@ function rangeTxt(s,from,to){
   const a=Math.floor(from)+1,b=Math.ceil(to);const r=a>=b?String(b):a+'~'+b;const u=(s.unit||'').trim();
   if(/^p\.?$/i.test(u))return 'p.'+r; return r+u;
 }
+const dayTime=(s,d)=>s.ov&&s.ov[d]!=null?s.ov[d]:s.time;
 function itemFor(s,date){
   const p=plan(s);const k=p.idx[date];if(k===undefined)return null;
   const from=p.before+k*s.daily,to=Math.min(s.total,from+s.daily);
-  return {s,date,k,from,to,label:rangeTxt(s,from,to),time:s.time,mins:s.mins,end:s.time+s.mins,mark:(S.checks[s.id]||{})[date]||''};
+  return {s,date,k,from,to,label:rangeTxt(s,from,to),time:dayTime(s,date),ov:s.ov&&s.ov[date]!=null,mins:s.mins,end:dayTime(s,date)+s.mins,mark:(S.checks[s.id]||{})[date]||''};
 }
 function itemsOn(date){return S.subjects.map(s=>itemFor(s,date)).filter(Boolean).sort((a,b)=>a.time-b.time||a.s.name.localeCompare(b.s.name))}
 function projEnd(s){
@@ -627,8 +630,9 @@ let hold=null,lastTap=null;
 const HOLD_MS=380;
 function beginDrag(h){
   const s=sub(h.id);if(!s)return;
-  const els=[...document.querySelectorAll(`.seg[data-id="${s.id}"],.wblk[data-id="${s.id}"]:not(.ghost)`)];els.forEach(x=>{x.classList.remove('hold');x.classList.add('lift')});
-  drag={rs:!!h.rs,end0:plan(s).end,id:s.id,pid:h.pid,x0:h.x,y0:h.y,x:h.x,y:h.y,sy0:scrollY,d0:h.L.date,m0:h.L.min,start0:s.start,time0:s.time,moved:true,els,key:'',target:{start:s.start,time:s.time}};
+  const els=[...document.querySelectorAll(`.seg[data-id="${s.id}"],.wblk[data-id="${s.id}"]:not(.ghost)`)];if(h.wk){els.forEach(x=>x.classList.remove('hold'));els.length=0;els.push(h.el)}els.forEach(x=>{x.classList.remove('hold');x.classList.add('lift')});
+  drag={rs:!!h.rs,end0:plan(s).end,id:s.id,pid:h.pid,x0:h.x,y0:h.y,x:h.x,y:h.y,sy0:scrollY,d0:h.L.date,m0:h.L.min,start0:s.start,time0:s.time,moved:true,els,key:'',target:{start:s.start,time:s.time},wk:!!h.wk,day:h.wday};
+  if(drag.wk){drag.time0=dayTime(s,drag.day);drag.target={start:s.start,time:drag.time0}}
   document.body.classList.add('dragging');
   try{navigator.vibrate&&navigator.vibrate(15)}catch(e){}
   autoT=setInterval(()=>{if(!drag)return;const m=70;let dy=0;if(drag.y<m)dy=-14;else if(drag.y>innerHeight-m)dy=14;if(dy){scrollBy(0,dy);kick()}
@@ -638,13 +642,14 @@ function beginDrag(h){
 function cancelHold(){if(hold){clearTimeout(hold.timer);document.querySelectorAll('.seg.hold,.wblk.hold').forEach(x=>x.classList.remove('hold'));hold=null}}
 document.addEventListener('pointerdown',e=>{
   if(drag||hold)return;
+  if(e.target.closest&&e.target.closest('.ovr'))return;
   let seg=e.target.closest('.seg,.wblk');if(!seg||seg.classList.contains('ghost')||e.button>0)return;
   if(seg.classList.contains('seg')){let bd=1e9;
     document.elementsFromPoint(e.clientX,e.clientY).forEach(x=>{if(!x.classList||!x.classList.contains('seg')||x.classList.contains('ghost'))return;
       const r=x.querySelector('.bar').getBoundingClientRect();const d=e.clientY<r.top?r.top-e.clientY:e.clientY>r.bottom?e.clientY-r.bottom:0;
       if(d<bd){bd=d;seg=x}})}
   const L=locate(e.clientX,e.clientY);if(!L)return;
-  hold={id:seg.dataset.id,pid:e.pointerId,x:e.clientX,y:e.clientY,L,mouse:e.pointerType==='mouse',timer:0,rs:!!(e.target.closest&&e.target.closest('.rsz'))&&seg.classList.contains('seg')};
+  hold={el:seg,wk:seg.classList.contains('wblk'),wday:seg.dataset.date,id:seg.dataset.id,pid:e.pointerId,x:e.clientX,y:e.clientY,L,mouse:e.pointerType==='mouse',timer:0,rs:!!(e.target.closest&&e.target.closest('.rsz'))&&seg.classList.contains('seg')};
   if(hold.rs)seg.classList.add('rs');
   if(hold.mouse){e.preventDefault();return} // mouse: drag starts as soon as it moves
   document.querySelectorAll(`.seg[data-id="${hold.id}"],.wblk[data-id="${hold.id}"]`).forEach(x=>x.classList.add('hold'));
@@ -665,9 +670,21 @@ function resizeFrame(s){
   tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
   tip.textContent=t.end?`${s.name} · ~${mdw(t.end)} 종료 · 공부일 ${t.n}일 · 하루 약 ${fmtN(Math.round(t.daily*10)/10)}${s.unit||''}`:`${s.name} · 좌우로 끌어 종료일 조절`;
 }
+function dayFrame(s){
+  const dy=drag.y-drag.y0+(scrollY-drag.sy0);drag.els.forEach(el=>el.style.transform=`translate3d(0,${dy}px,0)`);
+  const {dayStart:a,dayEnd:b}=S.cfg;
+  const nt=clamp(Math.round((drag.time0+dy/56*60)/10)*10,a*60,Math.max(a*60,b*60-Math.min(s.mins,(b-a)*60)));
+  if(nt!==drag.key){drag.key=nt;drag.target={start:s.start,time:nt};
+    document.querySelectorAll('.wblk.ghost').forEach(e=>e.remove());
+    const col=document.querySelector(`.wcol[data-date="${drag.day}"]`);
+    if(col){const top=(nt-a*60)/60*56,ht=Math.max(22,Math.min(s.mins,b*60-nt)/60*56-2);col.insertAdjacentHTML('beforeend',`<div class="wblk ghost" style="top:${top}px;height:${ht}px;left:2px;right:2px"></div>`)}}
+  const tip=document.getElementById('tip');tip.classList.remove('hidden');tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
+  tip.textContent=`${s.name} · ${mdw(drag.day)} 이날만 · ${hm(nt)}~${hm(nt+s.mins)}`;
+}
 function dragFrame(){
   raf=0;if(!drag||!drag.moved)return;const s=sub(drag.id);
   if(drag.rs)return resizeFrame(s);
+  if(drag.wk)return dayFrame(s);
   const dx=drag.x-drag.x0,dy=drag.y-drag.y0+(scrollY-drag.sy0);
   drag.els.forEach(el=>el.style.transform=`translate3d(${dx}px,${dy}px,0)`);
   const L=locate(drag.x,drag.y);if(!L)return;
@@ -698,7 +715,9 @@ function endDrag(cancel){
   document.body.classList.remove('dragging');document.getElementById('tip').classList.add('hidden');
   const s=sub(d.id);
   document.querySelectorAll('.seg.rs').forEach(x=>x.classList.remove('rs'));
-  if(d.rs){if(!cancel&&s&&d.target.end&&Math.abs(d.target.daily-s.daily)>1e-9){s.daily=d.target.daily;s.mode='period';s.end=d.target.end;PC.delete(s.id);save();renderHeader();
+  if(d.wk){if(!cancel&&s&&d.target.time!==dayTime(s,d.day)){s.ov=s.ov||{};if(d.target.time===s.time)delete s.ov[d.day];else s.ov[d.day]=d.target.time;save();
+      toast(d.target.time===s.time?'원래 시간으로 돌아왔어요':`${mdw(d.day)} 하루만 ${hm(d.target.time)}로 옮겼어요`)}}
+  else if(d.rs){if(!cancel&&s&&d.target.end&&Math.abs(d.target.daily-s.daily)>1e-9){s.daily=d.target.daily;s.mode='period';s.end=d.target.end;PC.delete(s.id);save();renderHeader();
       toast(`${mdw(plan(s).end)}까지 · 하루 약 ${fmtN(Math.round(s.daily*10)/10)}${s.unit||''}`)}}
   else if(d.moved&&!cancel&&s&&(d.target.start!==s.start||d.target.time!==s.time)){s.start=d.target.start;s.time=d.target.time;save();renderHeader()}
   if(S.ui.view==='week'){const sc=V.querySelector('.wscroll'),sl=sc?sc.scrollLeft:0;renderWeek();const n=V.querySelector('.wscroll');if(n)n.scrollLeft=sl}
@@ -725,15 +744,15 @@ function renderWeek(){
     const L=Math.max(1,lanes.length);
     const meals=mealsOn().filter(m=>m.time<b*60&&m.time+m.mins>a*60).map(m=>{const t0=Math.max(m.time,a*60),t1=Math.min(m.time+m.mins,b*60);
       return `<div class="wmeal" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">🍚 ${m.n}</div>`}).join('');
-    cols+=`<div class="wcol ${d===TODAY?'today':''}" style="height:${H}px;background-image:${bg}">`+meals+it.map(x=>{
+    cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H}px;background-image:${bg}">`+meals+it.map(x=>{
       const top=(clamp(x.time,a*60,b*60)-a*60)/60*HP,ht=Math.max(22,Math.min(x.mins,b*60-x.time)/60*HP-2);
-      return `<div class="wblk" data-id="${x.s.id}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.38)};border-color:${x.s.color}">
-        <div class="tx"><div class="nm">${esc(x.s.name)}</div>${ht>34?`<div class="rg">${esc(x.label)}</div>`:''}${ht>50?`<div class="rg">${hm(x.time)}~${hm(x.end)}</div>`:''}</div></div>`}).join('')+`</div>`;
+      return `<div class="wblk ${x.ov?'ov':''}" data-id="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.38)};border-color:${x.s.color}">
+        <div class="tx"><div class="nm">${esc(x.s.name)}</div>${ht>34?`<div class="rg">${esc(x.label)}</div>`:''}${ht>50?`<div class="rg">${hm(x.time)}~${hm(x.end)}</div>`:''}</div>${x.ov?`<span class="ovr" data-act="resetOv" data-id="${x.s.id}" data-date="${d}" title="원래 시간으로">↺</span>`:''}</div>`}).join('')+`</div>`;
   }
   V.innerHTML=`<div class="toolbar">
     <button class="btn sq" data-act="wPrev">‹</button><div class="ttl">${md(ws)} ~ ${md(addD(ws,6))}</div><button class="btn sq" data-act="wNext">›</button>
     <button class="btn" data-act="wToday">이번 주</button><div class="spacer"></div>
-    <span class="hint">블록을 꾹 눌러 옮기기 · 두 번 탭하면 수정 · 날짜를 누르면 데일리로 이동</span></div>
+    <span class="hint">블록을 꾹 눌러 위아래로 = 그날만 시간 변경 · ↺ 원래대로 · 두 번 탭하면 수정</span></div>
   <div class="wwrap"><div class="wscroll"><div class="whead">${head}</div><div class="wbody"><div class="wgut" style="height:${H}px">${gut}</div>${cols}</div></div></div>`;
   const sc=V.querySelector('.wscroll'),tc=V.querySelector('.wcol.today');
   if(sc&&tc&&sc.scrollWidth>sc.clientWidth)sc.scrollLeft=Math.max(0,tc.offsetLeft-44-tc.offsetWidth);
@@ -754,7 +773,7 @@ function renderDay(){
   const nowLine=`<div class="nowline"><span>${hm(nowM||0)}</span></div>`;
   const rowsA=it.map((x,i)=>[x.time,(i===nextI&&i>0?nowLine:'')+`<div class="row ${x.mark==='o'?'done':''} ${x===active?'now':''}">
       <div class="tm">${hm(x.time)}<br>${hm(x.end)}</div><div class="cb" style="background:${x.s.color}"></div>
-      <div class="tx"><div class="nm">${esc(x.s.name)}</div><div class="rg">${esc(x.label)}</div></div>
+      <div class="tx"><div class="nm">${esc(x.s.name)}</div><div class="rg">${esc(x.label)}${x.ov?' · 이날만 시간 변경':''}</div></div>
       <div class="hr">${hrs(x.mins)}</div>
       <button class="mk ${x.mark}" data-act="mark" data-id="${x.s.id}" data-date="${d}">${markSym(x.mark)}</button></div>`]);
   if(it.length)mealsOn().forEach(m=>rowsA.push([m.time-.5,`<div class="row meal"><div class="tm">${hm(m.time)}<br>${hm(m.time+m.mins)}</div><div class="cb">🍚</div><div class="tx"><div class="nm" style="font-size:15px">${m.n} 식사</div></div></div>`]));
@@ -1149,6 +1168,7 @@ document.addEventListener('click',e=>{
       S.cfg.meals.forEach((m,i)=>{const v=fv('mT'+i);m.time=/^\d{1,2}:\d{2}/.test(v)?(+v.slice(0,2))*60+(+v.slice(3,5)):null;const n=Math.round(+fv('mM'+i));if(n>0)m.mins=clamp(n,5,240)});
       S.subjects.forEach(s=>{s.mins=Math.min(s.mins,(B-A)*60);s.time=clamp(s.time,A*60,B*60-s.mins)});save();closeModal();render();break}
     case 'export':exportBackup();break;
+    case 'resetOv':{const so=sub(id);if(so&&so.ov){delete so.ov[el.dataset.date];save();render();toast('원래 시간으로 돌렸어요')}break}
     case 'fbConnect':{const c=parseCfg(document.getElementById('fbCfg').value);if(!c||!c.apiKey||!c.projectId)return toast('firebaseConfig 내용을 그대로 붙여넣어 주세요');
       try{localStorage.setItem(CFGKEY,JSON.stringify(c))}catch(e){}closeModal();toast('연결했어요. 이제 Google로 로그인해 주세요');startSync().then(openSettings);break}
     case 'fbLogin':login();break;
