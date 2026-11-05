@@ -235,6 +235,14 @@ td.nmc{white-space:normal;min-width:120px;font-weight:600}
 .fld>label{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;color:var(--sub);margin-bottom:5px;font-weight:600}
 .inp{width:100%;height:42px;min-width:0;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--soft);font-size:16px}
 .inp:focus{outline:2px solid var(--brandSoft);border-color:var(--brand)}
+.g3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,.9fr);gap:8px}
+.mbox{margin:4px 0 14px}
+.mtabs{display:flex;gap:4px;padding:0 6px}
+.mtabs button{flex:1;height:38px;border:1.5px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;background:var(--soft);color:var(--sub);font-size:14px;font-weight:700;position:relative;top:1.5px}
+.mtabs button.on{background:var(--brandSoft);color:var(--ink);border-color:var(--brand);z-index:1}
+.mpanel{border:1.5px solid var(--brand);border-radius:14px;background:var(--brandSoft);padding:10px 10px 0}
+.mpanel .g2{gap:8px}.mpanel input[type=date]{padding:0 8px}
+.mpanel .inp{background:var(--card)}
 .radios{display:flex;gap:8px}
 .rad{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:40px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-weight:700;color:var(--sub);cursor:pointer}
 .rad input{accent-color:var(--brand);width:16px;height:16px;margin:0}
@@ -808,35 +816,37 @@ M.addEventListener('click',e=>{if(e.target===M&&M.dataset.down)closeModal();M.da
 let F=null;
 function openSubject(id){
   const s=id?sub(id):null;
-  F=s?{...s,days:[...s.days],mode:s.mode||'amount',end:s.mode==='period'?plan(s).end:(s.end||'')}:{mode:'amount',end:'',name:'',color:palVis()[(S.subjects.length*7)%palVis().length],total:'',daily:'',unit:'',mins:60,days:PRESET.daily.slice(),start:TODAY,time:null,pre:0};
+  F=s?{...s,days:[...s.days],mode:s.mode||'amount',end:s.mode==='period'?plan(s).end:(s.end||'')}:{mode:'amount',end:'',name:'',color:palVis()[(S.subjects.length*7)%palVis().length],total:'',daily:'',unit:'p',mins:60,days:PRESET.daily.slice(),start:TODAY,time:null,pre:0};
   const h=Math.floor(F.mins/60),m=F.mins%60;
   openModal(`<h3>${s?'과목 수정':'새 과목 추가'}</h3>
    <div class="fld"><label>과목명</label><input class="inp" id="fName" value="${esc(F.name)}" placeholder="예) 맹자강의 듣기"></div>
    <div class="fld"><label>색상</label><div class="colors" id="fColors">${colorBtns()}</div><div class="hive hidden" id="fHive"></div></div>
-   <div class="g2">
+   <div class="g3">
     <div class="fld"><label>전체 분량</label><input class="inp" id="fTotal" type="number" inputmode="decimal" min="0" value="${F.total}" placeholder="예) 80"></div>
-    <div class="fld"><label>이미 진행한 양</label><input class="inp" id="fDone" type="number" inputmode="decimal" min="0" value="${F.pre>0?fmtN(F.pre):''}" placeholder="없으면 빈칸"></div>
+    <div class="fld"><label>이미 진행한 양</label><input class="inp" id="fDone" type="number" inputmode="decimal" min="0" value="${F.pre>0?fmtN(F.pre):''}" placeholder="0"></div>
+    <div class="fld"><label>단위</label><select class="inp" id="fUnit">${unitOpts(F.unit)}</select></div>
    </div>
-   <div class="fld"><div class="radios" id="fMode">
-    <label class="rad"><input type="radio" name="fMode" value="amount" ${F.mode!=='period'?'checked':''}><span>분량으로</span></label>
-    <label class="rad"><input type="radio" name="fMode" value="period" ${F.mode==='period'?'checked':''}><span>기간으로</span></label></div></div>
-   <div class="g2 mP">
-    <div class="fld"><label>시작일</label><input class="inp" id="fStartP" type="date" value="${F.start}"></div>
-    <div class="fld"><label>종료일</label><input class="inp" id="fEnd" type="date" value="${F.end||''}"></div>
-   </div>
-   <div class="g2">
-    <div class="fld mA"><label>하루 공부량</label><input class="inp" id="fDaily" type="number" inputmode="decimal" min="0" value="${F.daily}" placeholder="예) 5"></div>
-    <div class="fld"><label>단위</label><input class="inp" id="fUnit" value="${esc(F.unit)}" placeholder="회 / p / 강"></div>
+   <div class="mbox">
+    <div class="mtabs" id="fMode"><button type="button" data-m="amount">분량으로</button><button type="button" data-m="period">기간으로</button></div>
+    <div class="mpanel">
+     <div class="g2 mA">
+      <div class="fld"><label>하루 공부량</label><input class="inp" id="fDaily" type="number" inputmode="decimal" min="0" value="${F.daily}" placeholder="예) 5"></div>
+      <div class="fld"><label>시작일</label><input class="inp" id="fStart" type="date" value="${F.start}"></div>
+     </div>
+     <div class="g2 mP">
+      <div class="fld"><label>시작일</label><input class="inp" id="fStartP" type="date" value="${F.start}"></div>
+      <div class="fld"><label>종료일</label><input class="inp" id="fEnd" type="date" value="${F.end||''}"></div>
+     </div>
+    </div>
    </div>
    <div class="g2">
     <div class="fld"><label>하루 소요시간</label><div class="inrow hm"><input class="inp" id="fH" type="number" inputmode="numeric" min="0" max="18" value="${h}"><span>시간</span><input class="inp" id="fM" type="number" inputmode="numeric" min="0" max="59" step="5" value="${m}"><span>분</span></div></div>
-       </div>
-   <div class="fld"><label>공부하는 요일</label><div class="dayts" id="fDays">${[1,2,3,4,5,6,0].map(x=>`<button data-d="${x}" class="${F.days.includes(x)?'on':''} ${x===6?'sat':x===0?'sun':''}">${DOW[x]}</button>`).join('')}</div>
-    <div class="presets" id="fPresets"><button data-p="daily">매일</button><button data-p="weekday">평일</button><button data-p="weekend">주말</button></div></div>
+   </div>
    <div class="g2">
-    <div class="fld mA"><label>시작일</label><input class="inp" id="fStart" type="date" value="${F.start}"></div>
     <div class="fld"><label>시작 시각 (선택)</label><input class="inp" id="fTime" type="time" step="600" value="${F.time==null?'':hm(F.time)}"></div>
    </div>
+   <div class="fld"><label>공부하는 요일</label><div class="dayts" id="fDays">${[1,2,3,4,5,6,0].map(x=>`<button data-d="${x}" class="${F.days.includes(x)?'on':''} ${x===6?'sat':x===0?'sun':''}">${DOW[x]}</button>`).join('')}</div>
+    <div class="presets" id="fPresets"><button data-p="daily">매일</button><button data-p="weekday">평일</button><button data-p="weekend">주말</button></div></div>
    <div class="preview" id="fPrev"></div>
    <div class="sheet-acts">${s?`<button class="btn danger" data-act="delSub" data-id="${s.id}">띠 삭제</button>`:''}<div class="spacer"></div>
      <button class="btn" data-act="close">취소</button><button class="btn pri" data-act="saveSub">확인</button></div>`);
@@ -856,8 +866,8 @@ function openSubject(id){
     el.innerHTML=`${pre>0?`남은 ${fmtN(t-pre)}${esc(fv('fUnit'))} · `:''}공부일 <b>${n}일</b> (${daysLabel(F.days)}) · <b>${mdw(st)} ~ ${mdw(last)}</b> · 하루 ${Math.floor(mins/60)}시간 ${mins%60?mins%60+'분':''}`;
   };
   SH.oninput=upd;
-  const paintMode=()=>SH.classList.toggle('period',F.mode==='period');paintMode();
-  SH.querySelector('#fMode').onchange=e=>{const v=e.target.value;if(!v)return;
+  const paintMode=()=>{SH.classList.toggle('period',F.mode==='period');SH.querySelectorAll('#fMode [data-m]').forEach(x=>x.classList.toggle('on',x.dataset.m===(F.mode||'amount')))};paintMode();
+  SH.querySelector('#fMode').onclick=e=>{const bt=e.target.closest('[data-m]');if(!bt)return;const v=bt.dataset.m;if(v===F.mode)return;
     if(v==='period'){document.getElementById('fStartP').value=fv('fStart')||TODAY;if(!fv('fEnd')){const t=num(fv('fTotal')),d=num(fv('fDaily')),pre=num(fv('fDone'));if(t>0&&d>0){const st=fv('fStartP');let n=Math.max(1,Math.ceil((t-pre)/d-1e-9)),x=st,c=0,last=st,g=0;while(c<n&&g<3000){if(isStudy(F.days,x)){c++;last=x}x=addD(x,1);g++}document.getElementById('fEnd').value=last}}}
     else document.getElementById('fStart').value=fv('fStartP')||fv('fStart');
     F.mode=v;paintMode();upd()};
@@ -886,6 +896,9 @@ function colorBtns(){const on=c=>c.toLowerCase()===String(F.color).toLowerCase()
   return pv.map(cust).join('')+(cc.length||extra.length?'<span class="sep"></span>'+cc.map(cust).join('')+extra.map(sw).join(''):'')+
   `<button type="button" class="add" data-act="bandHive" title="내 색 추가">+</button>`+
   (S.cfg.hiddenColors.length?`<button type="button" class="restore" data-act="restoreColors">기본 색 되돌리기</button>`:'')}
+const UNITS=[['p','p'],['회','회'],['강','강'],['장','장'],['챕터','챕터'],['단원','단원'],['문제','문제'],['개','개'],['','단위 없음']];
+function unitOpts(cur){cur=cur==null?'':String(cur).trim();const list=UNITS.some(([v])=>v===cur)?UNITS:[[cur,cur],...UNITS];
+  return list.map(([v,l])=>`<option value="${esc(v)}" ${v===cur?'selected':''}>${esc(l)}</option>`).join('')}
 function studyDaysBetween(days,a,b){if(!a||!b||b<a)return 0;let n=0,x=a,g=0;while(x<=b&&g<4000){if(isStudy(days,x))n++;x=addD(x,1);g++}return n}
 function saveSubject(){
   const period=F.mode==='period';const name=fv('fName'),total=num(fv('fTotal'));let daily=num(fv('fDaily'));
