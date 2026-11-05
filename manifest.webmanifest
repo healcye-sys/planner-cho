@@ -1,6 +1,6 @@
 {
-  "name": "한의대 편입 플래너",
-  "short_name": "편입플래너",
+  "name": "Planner Plan B",
+  "short_name": "Planner Plan B",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
