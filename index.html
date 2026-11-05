@@ -169,6 +169,8 @@ main{padding:0 14px}
 .wblk *{pointer-events:none}
 .wblk.hold{transform:scale(1.03);transition:transform .35s}
 .wblk.lift{z-index:6;will-change:transform;opacity:.9;box-shadow:0 0 0 2px var(--ink),0 8px 18px rgba(0,0,0,.28)}
+.wblk .ctn{font-weight:600;opacity:.75;font-size:.92em}
+.row .ctn{font-weight:600;color:var(--accent,#3f6f63);font-size:13px}
 .wblk.ghost{pointer-events:none;z-index:4;background:transparent!important;border:2px dashed var(--ink);opacity:.55}
 .mk{width:26px;height:26px;border-radius:50%;border:2px solid var(--mkline);background:var(--card);flex:0 0 auto;display:grid;place-items:center;font-weight:800;font-size:15px;line-height:1}
 .mk.o{border-color:var(--green);color:var(--green)}
@@ -463,11 +465,15 @@ function rangeTxt(s,from,to){
   if(/^p\.?$/i.test(u))return 'p.'+r; return r+u;
 }
 const dayTime=(s,d)=>s.ov&&s.ov[d]!=null?s.ov[d]:s.time;
+function spanSegs(t,m){const out=[];let cur=t,left=m;
+  for(const ml of mealsOn()){const a=ml.time,b=ml.time+ml.mins;if(left<=0||a>=cur+left)break;if(b<=cur)continue;
+    if(a>cur){out.push([cur,a]);left-=a-cur}cur=Math.max(cur,b)}
+  if(left>0||!out.length)out.push([cur,cur+Math.max(0,left)]);return out}
 const dayMins=(s,d)=>s.ovm&&s.ovm[d]!=null?s.ovm[d]:s.mins;
 function itemFor(s,date){
   const p=plan(s);const k=p.idx[date];if(k===undefined)return null;
   const from=p.before+p.cum[k],to=Math.min(s.total,from+dayAmt(s,date));
-  return {s,date,k,from,to,label:rangeTxt(s,from,to),time:dayTime(s,date),ov:!!(s.ov&&s.ov[date]!=null||s.ovm&&s.ovm[date]!=null),mins:dayMins(s,date),end:dayTime(s,date)+dayMins(s,date),mark:(S.checks[s.id]||{})[date]||''};
+  return {s,date,k,from,to,label:rangeTxt(s,from,to),time:dayTime(s,date),ov:!!(s.ov&&s.ov[date]!=null||s.ovm&&s.ovm[date]!=null),mins:dayMins(s,date),segs:spanSegs(dayTime(s,date),dayMins(s,date)),get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[s.id]||{})[date]||''};
 }
 function itemsOn(date){return S.subjects.map(s=>itemFor(s,date)).filter(Boolean).sort((a,b)=>a.time-b.time||a.s.name.localeCompare(b.s.name))}
 function projEnd(s){
@@ -634,7 +640,7 @@ let hold=null,lastTap=null;
 const HOLD_MS=380;
 function beginDrag(h){
   const s=sub(h.id);if(!s)return;
-  const els=[...document.querySelectorAll(`.seg[data-id="${s.id}"],.wblk[data-id="${s.id}"]:not(.ghost)`)];if(h.wk){els.forEach(x=>x.classList.remove('hold'));els.length=0;els.push(h.el)}els.forEach(x=>{x.classList.remove('hold');x.classList.add('lift')});
+  const els=[...document.querySelectorAll(`.seg[data-id="${s.id}"],.wblk[data-id="${s.id}"]:not(.ghost)`)];if(h.wk){els.forEach(x=>x.classList.remove('hold'));els.length=0;els.push(...document.querySelectorAll(`.wblk[data-id="${s.id}"][data-date="${h.wday}"]:not(.ghost)`))}els.forEach(x=>{x.classList.remove('hold');x.classList.add('lift')});
   drag={rs:!!h.rs,end0:plan(s).end,id:s.id,pid:h.pid,x0:h.x,y0:h.y,x:h.x,y:h.y,sy0:scrollY,d0:h.L.date,m0:h.L.min,start0:s.start,time0:s.time,moved:true,els,key:'',target:{start:s.start,time:s.time},wk:!!h.wk,day:h.wday};
   if(drag.wk){drag.wrs=!!h.wrs;drag.time0=dayTime(s,drag.day);drag.mins0=dayMins(s,drag.day);drag.target={start:s.start,time:drag.time0,mins:drag.mins0};if(drag.wrs)h.el.classList.add('wr')}
   document.body.classList.add('dragging');
@@ -674,13 +680,18 @@ function resizeFrame(s){
   tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
   tip.textContent=t.end?`${s.name} · ~${mdw(t.end)} 종료 · 공부일 ${t.n}일 · 하루 약 ${fmtN(Math.round(t.daily*10)/10)}${s.unit||''}`:`${s.name} · 좌우로 끌어 종료일 조절`;
 }
+function wGhost(day,t,m){const a=S.cfg.dayStart*60,b=S.cfg.dayEnd*60;
+  document.querySelectorAll('.wblk.ghost').forEach(e=>e.remove());
+  const col=document.querySelector(`.wcol[data-date="${day}"]`);if(!col)return;
+  spanSegs(t,m).forEach(([t0,t1])=>{if(t0>=b)return;const top=(t0-a)/60*56,ht=Math.max(22,(Math.min(t1,b)-t0)/60*56-2);
+    col.insertAdjacentHTML('beforeend',`<div class="wblk ghost" style="top:${top}px;height:${ht}px;left:2px;right:2px"></div>`)})}
 function durFrame(s){
   const dy=drag.y-drag.y0+(scrollY-drag.sy0);const {dayEnd:b}=S.cfg;const t0=drag.time0;
   const nm=clamp(Math.round((drag.mins0+dy/56*60)/10)*10,10,Math.max(10,b*60-t0));
   if(nm!==drag.key){drag.key=nm;drag.target={start:s.start,time:t0,mins:nm};
-    drag.els.forEach(el=>{el.style.height=Math.max(22,nm/60*56-2)+'px'})}
+    drag.els.forEach(el=>el.style.opacity='.35');wGhost(drag.day,t0,nm)}
   const tip=document.getElementById('tip');tip.classList.remove('hidden');tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
-  tip.textContent=`${s.name} · ${mdw(drag.day)} ${hm(t0)}~${hm(t0+nm)} · ${Math.floor(nm/60)?Math.floor(nm/60)+'시간 ':''}${nm%60?nm%60+'분':''}`;
+  const sg=spanSegs(t0,nm);tip.textContent=`${s.name} · ${mdw(drag.day)} ${hm(t0)}~${hm(sg[sg.length-1][1])} · ${Math.floor(nm/60)?Math.floor(nm/60)+'시간 ':''}${nm%60?nm%60+'분':''}`;
 }
 function dayFrame(s){
   const dy=drag.y-drag.y0+(scrollY-drag.sy0);drag.els.forEach(el=>el.style.transform=`translate3d(0,${dy}px,0)`);
@@ -689,9 +700,9 @@ function dayFrame(s){
   if(nt!==drag.key){drag.key=nt;drag.target={start:s.start,time:nt};
     document.querySelectorAll('.wblk.ghost').forEach(e=>e.remove());
     const col=document.querySelector(`.wcol[data-date="${drag.day}"]`);
-    if(col){const top=(nt-a*60)/60*56,ht=Math.max(22,Math.min(s.mins,b*60-nt)/60*56-2);col.insertAdjacentHTML('beforeend',`<div class="wblk ghost" style="top:${top}px;height:${ht}px;left:2px;right:2px"></div>`)}}
+    wGhost(drag.day,nt,dayMins(s,drag.day))}
   const tip=document.getElementById('tip');tip.classList.remove('hidden');tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
-  tip.textContent=`${s.name} · ${mdw(drag.day)} 이날만 · ${hm(nt)}~${hm(nt+s.mins)}`;
+  const sg=spanSegs(nt,dayMins(s,drag.day));tip.textContent=`${s.name} · ${mdw(drag.day)} 이날만 · ${hm(nt)}~${hm(sg[sg.length-1][1])}`;
 }
 function dragFrame(){
   raf=0;if(!drag||!drag.moved)return;const s=sub(drag.id);
@@ -758,15 +769,16 @@ function renderWeek(){
     const L=Math.max(1,lanes.length);
     const meals=mealsOn().filter(m=>m.time<b*60&&m.time+m.mins>a*60).map(m=>{const t0=Math.max(m.time,a*60),t1=Math.min(m.time+m.mins,b*60);
       return `<div class="wmeal" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">🍚 ${m.n}</div>`}).join('');
-    cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H}px;background-image:${bg}">`+meals+it.map(x=>{
-      const top=(clamp(x.time,a*60,b*60)-a*60)/60*HP,ht=Math.max(22,Math.min(x.mins,b*60-x.time)/60*HP-2);
-      return `<div class="wblk ${x.ov?'ov':''}" data-id="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.38)};border-color:${x.s.color}">
-        <div class="tx"><div class="nm">${esc(x.s.name)}</div>${ht>34?`<div class="rg">${esc(x.label)}</div>`:''}${ht>50?`<div class="rg">${hm(x.time)}~${hm(x.end)}</div>`:''}</div>${x.ov?`<span class="ovr" data-act="resetOv" data-id="${x.s.id}" data-date="${d}" title="원래 시간으로">↺</span>`:''}<i class="wrsz"></i></div>`}).join('')+`</div>`;
+    cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H}px;background-image:${bg}">`+meals+it.map(x=>x.segs.map(([t0,t1],si)=>{
+      const first=si===0,last=si===x.segs.length-1;
+      const top=(clamp(t0,a*60,b*60)-a*60)/60*HP,ht=Math.max(22,Math.min(t1-t0,b*60-t0)/60*HP-2);
+      return `<div class="wblk ${x.ov?'ov':''} ${first?'':'cont'}" data-id="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.38)};border-color:${x.s.color}">
+        <div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${first&&ht>34?`<div class="rg">${esc(x.label)}</div>`:''}${ht>(first?50:34)?`<div class="rg">${hm(t0)}~${hm(t1)}</div>`:''}</div>${first&&x.ov?`<span class="ovr" data-act="resetOv" data-id="${x.s.id}" data-date="${d}" title="원래 시간으로">↺</span>`:''}${last?'<i class="wrsz"></i>':''}</div>`}).join('')).join('')+`</div>`;
   }
   V.innerHTML=`<div class="toolbar">
     <button class="btn sq" data-act="wPrev">‹</button><div class="ttl">${md(ws)} ~ ${md(addD(ws,6))}</div><button class="btn sq" data-act="wNext">›</button>
     <button class="btn" data-act="wToday">이번 주</button><div class="spacer"></div>
-    <span class="hint">블록 꾹 눌러 위아래 = 그날 시간 이동 · 아래 손잡이 = 그날 공부량 늘이기/줄이기 · ↺ 원래대로</span></div>
+    <span class="hint">블록 꾹 눌러 위아래 = 그날 시간 이동 · 아래 손잡이 = 그날 공부량 늘이기/줄이기 · ↺ 원래대로 · 식사 시간엔 쉬고 이어서</span></div>
   <div class="wwrap"><div class="wscroll"><div class="whead">${head}</div><div class="wbody"><div class="wgut" style="height:${H}px">${gut}</div>${cols}</div></div></div>`;
   const sc=V.querySelector('.wscroll'),tc=V.querySelector('.wcol.today');
   if(sc&&tc&&sc.scrollWidth>sc.clientWidth)sc.scrollLeft=Math.max(0,tc.offsetLeft-44-tc.offsetWidth);
@@ -782,14 +794,18 @@ function renderDay(){
     strip+=`<button class="sd ${x===d?'on':''} ${x===TODAY?'today':''}" data-act="gotoDay" data-date="${x}"><small>${dt.getDate()===1||i===-7?(dt.getMonth()+1)+'월':''}</small><b>${dt.getDate()}</b><span>${DOW[dt.getDay()]}</span></button>`}
   const pct=it.length?dn/it.length:0;const C=2*Math.PI*22;
   const nd=new Date(),nowM=d===TODAY?nd.getHours()*60+nd.getMinutes():null;
-  const active=nowM==null?null:it.find(x=>nowM>=x.time&&nowM<x.end);
+  const active=nowM==null?null:it.find(x=>x.segs.some(([p,q])=>nowM>=p&&nowM<q));
   const nextI=nowM==null||active?-1:it.findIndex(x=>x.time>nowM);
   const nowLine=`<div class="nowline"><span>${hm(nowM||0)}</span></div>`;
   const rowsA=it.map((x,i)=>[x.time,(i===nextI&&i>0?nowLine:'')+`<div class="row ${x.mark==='o'?'done':''} ${x===active?'now':''}">
-      <div class="tm">${hm(x.time)}<br>${hm(x.end)}</div><div class="cb" style="background:${x.s.color}"></div>
+      <div class="tm">${hm(x.time)}<br>${hm(x.segs[0][1])}</div><div class="cb" style="background:${x.s.color}"></div>
       <div class="tx"><div class="nm">${esc(x.s.name)}</div><div class="rg">${esc(x.label)}</div></div>
       <div class="hr">${hrs(x.mins)}</div>
       <button class="mk ${x.mark}" data-act="mark" data-id="${x.s.id}" data-date="${d}">${markSym(x.mark)}</button></div>`]);
+  it.forEach(x=>x.segs.slice(1).forEach(([t0,t1])=>rowsA.push([t0,`<div class="row ${x.mark==='o'?'done':''} ${x===active&&nowM>=t0&&nowM<t1?'now':''}">
+      <div class="tm">${hm(t0)}<br>${hm(t1)}</div><div class="cb" style="background:${x.s.color}"></div>
+      <div class="tx"><div class="nm">${esc(x.s.name)} <span class="ctn">이어서</span></div><div class="rg">${esc(x.label)}</div></div>
+      <div class="hr"></div><span class="mk" style="visibility:hidden"></span></div>`])));
   if(it.length)mealsOn().forEach(m=>rowsA.push([m.time-.5,`<div class="row meal"><div class="tm">${hm(m.time)}<br>${hm(m.time+m.mins)}</div><div class="cb">🍚</div><div class="tx"><div class="nm" style="font-size:15px">${m.n} 식사</div></div></div>`]));
   const rows=rowsA.sort((p,q)=>p[0]-q[0]).map(r=>r[1]).join('');
   // overdue
