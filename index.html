@@ -439,6 +439,7 @@ function save(){PC.clear();stamp();try{localStorage.setItem(KEY,JSON.stringify(S
 function saveUI(){stamp();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const sub=id=>S.subjects.find(x=>x.id===id);
 const chk=id=>S.checks[id]||(S.checks[id]={});
+const dayAmt=(s,d)=>s.mode!=='period'&&s.ovm&&s.ovm[d]!=null&&s.mins>0?s.daily*s.ovm[d]/s.mins:s.daily;
 const markAmt=(m,daily)=>m==='o'?daily:m==='t'?daily/2:0;
 
 /* plan: which dates a subject occupies */
@@ -448,16 +449,15 @@ function plan(s){
 }
 function planRaw(s){let p;
   const ch=S.checks[s.id]||{}; let before=0;
-  for(const d in ch) if(d<s.start) before+=markAmt(ch[d],s.daily);
+  for(const d in ch) if(d<s.start) before+=markAmt(ch[d],dayAmt(s,d));
   before+=s.pre||0;
   before=Math.min(before,s.total);
   const rem=Math.max(0,s.total-before);
-  const n=Math.max(1,Math.ceil(rem/s.daily-1e-9));
-  const dates=[],idx={}; let d=s.start,g=0;
-  while(dates.length<n&&g<3000){if(isStudy(s.days,d)){idx[d]=dates.length;dates.push(d)}d=addD(d,1);g++}
-  p={before,dates,idx,end:dates[dates.length-1]};return p;
+  const dates=[],idx={},cum=[]; let d=s.start,g=0,acc=0;
+  while((dates.length===0||acc<rem-1e-9)&&g<3000){if(isStudy(s.days,d)){idx[d]=dates.length;dates.push(d);cum.push(acc);acc+=Math.max(1e-6,dayAmt(s,d))}d=addD(d,1);g++}
+  p={before,dates,idx,cum,end:dates[dates.length-1]};return p;
 }
-function doneAll(s){const ch=S.checks[s.id]||{};let t=s.pre||0;for(const d in ch)t+=markAmt(ch[d],s.daily);return Math.min(t,s.total)}
+function doneAll(s){const ch=S.checks[s.id]||{};let t=s.pre||0;for(const d in ch)t+=markAmt(ch[d],dayAmt(s,d));return Math.min(t,s.total)}
 function rangeTxt(s,from,to){
   const a=Math.floor(from)+1,b=Math.ceil(to);const r=a>=b?String(b):a+'~'+b;const u=(s.unit||'').trim();
   if(/^p\.?$/i.test(u))return 'p.'+r; return r+u;
@@ -466,15 +466,15 @@ const dayTime=(s,d)=>s.ov&&s.ov[d]!=null?s.ov[d]:s.time;
 const dayMins=(s,d)=>s.ovm&&s.ovm[d]!=null?s.ovm[d]:s.mins;
 function itemFor(s,date){
   const p=plan(s);const k=p.idx[date];if(k===undefined)return null;
-  const from=p.before+k*s.daily,to=Math.min(s.total,from+s.daily);
+  const from=p.before+p.cum[k],to=Math.min(s.total,from+dayAmt(s,date));
   return {s,date,k,from,to,label:rangeTxt(s,from,to),time:dayTime(s,date),ov:!!(s.ov&&s.ov[date]!=null||s.ovm&&s.ovm[date]!=null),mins:dayMins(s,date),end:dayTime(s,date)+dayMins(s,date),mark:(S.checks[s.id]||{})[date]||''};
 }
 function itemsOn(date){return S.subjects.map(s=>itemFor(s,date)).filter(Boolean).sort((a,b)=>a.time-b.time||a.s.name.localeCompare(b.s.name))}
 function projEnd(s){
   const rem=s.total-doneAll(s); if(rem<=1e-9) return {done:true};
   const ch=S.checks[s.id]||{}; let st=s.start>TODAY?s.start:TODAY; if(st===TODAY&&ch[TODAY]) st=addD(TODAY,1);
-  const n=Math.ceil(rem/s.daily-1e-9); let d=st,c=0,g=0,last=st;
-  while(c<n&&g<3000){if(isStudy(s.days,d)){c++;last=d}d=addD(d,1);g++}
+  let d=st,c=0,g=0,last=st;
+  while(c<rem-1e-9&&g<3000){if(isStudy(s.days,d)){c+=Math.max(1e-6,dayAmt(s,d));last=d}d=addD(d,1);g++}
   return {date:last,rem};
 }
 /* overlap: other bands that collide with subject s (placed at start/time) on any shared day */
