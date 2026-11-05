@@ -147,6 +147,11 @@ main{padding:0 14px}
 .wcol{position:relative;border-right:1px solid var(--line2)}
 .wcol:last-child{border-right:0}
 .wcol.today{background:var(--todayW)}
+.mlab{flex:0 0 74px;font-size:14px;font-weight:600}
+.meal-row{margin-bottom:6px}.meal-row .inp{flex:1}
+.wmeal{position:absolute;left:0;right:0;z-index:0;background:repeating-linear-gradient(135deg,var(--line2) 0 6px,transparent 6px 12px);border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);font-size:11px;color:var(--sub);padding:2px 4px;overflow:hidden;white-space:nowrap;pointer-events:none}
+.row.meal{background:var(--line2);border-radius:12px;opacity:.9}
+.row.meal .cb{background:none!important;font-size:18px;display:grid;place-items:center;width:auto}
 .wblk{position:absolute;border-radius:7px;padding:3px 5px;overflow:hidden;font-size:11px;line-height:1.25;border-left:4px solid;display:flex;gap:3px}
 .wblk .tx{flex:1;min-width:0}
 .wblk .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -395,7 +400,9 @@ function textOn(hex){const h=hex.replace('#','');const n=parseInt(h,16);const r=
 function defState(){return {exams:[],subjects:[],checks:{},cfg:{dayStart:6,dayEnd:24,rowH:270},ui:{view:'month'}}}
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.subjects)){const d=defState();return {...d,...s,cfg:{...d.cfg,...s.cfg},ui:{...d.ui,...s.ui}}}}catch(e){}return defState()}
 let S=load();
-S.subjects.forEach(x=>{x.days=normDays(x.days);if(!(x.pre>0))x.pre=0});if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];
+S.subjects.forEach(x=>{x.days=normDays(x.days);if(!(x.pre>0))x.pre=0});if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
+if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
+const mealsOn=()=>(S.cfg.meals||[]).filter(m=>m.time!=null).sort((a,b)=>a.time-b.time);
 const palVis=()=>{const v=PALETTE.filter(c=>!S.cfg.hiddenColors.includes(c));return v.length?v:PALETTE};
 const PC=new Map();
 // everything except S.ui (view/month/etc.) is synced; S.at = time of the last real change
@@ -677,7 +684,9 @@ function renderWeek(){
     // lanes for overlaps
     const lanes=[];it.forEach(x=>{let l=lanes.findIndex(e=>e<=x.time);if(l<0){l=lanes.length;lanes.push(0)}lanes[l]=x.end;x.lane=l});
     const L=Math.max(1,lanes.length);
-    cols+=`<div class="wcol ${d===TODAY?'today':''}" style="height:${H}px;background-image:${bg}">`+it.map(x=>{
+    const meals=mealsOn().filter(m=>m.time<b*60&&m.time+m.mins>a*60).map(m=>{const t0=Math.max(m.time,a*60),t1=Math.min(m.time+m.mins,b*60);
+      return `<div class="wmeal" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">🍚 ${m.n}</div>`}).join('');
+    cols+=`<div class="wcol ${d===TODAY?'today':''}" style="height:${H}px;background-image:${bg}">`+meals+it.map(x=>{
       const top=(clamp(x.time,a*60,b*60)-a*60)/60*HP,ht=Math.max(22,Math.min(x.mins,b*60-x.time)/60*HP-2);
       return `<div class="wblk" data-id="${x.s.id}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.38)};border-color:${x.s.color}">
         <div class="tx"><div class="nm">${esc(x.s.name)}</div>${ht>34?`<div class="rg">${esc(x.label)}</div>`:''}${ht>50?`<div class="rg">${hm(x.time)}~${hm(x.end)}</div>`:''}</div></div>`}).join('')+`</div>`;
@@ -704,11 +713,13 @@ function renderDay(){
   const active=nowM==null?null:it.find(x=>nowM>=x.time&&nowM<x.end);
   const nextI=nowM==null||active?-1:it.findIndex(x=>x.time>nowM);
   const nowLine=`<div class="nowline"><span>${hm(nowM||0)}</span></div>`;
-  const rows=it.map((x,i)=>(i===nextI&&i>0?nowLine:'')+`<div class="row ${x.mark==='o'?'done':''} ${x===active?'now':''}">
+  const rowsA=it.map((x,i)=>[x.time,(i===nextI&&i>0?nowLine:'')+`<div class="row ${x.mark==='o'?'done':''} ${x===active?'now':''}">
       <div class="tm">${hm(x.time)}<br>${hm(x.end)}</div><div class="cb" style="background:${x.s.color}"></div>
       <div class="tx"><div class="nm">${esc(x.s.name)}</div><div class="rg">${esc(x.label)}</div></div>
       <div class="hr">${hrs(x.mins)}</div>
-      <button class="mk ${x.mark}" data-act="mark" data-id="${x.s.id}" data-date="${d}">${markSym(x.mark)}</button></div>`).join('');
+      <button class="mk ${x.mark}" data-act="mark" data-id="${x.s.id}" data-date="${d}">${markSym(x.mark)}</button></div>`]);
+  if(it.length)mealsOn().forEach(m=>rowsA.push([m.time-.5,`<div class="row meal"><div class="tm">${hm(m.time)}<br>${hm(m.time+m.mins)}</div><div class="cb">🍚</div><div class="tx"><div class="nm" style="font-size:15px">${m.n} 식사</div></div></div>`]));
+  const rows=rowsA.sort((p,q)=>p[0]-q[0]).map(r=>r[1]).join('');
   // overdue
   const od=[];for(let i=1;i<=21;i++){const x=addD(TODAY,-i);itemsOn(x).forEach(t=>{if(t.mark!=='o')od.push(t)})}
   const exs=examsOn(d);
@@ -873,6 +884,9 @@ function openSettings(){
    <div class="fld"><label>폰·탭 동기화</label>${syncBox()}</div>
    <div class="g2"><div class="fld"><label>하루 시작 시각</label><select class="inp" id="sA">${opt(S.cfg.dayStart,0,12)}</select></div>
    <div class="fld"><label>하루 끝 시각</label><select class="inp" id="sB">${opt(S.cfg.dayEnd,14,24)}</select></div></div>
+   <div class="fld"><label>식사 시간 <span class="hint" style="font-weight:400">(비워 두면 표시 안 함)</span></label>
+    ${S.cfg.meals.map((m,i)=>`<div class="inrow meal-row"><span class="mlab">🍚 ${m.n}</span><input class="inp" type="time" step="600" id="mT${i}" value="${m.time==null?'':hm(m.time)}">
+     <select class="inp" id="mM${i}">${[20,30,40,60,90].map(v=>`<option value="${v}" ${v===m.mins?'selected':''}>${v<60?v+'분':v===60?'1시간':'1시간 30분'}</option>`).join('')}</select></div>`).join('')}</div>
    <div class="fld"><label>테마 색상</label><div class="hive">${honeycomb()}<div class="hivePrev" id="hivePrev"></div></div></div>
    <div class="fld"><label>화면 모드</label><div class="seg3 small">${[['system','기기 설정'],['light','밝게'],['dark','어둡게']].map(([k,v])=>`<button data-act="pickMode" data-k="${k}" class="${(S.cfg.mode||'system')===k?'on':''}">${v}</button>`).join('')}</div></div>
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
@@ -972,7 +986,7 @@ function onRemote(snap){
 }
 function adopt(d){try{const x=JSON.parse(d.json);const b=defState();const ui=S.ui;S={...b,...x,cfg:{...b.cfg,...x.cfg},ui,at:d.at};
   S.subjects.forEach(v=>{v.days=normDays(v.days);if(!(v.pre>0))v.pre=0});
-  if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];
+  if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
   PC.clear();LASTJ=bodyJ();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
   if(typeof applyTheme==='function')applyTheme();const y=scrollY;render();scrollTo({top:y});setSync('☁ 동기화됨')}catch(e){}}
 function applyPending(){if(SY.pending&&!drag&&!hold&&M.classList.contains('hidden')){const d=SY.pending;SY.pending=null;if(d.at>(S.at||0))adopt(d)}}
@@ -1067,6 +1081,7 @@ document.addEventListener('click',e=>{
     case 'pickTheme':S.cfg.theme=el.dataset.k;saveUI();applyTheme();SH.querySelectorAll('[data-act=pickTheme]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'pickMode':S.cfg.mode=el.dataset.k;saveUI();applyTheme();SH.querySelectorAll('[data-act=pickMode]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'saveSettings':{const A=+fv('sA'),B=+fv('sB');if(B-A<4)return toast('시간 범위가 너무 좁아요');S.cfg.dayStart=A;S.cfg.dayEnd=B;
+      S.cfg.meals.forEach((m,i)=>{const v=fv('mT'+i);m.time=/^\d{1,2}:\d{2}/.test(v)?(+v.slice(0,2))*60+(+v.slice(3,5)):null;m.mins=+fv('mM'+i)||m.mins});
       S.subjects.forEach(s=>{s.mins=Math.min(s.mins,(B-A)*60);s.time=clamp(s.time,A*60,B*60-s.mins)});save();closeModal();render();break}
     case 'export':exportBackup();break;
     case 'fbConnect':{const c=parseCfg(document.getElementById('fbCfg').value);if(!c||!c.apiKey||!c.projectId)return toast('firebaseConfig 내용을 그대로 붙여넣어 주세요');
