@@ -169,6 +169,9 @@ main{padding:0 14px}
 .wblk *{pointer-events:none}
 .wblk.hold{transform:scale(1.03);transition:transform .35s}
 .wblk.lift{z-index:6;will-change:transform;opacity:.9;box-shadow:0 0 0 2px var(--ink),0 8px 18px rgba(0,0,0,.28)}
+.ovfbar{margin-top:10px;background:rgba(229,83,75,.1);color:var(--red);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:600}
+.ovfbar small{display:block;font-weight:400;color:var(--sub);font-size:12px;margin-top:2px}
+.ovft{display:block;margin:2px auto 0;width:max-content;background:var(--red);color:#fff;border-radius:6px;font-size:10px;font-weight:800;padding:0 5px;line-height:16px}
 .wblk .ctn{font-weight:600;opacity:.75;font-size:.92em}
 .row .ctn{font-weight:600;color:var(--accent,#3f6f63);font-size:13px}
 .wblk.ghost{pointer-events:none;z-index:4;background:transparent!important;border:2px dashed var(--ink);opacity:.55}
@@ -222,6 +225,8 @@ table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;color:var(--sub);font-weight:600;font-size:13px;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 td{padding:10px 8px;border-bottom:1px solid var(--line2);white-space:nowrap;vertical-align:middle}
 td.nmc{white-space:normal;min-width:120px;font-weight:600}
+.exw{font-size:12px;font-weight:700;color:var(--red);margin-top:3px}
+.exbadge{font-size:12.5px;font-weight:700;color:var(--red);background:rgba(229,83,75,.1);border-radius:8px;padding:5px 9px}
 .hdl{display:inline-grid;place-items:center;width:40px;height:34px;margin:0 -4px 0 auto;color:var(--sub);opacity:.6;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;vertical-align:middle;border-radius:8px}
 .hdl:active{background:var(--line2)}
 tbody tr{transition:transform .15s}
@@ -313,6 +318,10 @@ tbody tr.lrow{transition:none;position:relative;z-index:5;background:var(--card)
 .tip{position:fixed;z-index:60;background:var(--tipbg);color:var(--tipfg);font-size:13px;padding:6px 10px;border-radius:9px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-130%)}
 #toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:var(--tipbg);color:var(--tipfg);padding:10px 16px;border-radius:12px;font-size:14px;z-index:70;opacity:0;transition:opacity .2s;pointer-events:none}
 #toast.on{opacity:1}
+#toast.u{pointer-events:auto;display:flex;align-items:center;gap:12px;padding:8px 8px 8px 16px}
+#toast.u{max-width:calc(100vw - 32px);white-space:nowrap}
+#toast.u span{overflow:hidden;text-overflow:ellipsis}
+#toast .undo{white-space:nowrap;flex:none;background:transparent;border:0;color:#9fe0b4;font-weight:800;font-size:14px;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:inherit}
 
 @media (max-width:700px){
   :root{--gut:24px}
@@ -411,7 +420,7 @@ const DOW='일월화수목금토';
 const md=s=>{const d=pd(s);return (d.getMonth()+1)+'/'+d.getDate()};
 const mdw=s=>md(s)+'('+DOW[dow(s)]+')';
 const monday=s=>addD(s,-((dow(s)+6)%7));
-const hm=m=>pad(Math.floor(m/60))+':'+pad(m%60);
+const hm=m=>m>1440?'+'+pad(Math.floor(m/60)-24)+':'+pad(m%60):pad(Math.floor(m/60))+':'+pad(m%60);
 const hrs=m=>(Math.round(m/6)/10)+'h';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
@@ -441,7 +450,8 @@ const PC=new Map();
 const bodyJ=()=>{const {ui,at,...r}=S;return JSON.stringify(r)};
 let LASTJ=bodyJ();
 function stamp(){const j=bodyJ();if(j!==LASTJ){LASTJ=j;S.at=Date.now();schedulePush()}}
-function save(){PC.clear();stamp();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('저장에 실패했어요 (저장공간 확인)')}}
+const ubody=()=>{const {ui,at,...r}=S;return JSON.stringify(r)};let UNDO=null,UNDOING=0,UJ=ubody();
+function save(){const uj=ubody();if(uj!==UJ&&!UNDOING)UNDO={j:UJ,t:Date.now()};UJ=uj;PC.clear();stamp();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('저장에 실패했어요 (저장공간 확인)')}}
 function saveUI(){stamp();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const sub=id=>S.subjects.find(x=>x.id===id);
 const chk=id=>S.checks[id]||(S.checks[id]={});
@@ -772,7 +782,7 @@ function renderWeek(){
   const bg=`repeating-linear-gradient(to bottom,var(--line2) 0,var(--line2) 1px,transparent 1px,transparent ${HP}px)`;
   for(let i=0;i<7;i++){
     const d=addD(ws,i);const it=itemsOn(d);const dn=it.filter(x=>x.mark==='o').length;
-    head+=`<div class="${d===TODAY?'today':''}" data-act="gotoDay" data-date="${d}">${DOW[dow(d)]}<b>${pd(d).getDate()}</b>${examsOn(d).map(e=>`<span class="etag">${esc(e.name)}</span>`).join('')}</div>`;
+    head+=`<div class="${d===TODAY?'today':''}" data-act="gotoDay" data-date="${d}">${DOW[dow(d)]}<b>${pd(d).getDate()}</b>${overBy(it)?'<span class="ovft">넘침</span>':''}${examsOn(d).map(e=>`<span class="etag">${esc(e.name)}</span>`).join('')}</div>`;
     // lanes for overlaps
     const lanes=[];it.forEach(x=>{let l=lanes.findIndex(e=>e<=x.time);if(l<0){l=lanes.length;lanes.push(0)}lanes[l]=x.end;x.lane=l});
     const L=Math.max(1,lanes.length);
@@ -792,6 +802,8 @@ function renderWeek(){
   const sc=V.querySelector('.wscroll'),tc=V.querySelector('.wcol.today');
   if(sc&&tc&&sc.scrollWidth>sc.clientWidth)sc.scrollLeft=Math.max(0,tc.offsetLeft-44-tc.offsetWidth);
 }
+const overBy=it=>it.length?Math.max(0,Math.max(...it.map(x=>x.end))-S.cfg.dayEnd*60):0;
+const durTxt=m=>`${Math.floor(m/60)?Math.floor(m/60)+'시간 ':''}${m%60?m%60+'분':''}`.trim();
 const markSym=m=>m==='o'?'○':m==='t'?'△':m==='x'?'×':'';
 const nextMark=m=>({'':'o',o:'t',t:'x',x:''})[m||''];
 
@@ -830,6 +842,7 @@ function renderDay(){
       <div class="meta"><span>공부 ${hrs(mins).replace('h','시간')}</span><span>${it.length}개 항목</span>${exs.length?`<span style="color:var(--red);font-weight:700">📌 ${exs.map(e=>esc(e.name)).join(', ')}</span>`:''}</div>
       <div class="ring"><svg width="54" height="54" viewBox="0 0 54 54"><circle cx="27" cy="27" r="22" fill="none" stroke="var(--line2)" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="var(--brand)" stroke-width="5" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 27 27)"/></svg><b>${dn}/${it.length}</b></div>
       ${d!==TODAY?'<button class="btn" data-act="dToday">오늘로</button>':''}</div>
+    ${overBy(it)?`<div class="ovfbar">⚠ 계획이 ${pad(S.cfg.dayEnd)}:00을 <b>${durTxt(overBy(it))}</b> 넘어요<small>공부 시간을 줄이거나 과목을 다른 날로 옮겨 보세요</small></div>`:''}
     <div style="margin-top:10px">${rows||'<div class="empty">이 날은 계획된 공부가 없어요.</div>'}</div>
     <div class="foot"><span>${dn} / ${it.length} 완료</span><span>공부 ${hrs(mins)}</span></div>
    </div>
@@ -883,11 +896,14 @@ document.addEventListener('pointerup',endList);document.addEventListener('pointe
 function renderList(){
   const arr=listOrder();
   const lateN=arr.filter(s=>{const p=projEnd(s);return !p.done&&p.date>plan(s).end}).length;
+  const fx=[...S.exams].filter(e=>e.date>=TODAY).sort((a,b)=>a.date.localeCompare(b.date))[0];
+  const exLate=s=>{if(!fx)return false;const pe=projEnd(s);if(pe.done)return false;const e=pe.date>plan(s).end?pe.date:plan(s).end;return e>fx.date};
+  const exN=arr.filter(exLate).length;
   const rows=arr.map(s=>{
     const p=plan(s),pe=projEnd(s);const done=doneAll(s);const pct=Math.round(done/s.total*100);
     const late=!pe.done&&pe.date>p.end;
     const endTxt=pe.done?`<span class="ok">완료 ✓</span>`:late?`<span class="late">${md(pe.date)} (계획 ${md(p.end)})</span>`:`<span class="ok">${md(p.end)}</span>`;
-    return `<tr data-id="${s.id}"><td class="nmc"><span class="sw" style="background:${s.color}"></span>${esc(s.name)}</td>
+    return `<tr data-id="${s.id}"><td class="nmc"><span class="sw" style="background:${s.color}"></span>${esc(s.name)}${exLate(s)?`<div class="exw">⚠ ${esc(fx.name)}(${md(fx.date)})보다 늦게 끝나요</div>`:''}</td>
       <td class="rem">${fmtN(Math.round((s.total-done)*10)/10)}${esc(s.unit||'')} <span class="hint">/ ${fmtN(s.total)}</span><div class="minibar"><i style="width:${pct}%;background:${s.color}"></i></div></td>
       <td class="st">${md(p.dates[0])}</td><td class="en">${endTxt}</td>
       <td class="hint cfgc">${fmtN(s.daily)}${esc(s.unit||'')}/일 · ${daysLabel(s.days)} · ${hm(s.time)}~${hm(s.time+s.mins)}</td>
@@ -895,6 +911,7 @@ function renderList(){
         <button class="btn sm" data-act="editSub" data-id="${s.id}">수정</button><button class="btn sm danger" data-act="delSub" data-id="${s.id}">삭제</button><span class="hdl" title="끌어서 순서 바꾸기"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M1.5 1.5h13M1.5 6h13M1.5 10.5h13"/></svg></span></div></td></tr>`}).join('');
   V.innerHTML=`<div class="card">
     <div class="toolbar wrap" style="margin:0 0 6px"><div class="sec-title" style="margin:0;white-space:nowrap">과목 리스트</div><div class="spacer"></div>
+      ${exN?`<span class="exbadge">⚠ 첫 시험 전에 못 끝나는 과목 ${exN}개</span>`:''}
       ${lateN?`<button class="btn" data-act="reschedAll">밀린 ${lateN}과목 오늘부터 재배치</button>`:''}
       <button class="btn pri" data-act="newSub">+ 과목 추가</button></div>
     ${arr.length?`<div class="tblwrap"><table><thead><tr><th>과목</th><th>남은 양</th><th>시작</th><th>끝나는 날</th><th>설정</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
@@ -1145,7 +1162,7 @@ function onRemote(snap){
 function adopt(d){try{const x=JSON.parse(d.json);const b=defState();const ui=S.ui;S={...b,...x,cfg:{...b.cfg,...x.cfg},ui,at:d.at};
   S.subjects.forEach(v=>{v.days=normDays(v.days);if(!(v.pre>0))v.pre=0});
   if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
-  PC.clear();LASTJ=bodyJ();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+  PC.clear();LASTJ=bodyJ();UJ=ubody();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
   if(typeof applyTheme==='function')applyTheme();const y=scrollY;render();scrollTo({top:y});setSync('☁ 동기화됨')}catch(e){}}
 function applyPending(){if(SY.pending&&!drag&&!hold&&M.classList.contains('hidden')){const d=SY.pending;SY.pending=null;if(d.at>(S.at||0))adopt(d)}}
 async function pushNow(){
@@ -1214,6 +1231,7 @@ document.addEventListener('click',e=>{
   const el=e.target.closest('[data-act]');if(!el)return;const a=el.dataset.act,id=el.dataset.id;
   const go=(fn)=>{fn();saveUI();render()};
   switch(a){
+    case 'undo':undo();break;
     case 'newSub':openSubject(null);break;
     case 'editSub':openSubject(id);break;
     case 'saveSub':saveSubject();break;
@@ -1276,7 +1294,12 @@ document.getElementById('importFile').addEventListener('change',e=>{
   r.readAsText(f);e.target.value='';
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();if(e.key==='Enter'&&!M.classList.contains('hidden')&&e.target.tagName==='INPUT'){const b=SH.querySelector('.btn.pri');if(b)b.click()}});
-let toastT;function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on'),2200)}
+let toastT;function toast(t){const el=document.getElementById('toast');const u=UNDO&&Date.now()-UNDO.t<1500;
+  if(u){el.innerHTML=`<span>${esc(t)}</span><button class="undo" data-act="undo">되돌리기</button>`}else el.textContent=t;
+  el.classList.toggle('u',!!u);el.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on','u'),u?5000:2200)}
+function undo(){if(!UNDO)return;let o;try{o=JSON.parse(UNDO.j)}catch(e){return}UNDO=null;
+  Object.keys(S).forEach(k=>{if(k!=='ui'&&k!=='at')delete S[k]});Object.assign(S,o);
+  UNDOING=1;save();UNDOING=0;render();const el=document.getElementById('toast');el.classList.remove('u');toast('되돌렸어요')}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ds(new Date())!==TODAY)render()});
 S.ui.view='day';S.ui.day=TODAY; // always open on today's daily schedule
 S.ui.seen=1;
