@@ -1218,7 +1218,7 @@ document.getElementById('importFile').addEventListener('change',e=>{
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();if(e.key==='Enter'&&!M.classList.contains('hidden')&&e.target.tagName==='INPUT'){const b=SH.querySelector('.btn.pri');if(b)b.click()}});
 let toastT;function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on'),2200)}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ds(new Date())!==TODAY)render()});
-if(!S.ui.seen&&innerWidth<700)S.ui.view='day'; // phone opens on the daily checklist the first time
+S.ui.view='day';S.ui.day=TODAY; // always open on today's daily schedule
 S.ui.seen=1;
 render();
 startSync();
