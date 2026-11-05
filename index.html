@@ -232,6 +232,12 @@ td.nmc{white-space:normal;min-width:120px;font-weight:600}
 .fld>label{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;color:var(--sub);margin-bottom:5px;font-weight:600}
 .inp{width:100%;height:42px;min-width:0;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--soft);font-size:16px}
 .inp:focus{outline:2px solid var(--brandSoft);border-color:var(--brand)}
+.radios{display:flex;gap:8px}
+.rad{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:40px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-weight:700;color:var(--sub);cursor:pointer}
+.rad input{accent-color:var(--brand);width:16px;height:16px;margin:0}
+.rad:has(input:checked){border-color:var(--brand);color:var(--ink);background:var(--brandSoft)}
+.mP{display:none!important}
+.period .mP{display:grid!important}.period .mA{display:none!important}
 .g2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .inrow{display:flex;gap:6px;align-items:center}
@@ -781,7 +787,7 @@ M.addEventListener('click',e=>{if(e.target===M&&M.dataset.down)closeModal();M.da
 let F=null;
 function openSubject(id){
   const s=id?sub(id):null;
-  F=s?{...s,days:[...s.days]}:{name:'',color:palVis()[(S.subjects.length*7)%palVis().length],total:'',daily:'',unit:'',mins:60,days:PRESET.daily.slice(),start:TODAY,time:null,pre:0};
+  F=s?{...s,days:[...s.days],mode:s.mode||'amount',end:s.mode==='period'?plan(s).end:(s.end||'')}:{mode:'amount',end:'',name:'',color:palVis()[(S.subjects.length*7)%palVis().length],total:'',daily:'',unit:'',mins:60,days:PRESET.daily.slice(),start:TODAY,time:null,pre:0};
   const h=Math.floor(F.mins/60),m=F.mins%60;
   openModal(`<h3>${s?'과목 수정':'새 과목 추가'}</h3>
    <div class="fld"><label>과목명</label><input class="inp" id="fName" value="${esc(F.name)}" placeholder="예) 맹자강의 듣기"></div>
@@ -790,8 +796,15 @@ function openSubject(id){
     <div class="fld"><label>전체 분량</label><input class="inp" id="fTotal" type="number" inputmode="decimal" min="0" value="${F.total}" placeholder="예) 80"></div>
     <div class="fld"><label>이미 진행한 양</label><input class="inp" id="fDone" type="number" inputmode="decimal" min="0" value="${F.pre>0?fmtN(F.pre):''}" placeholder="없으면 빈칸"></div>
    </div>
+   <div class="fld"><div class="radios" id="fMode">
+    <label class="rad"><input type="radio" name="fMode" value="amount" ${F.mode!=='period'?'checked':''}><span>분량으로</span></label>
+    <label class="rad"><input type="radio" name="fMode" value="period" ${F.mode==='period'?'checked':''}><span>기간으로</span></label></div></div>
+   <div class="g2 mP">
+    <div class="fld"><label>시작일</label><input class="inp" id="fStartP" type="date" value="${F.start}"></div>
+    <div class="fld"><label>종료일</label><input class="inp" id="fEnd" type="date" value="${F.end||''}"></div>
+   </div>
    <div class="g2">
-    <div class="fld"><label>하루 공부량</label><input class="inp" id="fDaily" type="number" inputmode="decimal" min="0" value="${F.daily}" placeholder="예) 5"></div>
+    <div class="fld mA"><label>하루 공부량</label><input class="inp" id="fDaily" type="number" inputmode="decimal" min="0" value="${F.daily}" placeholder="예) 5"></div>
     <div class="fld"><label>단위</label><input class="inp" id="fUnit" value="${esc(F.unit)}" placeholder="회 / p / 강"></div>
    </div>
    <div class="g2">
@@ -800,13 +813,19 @@ function openSubject(id){
    <div class="fld"><label>공부하는 요일</label><div class="dayts" id="fDays">${[1,2,3,4,5,6,0].map(x=>`<button data-d="${x}" class="${F.days.includes(x)?'on':''} ${x===6?'sat':x===0?'sun':''}">${DOW[x]}</button>`).join('')}</div>
     <div class="presets" id="fPresets"><button data-p="daily">매일</button><button data-p="weekday">평일</button><button data-p="weekend">주말</button></div></div>
    <div class="g2">
-    <div class="fld"><label>시작일</label><input class="inp" id="fStart" type="date" value="${F.start}"></div>
+    <div class="fld mA"><label>시작일</label><input class="inp" id="fStart" type="date" value="${F.start}"></div>
     <div class="fld"><label>시작 시각 (선택)</label><input class="inp" id="fTime" type="time" step="600" value="${F.time==null?'':hm(F.time)}"></div>
    </div>
    <div class="preview" id="fPrev"></div>
    <div class="sheet-acts">${s?`<button class="btn danger" data-act="delSub" data-id="${s.id}">띠 삭제</button>`:''}<div class="spacer"></div>
      <button class="btn" data-act="close">취소</button><button class="btn pri" data-act="saveSub">확인</button></div>`);
   const upd=()=>{
+    if(F.mode==='period'){const t=num(fv('fTotal'));const pre=clamp(num(fv('fDone')),0,t);const st=fv('fStartP')||TODAY,en=fv('fEnd');const el=document.getElementById('fPrev');
+      if(!(t>0)||!en){el.textContent='전체 분량과 종료일을 넣으면 하루 공부량이 계산돼요.';return}
+      if(!F.days.length){el.textContent='공부할 요일을 하나 이상 골라 주세요.';return}
+      const n=studyDaysBetween(F.days,st,en);if(n<1){el.textContent='종료일이 시작일보다 뒤여야 하고, 그 사이에 공부하는 요일이 있어야 해요.';return}
+      const mins=num(fv('fH'))*60+num(fv('fM'));
+      el.innerHTML=`${pre>0?`남은 ${fmtN(t-pre)}${esc(fv('fUnit'))} · `:''}공부일 <b>${n}일</b> (${daysLabel(F.days)}) · 하루 <b>약 ${fmtN(Math.round((t-pre)/n*10)/10)}${esc(fv('fUnit'))}</b> · <b>${mdw(st)} ~ ${mdw(en)}</b> · 하루 ${Math.floor(mins/60)}시간 ${mins%60?mins%60+'분':''}`;return}
     const t=num(fv('fTotal')),d=num(fv('fDaily'));const pre=clamp(num(fv('fDone')),0,t);const mins=num(fv('fH'))*60+num(fv('fM'));const st=fv('fStart')||TODAY;
     const el=document.getElementById('fPrev');
     if(!(t>0&&d>0)){el.textContent='전체 분량과 하루 공부량을 넣으면 기간이 계산돼요.';return}
@@ -816,6 +835,11 @@ function openSubject(id){
     el.innerHTML=`${pre>0?`남은 ${fmtN(t-pre)}${esc(fv('fUnit'))} · `:''}공부일 <b>${n}일</b> (${daysLabel(F.days)}) · <b>${mdw(st)} ~ ${mdw(last)}</b> · 하루 ${Math.floor(mins/60)}시간 ${mins%60?mins%60+'분':''}`;
   };
   SH.oninput=upd;
+  const paintMode=()=>SH.classList.toggle('period',F.mode==='period');paintMode();
+  SH.querySelector('#fMode').onchange=e=>{const v=e.target.value;if(!v)return;
+    if(v==='period'){document.getElementById('fStartP').value=fv('fStart')||TODAY;if(!fv('fEnd')){const t=num(fv('fTotal')),d=num(fv('fDaily')),pre=num(fv('fDone'));if(t>0&&d>0){const st=fv('fStartP');let n=Math.max(1,Math.ceil((t-pre)/d-1e-9)),x=st,c=0,last=st,g=0;while(c<n&&g<3000){if(isStudy(F.days,x)){c++;last=x}x=addD(x,1);g++}document.getElementById('fEnd').value=last}}}
+    else document.getElementById('fStart').value=fv('fStartP')||fv('fStart');
+    F.mode=v;paintMode();upd()};
   const cbox=SH.querySelector('#fColors');
   // long-press a colour you added -> "−" badges appear to delete it
   let lp=null,justLong=false;
@@ -841,8 +865,13 @@ function colorBtns(){const on=c=>c.toLowerCase()===String(F.color).toLowerCase()
   return pv.map(cust).join('')+(cc.length||extra.length?'<span class="sep"></span>'+cc.map(cust).join('')+extra.map(sw).join(''):'')+
   `<button type="button" class="add" data-act="bandHive" title="내 색 추가">+</button>`+
   (S.cfg.hiddenColors.length?`<button type="button" class="restore" data-act="restoreColors">기본 색 되돌리기</button>`:'')}
+function studyDaysBetween(days,a,b){if(!a||!b||b<a)return 0;let n=0,x=a,g=0;while(x<=b&&g<4000){if(isStudy(days,x))n++;x=addD(x,1);g++}return n}
 function saveSubject(){
-  const name=fv('fName'),total=num(fv('fTotal')),daily=num(fv('fDaily'));
+  const period=F.mode==='period';const name=fv('fName'),total=num(fv('fTotal'));let daily=num(fv('fDaily'));
+  if(period){if(!(total>0))return toast('전체 분량을 입력해 주세요');const en=fv('fEnd'),st=fv('fStartP')||TODAY;if(!en)return toast('종료일을 골라 주세요');
+    if(!F.days.length)return toast('공부할 요일을 하나 이상 골라 주세요');
+    const n=studyDaysBetween(F.days,st,en);if(n<1)return toast('종료일은 시작일 뒤로, 공부하는 요일이 들어가게 골라 주세요');
+    const pre0=num(fv('fDone'));daily=Math.max(1e-6,(total-Math.min(pre0,total))/n);document.getElementById('fStart').value=st}
   let mins=Math.round(num(fv('fH'))*60+num(fv('fM')));
   if(!name)return toast('과목명을 입력해 주세요');
   if(!(total>0))return toast('전체 분량을 입력해 주세요');
@@ -854,7 +883,7 @@ function saveSubject(){
   const start=fv('fStart')||TODAY;const tv=fv('fTime');
   const isNew=!F.id;const id=F.id||uid();
   let time=tv?(+tv.slice(0,2))*60+(+tv.slice(3,5)):(isNew?null:F.time);
-  const o={id,name,color:F.color,total,daily,pre,unit:fv('fUnit'),mins,days:[...F.days].sort(),start,time:time??a*60};
+  const o={id,name,color:F.color,total,daily,pre,unit:fv('fUnit'),mins,days:[...F.days].sort(),start,time:time??a*60,mode:period?'period':'amount',end:period?fv('fEnd'):''};
   if(isNew)S.subjects.push(o);else Object.assign(sub(id),o);
   const so=sub(id);PC.clear();let moved=false;
   if(time==null){so.time=freeTime(so)}
