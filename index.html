@@ -236,6 +236,7 @@ td.nmc{white-space:normal;min-width:120px;font-weight:600}
 .inp{width:100%;height:42px;min-width:0;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--soft);font-size:16px}
 .inp:focus{outline:2px solid var(--brandSoft);border-color:var(--brand)}
 .g3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,.9fr);gap:8px}
+.req{color:#e5534b;font-style:normal;font-weight:800;margin-left:2px;font-size:12px}
 .mbox{margin:4px 0 14px}
 .trow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px}
 .trow .inrow.hm{gap:4px}.trow .inrow.hm .inp{flex:0 0 52px;padding:0 4px}.trow .inrow.hm span{font-size:13px}
@@ -822,10 +823,10 @@ function openSubject(id){
   F=s?{...s,days:[...s.days],mode:s.mode||'amount',end:s.mode==='period'?plan(s).end:(s.end||'')}:{mode:'amount',end:'',name:'',color:palVis()[(S.subjects.length*7)%palVis().length],total:'',daily:'',unit:'p',mins:60,days:PRESET.daily.slice(),start:TODAY,time:null,pre:0};
   const h=Math.floor(F.mins/60),m=F.mins%60;
   openModal(`<h3>${s?'과목 수정':'새 과목 추가'}</h3>
-   <div class="fld"><label>과목명</label><input class="inp" id="fName" value="${esc(F.name)}" placeholder="예) 맹자강의 듣기"></div>
-   <div class="fld"><label>색상</label><div class="colors" id="fColors">${colorBtns()}</div><div class="hive hidden" id="fHive"></div></div>
+   <div class="fld"><label>과목명<i class="req">*</i></label><input class="inp" id="fName" value="${esc(F.name)}" placeholder="예) 맹자강의 듣기"></div>
+   <div class="fld"><label>색상<i class="req">*</i></label><div class="colors" id="fColors">${colorBtns()}</div><div class="hive hidden" id="fHive"></div></div>
    <div class="g3">
-    <div class="fld"><label>전체 분량</label><input class="inp" id="fTotal" type="number" inputmode="decimal" min="0" value="${F.total}" placeholder="예) 80"></div>
+    <div class="fld"><label>전체 분량<i class="req">*</i></label><input class="inp" id="fTotal" type="number" inputmode="decimal" min="0" value="${F.total}" placeholder="예) 80"></div>
     <div class="fld"><label>이미 진행한 양</label><input class="inp" id="fDone" type="number" inputmode="decimal" min="0" value="${F.pre>0?fmtN(F.pre):''}" placeholder="0"></div>
     <div class="fld"><label>단위</label><select class="inp" id="fUnit">${unitOpts(F.unit)}</select></div>
    </div>
@@ -833,20 +834,20 @@ function openSubject(id){
     <div class="mtabs" id="fMode"><button type="button" data-m="amount">분량으로</button><button type="button" data-m="period">기간으로</button></div>
     <div class="mpanel">
      <div class="g2 mA">
-      <div class="fld"><label>하루 공부량</label><input class="inp" id="fDaily" type="number" inputmode="decimal" min="0" value="${F.daily}" placeholder="예) 5"></div>
-      <div class="fld"><label>시작일</label><input class="inp" id="fStart" type="date" value="${F.start}"></div>
+      <div class="fld"><label>하루 공부량<i class="req">*</i></label><input class="inp" id="fDaily" type="number" inputmode="decimal" min="0" value="${F.daily}" placeholder="예) 5"></div>
+      <div class="fld"><label>시작일<i class="req">*</i></label><input class="inp" id="fStart" type="date" value="${F.start}"></div>
      </div>
      <div class="g2 mP">
-      <div class="fld"><label>시작일</label><input class="inp" id="fStartP" type="date" value="${F.start}"></div>
-      <div class="fld"><label>종료일</label><input class="inp" id="fEnd" type="date" value="${F.end||''}"></div>
+      <div class="fld"><label>시작일<i class="req">*</i></label><input class="inp" id="fStartP" type="date" value="${F.start}"></div>
+      <div class="fld"><label>종료일<i class="req">*</i></label><input class="inp" id="fEnd" type="date" value="${F.end||''}"></div>
      </div>
     </div>
    </div>
    <div class="trow">
-    <div class="fld"><label>하루 소요시간</label><div class="inrow hm"><input class="inp" id="fH" type="number" inputmode="numeric" min="0" max="18" value="${h}"><span>시간</span><input class="inp" id="fM" type="number" inputmode="numeric" min="0" max="59" step="5" value="${m}"><span>분</span></div></div>
+    <div class="fld"><label>하루 소요시간<i class="req">*</i></label><div class="inrow hm"><input class="inp" id="fH" type="number" inputmode="numeric" min="0" max="18" value="${h}"><span>시간</span><input class="inp" id="fM" type="number" inputmode="numeric" min="0" max="59" step="5" value="${m}"><span>분</span></div></div>
     <div class="fld"><label>시작 시각 (선택)</label><input class="inp" id="fTime" type="time" step="600" value="${F.time==null?'':hm(F.time)}"></div>
    </div>
-   <div class="fld"><label>공부하는 요일</label><div class="dayts" id="fDays">${[1,2,3,4,5,6,0].map(x=>`<button data-d="${x}" class="${F.days.includes(x)?'on':''} ${x===6?'sat':x===0?'sun':''}">${DOW[x]}</button>`).join('')}</div>
+   <div class="fld"><label>공부하는 요일<i class="req">*</i></label><div class="dayts" id="fDays">${[1,2,3,4,5,6,0].map(x=>`<button data-d="${x}" class="${F.days.includes(x)?'on':''} ${x===6?'sat':x===0?'sun':''}">${DOW[x]}</button>`).join('')}</div>
     <div class="presets" id="fPresets"><button data-p="daily">매일</button><button data-p="weekday">평일</button><button data-p="weekend">주말</button></div></div>
    <div class="preview" id="fPrev"></div>
    <div class="sheet-acts">${s?`<button class="btn danger" data-act="delSub" data-id="${s.id}">띠 삭제</button>`:''}<div class="spacer"></div>
