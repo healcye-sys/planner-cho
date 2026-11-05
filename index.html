@@ -222,6 +222,10 @@ table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;color:var(--sub);font-weight:600;font-size:13px;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 td{padding:10px 8px;border-bottom:1px solid var(--line2);white-space:nowrap;vertical-align:middle}
 td.nmc{white-space:normal;min-width:120px;font-weight:600}
+.hdl{display:inline-grid;place-items:center;width:30px;height:30px;margin:-6px 4px -6px -6px;font-size:20px;color:var(--sub);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;vertical-align:middle;border-radius:8px}
+.hdl:active{background:var(--line2)}
+tbody tr{transition:transform .15s}
+tbody tr.lrow{transition:none;position:relative;z-index:5;background:var(--card);box-shadow:0 6px 16px rgba(0,0,0,.18);border-radius:10px}
 .sw{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-right:6px}
 .late{color:var(--red);font-weight:700}
 .ok{color:var(--green);font-weight:700}
@@ -836,14 +840,49 @@ function renderDay(){
 }
 
 /* ---- list ---- */
+function listOrder(){
+  const def=(a,b)=>plan(a).dates[0].localeCompare(plan(b).dates[0])||a.time-b.time;
+  const k=s=>s.ord!=null?s.ord:1e9;return [...S.subjects].sort(def).sort((a,b)=>k(a)-k(b));
+}
+/* new order -> study back-to-back in that order (meals skipped), from the earliest current start */
+function applyOrder(ids){
+  ids.forEach((id,i)=>{const s=sub(id);if(s)s.ord=i});
+  const act=ids.map(sub).filter(s=>s&&!projEnd(s).done&&plan(s).end>=TODAY);
+  if(!act.length)return;
+  let t=Math.min(...act.map(s=>s.time));
+  act.forEach(s=>{const sg=spanSegs(t,s.mins);s.time=sg[0][0];if(s.ov)s.ov={};t=sg[sg.length-1][1]});
+  PC.clear();save();render();
+  toast('순서대로 시작 시간을 다시 맞췄어요');
+}
+let LD=null;
+document.addEventListener('pointerdown',e=>{
+  const h=e.target.closest&&e.target.closest('.hdl');if(!h)return;
+  const tr=h.closest('tr');const tb=tr&&tr.parentElement;if(!tb)return;
+  e.preventDefault();e.stopPropagation();
+  const rows=[...tb.children];
+  LD={tr,tb,rows,y0:e.clientY,pid:e.pointerId,mids:rows.map(r=>{const b=r.getBoundingClientRect();return b.top+b.height/2}),idx:rows.indexOf(tr),to:rows.indexOf(tr),h:tr.getBoundingClientRect().height};
+  tr.classList.add('lrow');try{h.setPointerCapture(e.pointerId)}catch(_){}
+},true);
+document.addEventListener('pointermove',e=>{if(!LD||e.pointerId!==LD.pid)return;e.preventDefault();
+  const dy=e.clientY-LD.y0;LD.tr.style.transform=`translateY(${dy}px)`;
+  const cy=LD.mids[LD.idx]+dy;let to=0;LD.mids.forEach((m,i)=>{if(i!==LD.idx&&cy>m)to++});
+  if(to!==LD.to){LD.to=to;LD.rows.forEach((r,i)=>{if(i===LD.idx)return;
+    const sh=(LD.idx<to&&i>LD.idx&&i<=to)?-LD.h:(LD.idx>to&&i<LD.idx&&i>=to)?LD.h:0;r.style.transform=sh?`translateY(${sh}px)`:''})}
+},{passive:false});
+function endList(e){if(!LD||e.pointerId!==LD.pid)return;const d=LD;LD=null;
+  d.rows.forEach(r=>{r.style.transform='';r.classList.remove('lrow')});
+  if(e.type==='pointercancel'||d.to===d.idx)return;
+  const ids=d.rows.map(r=>r.dataset.id);const [m]=ids.splice(d.idx,1);ids.splice(d.to,0,m);applyOrder(ids);
+}
+document.addEventListener('pointerup',endList);document.addEventListener('pointercancel',endList);
 function renderList(){
-  const arr=[...S.subjects].sort((a,b)=>plan(a).dates[0].localeCompare(plan(b).dates[0])||a.time-b.time);
+  const arr=listOrder();
   const lateN=arr.filter(s=>{const p=projEnd(s);return !p.done&&p.date>plan(s).end}).length;
   const rows=arr.map(s=>{
     const p=plan(s),pe=projEnd(s);const done=doneAll(s);const pct=Math.round(done/s.total*100);
     const late=!pe.done&&pe.date>p.end;
     const endTxt=pe.done?`<span class="ok">완료 ✓</span>`:late?`<span class="late">${md(pe.date)} (계획 ${md(p.end)})</span>`:`<span class="ok">${md(p.end)}</span>`;
-    return `<tr><td class="nmc"><span class="sw" style="background:${s.color}"></span>${esc(s.name)}</td>
+    return `<tr data-id="${s.id}"><td class="nmc"><span class="hdl" title="끌어서 순서 바꾸기">≡</span><span class="sw" style="background:${s.color}"></span>${esc(s.name)}</td>
       <td class="rem">${fmtN(Math.round((s.total-done)*10)/10)}${esc(s.unit||'')} <span class="hint">/ ${fmtN(s.total)}</span><div class="minibar"><i style="width:${pct}%;background:${s.color}"></i></div></td>
       <td class="st">${md(p.dates[0])}</td><td class="en">${endTxt}</td>
       <td class="hint cfgc">${fmtN(s.daily)}${esc(s.unit||'')}/일 · ${daysLabel(s.days)} · ${hm(s.time)}~${hm(s.time+s.mins)}</td>
@@ -854,7 +893,7 @@ function renderList(){
       ${lateN?`<button class="btn" data-act="reschedAll">밀린 ${lateN}과목 오늘부터 재배치</button>`:''}
       <button class="btn pri" data-act="newSub">+ 과목 추가</button></div>
     ${arr.length?`<div class="tblwrap"><table><thead><tr><th>과목</th><th>남은 양</th><th>시작</th><th>끝나는 날</th><th>설정</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="hint" style="margin-top:10px"><span class="late">빨간색</span> = 체크가 밀려서 계획보다 늦게 끝날 예정 · <span class="ok">초록색</span> = 계획대로</div>`
+    <div class="hint" style="margin-top:10px">≡ 를 끌어 순서를 바꾸면 그 순서대로 시작 시간이 다시 맞춰져요<br><span class="late">빨간색</span> = 체크가 밀려서 계획보다 늦게 끝날 예정 · <span class="ok">초록색</span> = 계획대로</div>`
     :'<div class="empty">과목이 없어요. <b>+ 과목 추가</b>로 시작해 보세요.</div>'}
   </div>`;
 }
