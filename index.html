@@ -773,7 +773,7 @@ function renderDay(){
   const nowLine=`<div class="nowline"><span>${hm(nowM||0)}</span></div>`;
   const rowsA=it.map((x,i)=>[x.time,(i===nextI&&i>0?nowLine:'')+`<div class="row ${x.mark==='o'?'done':''} ${x===active?'now':''}">
       <div class="tm">${hm(x.time)}<br>${hm(x.end)}</div><div class="cb" style="background:${x.s.color}"></div>
-      <div class="tx"><div class="nm">${esc(x.s.name)}</div><div class="rg">${esc(x.label)}${x.ov?' · 이날만 시간 변경':''}</div></div>
+      <div class="tx"><div class="nm">${esc(x.s.name)}</div><div class="rg">${esc(x.label)}</div></div>
       <div class="hr">${hrs(x.mins)}</div>
       <button class="mk ${x.mark}" data-act="mark" data-id="${x.s.id}" data-date="${d}">${markSym(x.mark)}</button></div>`]);
   if(it.length)mealsOn().forEach(m=>rowsA.push([m.time-.5,`<div class="row meal"><div class="tm">${hm(m.time)}<br>${hm(m.time+m.mins)}</div><div class="cb">🍚</div><div class="tx"><div class="nm" style="font-size:15px">${m.n} 식사</div></div></div>`]));
