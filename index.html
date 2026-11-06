@@ -362,6 +362,12 @@ tbody tr.lrow{transition:none;position:relative;z-index:5;background:var(--card)
 .colors .add{width:32px;height:32px;border-radius:10px;cursor:pointer;padding:0;display:grid;place-items:center;border:2px dashed var(--line)!important;color:var(--sub);font-size:20px;background:none;position:relative;overflow:hidden}
 .colors .add input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
 .colors .sep{width:100%;height:0}
+.colors{display:block}.colors .pgrid{display:grid;grid-template-columns:repeat(13,minmax(0,26px));gap:6px;justify-content:start}.colors .pgrid+.pgrid{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.colors .pgrid button{width:auto;height:auto;aspect-ratio:1/1;border-radius:50%;border:0;padding:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.colors .pgrid button.pdot.on{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--ink)}
+.colors .pgrid .pmore{background:none;border:1.5px dashed var(--sub);color:var(--sub);font-size:16px;font-weight:700;display:grid;place-items:center;line-height:1}
+.colors .pcur{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--sub)}.colors .pcur button{width:26px;height:26px;border-radius:50%;border:0;box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--ink)}
+@media (min-width:700px){.colors .pgrid{grid-template-columns:repeat(13,minmax(0,30px))}}
 .colors .restore{display:none;white-space:nowrap;flex:none;height:32px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:12px}
 .colors.editing .restore{display:block}
 .dayts{display:grid;grid-template-columns:repeat(7,minmax(0,40px));gap:6px}
@@ -548,7 +554,12 @@ let S=load();
 S.subjects.forEach(x=>{x.days=normDays(x.days);if(!(x.pre>0))x.pre=0});if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
 if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
 const mealsOn=()=>(S.cfg.meals||[]).filter(m=>m.time!=null).sort((a,b)=>a.time-b.time);
-const palVis=()=>{const v=PALETTE.filter(c=>!S.cfg.hiddenColors.includes(c));return v.length?v:PALETTE};
+/* subject colours: 12 clearly different hues; row 1 = deepest, "+" opens lighter rows below */
+const hslHex=(h,s,l)=>{s/=100;l/=100;const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return '#'+[f(0),f(8),f(4)].map(x=>Math.round(x*255).toString(16).padStart(2,'0')).join('').toUpperCase()};
+const PAL=[[45,62],[55,71],[65,80],[70,88]].map(([sa,l])=>[0,24,36,48,80,130,165,195,215,245,275,330].map(h=>hslHex(h,sa,l)));
+const PAL_N=[hslHex(30,25,74),hslHex(30,35,85),hslHex(210,10,68),hslHex(210,12,82)];
+let palOpen=false;
+const palVis=()=>PAL[0];
 const PC=new Map();
 // everything except S.ui (view/month/etc.) is synced; S.at = time of the last real change
 const bodyJ=()=>{const {ui,at,...r}=S;return JSON.stringify(r)};
@@ -676,10 +687,16 @@ function resolveTime(s,start,want,dir){
   }
   return null;
 }
-function freeTime(s){const a=S.cfg.dayStart*60;
-  const m=dayMates(s,s.start);const want=m.length?Math.max(...m.map(o=>o.time+o.mins)):a; // right under the lowest band
-  let t=want+s.mins<=S.cfg.dayEnd*60?resolveTime(s,s.start,want,1):null;
-  if(t==null)t=resolveTime(s,s.start,a,1);return t==null?a:t}
+/* new subject with no start time: on its first study day, the first free gap after the first subject that fits
+   its study time (meals are skipped over); if none fits, right after the last subject.
+   It may run past the day-end time; the late-night dialog then asks before saving. */
+function freeTime(s){const a=S.cfg.dayStart*60,b=S.cfg.dayEnd*60;PC.clear();
+  const d=planRaw(s).dates[0]||s.start;const it=itemsOn(d).filter(x=>x.s.id!==s.id);
+  if(!it.length)return a;
+  const busy=it.flatMap(x=>x.segs);const free=t=>spanSegs(t,s.mins).every(([p,q])=>busy.every(([u,v])=>q<=u||p>=v));
+  const cands=[...new Set(it.map(x=>x.end).concat(mealsOn().map(m=>m.time+m.mins)))].map(t=>spanSegs(t,1)[0][0]).filter(t=>t>=it[0].time).sort((x,y)=>x-y);
+  for(const t of cands){const sg=spanSegs(t,s.mins);if(sg[sg.length-1][1]<=b&&free(t))return Math.round(t/10)*10}
+  return Math.round(spanSegs(Math.max(...it.map(x=>x.end)),1)[0][0]/10)*10}
 
 /* ========== header ========== */
 function renderHeader(){
@@ -1095,6 +1112,7 @@ function openSubject(id){
   {const r=id&&sub(id);if(r&&r.parent&&sub(r.parent))id=r.parent}
   const s=id?sub(id):null;
   F=s?{...s,days:[...s.days],mode:s.mode||'amount',end:s.mode==='period'?plan(s).end:(s.end||'')}:{mode:'amount',end:'',name:'',color:palVis()[(S.subjects.length*7)%palVis().length],total:'',daily:'',unit:'p',mins:60,days:PRESET.daily.slice(),start:TODAY,time:null,pre:0};
+  palOpen=[...PAL.slice(1).flat(),...PAL_N].some(c=>c.toLowerCase()===String(F.color).toLowerCase());
   const h=Math.floor(F.mins/60),m=F.mins%60;
   openModal(`<h3>${s?'과목 수정':'새 과목 추가'}</h3>
    <div class="fld"><label>과목명<i class="req">*</i></label><input class="inp" id="fName" value="${esc(F.name)}" placeholder="예) 맹자강의 듣기"></div>
@@ -1223,7 +1241,13 @@ function applyRounds(pid){const p=sub(pid);if(!p)return;const keep=new Set();con
       daily:per?Math.max(1e-6,p.total/Math.max(1,n)):r.daily,mins,time:r.time!=null?clamp(Math.round(r.time/10)*10,a*60,b*60-mins):p.time,days:[...r.days].sort(),autoStart:r.autoStart!==false};
     let x=r.id&&sub(r.id);if(x&&x.parent===pid)Object.assign(x,o);else{x={id:uid(),...o};S.subjects.push(x);r.id=x.id}keep.add(x.id)});
   S.subjects=S.subjects.filter(x=>x.parent!==pid||keep.has(x.id));PC.clear()}
-function colorBtns(){const on=c=>c.toLowerCase()===String(F.color).toLowerCase()?'on':'';
+function colorBtns(){const cur=String(F.color).toLowerCase(),on=c=>c.toLowerCase()===cur?'on':'';
+  const dot=c=>`<button type="button" class="pdot ${on(c)}" style="background:${c}" data-c="${c}"></button>`;
+  const known=[...PAL.flat(),...PAL_N].some(c=>c.toLowerCase()===cur);
+  return `<div class="pgrid">${PAL[0].map(dot).join('')}<button type="button" class="pmore" data-act="palMore" title="연한 색 더 보기">${palOpen?'−':'+'}</button></div>`+
+   (palOpen?`<div class="pgrid">${PAL.slice(1).map(r=>r.map(dot).join('')+'<span></span>').join('')}${PAL_N.map(dot).join('')}</div>`:'')+
+   (known?'':`<div class="pcur">지금 색 ${dot(F.color)}</div>`)}
+function colorBtnsOld(){const on=c=>c.toLowerCase()===String(F.color).toLowerCase()?'on':'';
   const sw=c=>`<button style="background:${c}" data-c="${c}" class="${on(c)}" title="${c}"></button>`;
   const cust=c=>`<div class="cust ${on(c)}" style="background:${c}" data-c="${c}" title="꾹 누르면 삭제"><span class="del" data-act="delColor" data-c="${c}">−</span></div>`;
   const cc=S.cfg.customColors,pv=PALETTE.filter(c=>!S.cfg.hiddenColors.includes(c));
@@ -1611,6 +1635,7 @@ document.addEventListener('click',e=>{
       if(id)Object.assign(S.exams.find(x=>x.id===id),{name:n,date:d});else S.exams.push({id:uid(),name:n,date:d});save();closeModal();render();break}
     case 'delExam':ask('이 D-day를 삭제할까요?','삭제',()=>{S.exams=S.exams.filter(x=>x.id!==id);save();closeModal();render()});break;
     case 'settings':openSettings();break;
+    case 'palMore':palOpen=!palOpen;document.getElementById('fColors').innerHTML=colorBtns();break;
     case 'bandHive':{const h=document.getElementById('fHive');if(h.classList.toggle('hidden'))break;h.innerHTML=honeycomb('pickBandColor',F.color,true);break}
     case 'pickBandColor':{const c=el.dataset.c,cc=S.cfg.customColors;S.cfg.hiddenColors=S.cfg.hiddenColors.filter(x=>x!==c);if(!cc.includes(c)&&!PALETTE.includes(c)){cc.push(c);if(cc.length>12)cc.shift();saveUI()}
       F.color=c;document.getElementById('fColors').innerHTML=colorBtns();document.getElementById('fHive').classList.add('hidden');break}
