@@ -182,6 +182,15 @@ main{padding:0 14px}
 .ckd{font-size:12.5px;color:var(--sub);margin-top:3px}.ckl{margin-top:9px;display:grid;gap:4px;font-size:12.5px}
 .ckr{display:flex;gap:8px;align-items:center;min-width:0}.ckr code{width:44px;flex:0 0 auto;color:var(--sub)}.ckr i{width:4px;height:16px;border-radius:2px;flex:0 0 auto}.ckr span{color:var(--brand);white-space:nowrap}.ckr.more{color:var(--sub);padding-left:56px}
 .ckno{all:unset;display:block;width:100%;text-align:center;padding:12px 0 4px;font-size:14px;color:var(--sub);font-weight:600;cursor:pointer}
+.xadd{display:flex;align-items:center;justify-content:center;margin:10px 0 2px;padding:10px;border:1.5px dashed var(--line);border-radius:12px;color:var(--sub);font-size:14px;font-weight:600;cursor:pointer}
+.xtag{font-size:10.5px;font-weight:800;color:var(--brand);background:var(--brandSoft);border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:2px;white-space:nowrap}
+.xskip{font-size:12.5px;color:var(--sub);margin-top:8px;display:flex;flex-wrap:wrap;gap:4px 10px}.xskip b{color:var(--brand);cursor:pointer;margin-left:2px}
+.xsub{margin:2px 0 10px;font-size:13px;color:var(--sub)}
+.xit{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;padding:13px 4px;border-top:1px solid var(--line2);font-size:15.5px;font-weight:600;cursor:pointer}
+.xit i{width:14px;height:14px;border-radius:4px;flex:0 0 auto}.xit small{margin-left:auto;font-size:12px;color:var(--sub);font-weight:500}.xnewb{color:var(--brand)}
+.xrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.xhm{display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:center}.xhm span{font-size:13px;color:var(--sub)}
+.wone{position:absolute;border-radius:7px;padding:3px 5px;overflow:hidden;font-size:11px;line-height:1.25;border:1.5px dashed;border-left:4px solid;display:flex}
+.wone .tx{flex:1;min-width:0}.wone .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wone .rg{color:var(--brand);font-weight:700}.wone.done{opacity:.55}
 .wnow{position:absolute;left:0;right:0;height:0;border-top:2px solid #e5534b;z-index:5;pointer-events:none}
 .wnow:before{content:"";position:absolute;left:-4px;top:-6px;width:10px;height:10px;border-radius:50%;background:#e5534b}
 .wnow span{position:absolute;right:2px;top:-17px;background:#e5534b;color:#fff;font-size:10px;font-weight:800;border-radius:5px;padding:0 4px;line-height:15px}
@@ -478,6 +487,7 @@ const PRESET={daily:[0,1,2,3,4,5,6],weekday:[1,2,3,4,5],weekend:[0,6]};
 const normDays=v=>Array.isArray(v)?v:(PRESET[v]||PRESET.daily).slice();
 const daysLabel=a=>{const k=[...a].sort().join('');if(k==='0123456')return '매일';if(k==='12345')return '평일';if(k==='06')return '주말';return [1,2,3,4,5,6,0].filter(x=>a.includes(x)).map(x=>DOW[x]).join('')};
 const isStudy=(days,s)=>days.includes(dow(s));
+const studyOn=(s,d)=>s.skip&&s.skip[d]?false:!!(s.add&&s.add[d])||isStudy(s.days,d);
 function textOn(hex){const h=hex.replace('#','');const n=parseInt(h,16);const r=(n>>16&255)/255,g=(n>>8&255)/255,b=(n&255)/255;return (0.299*r+0.587*g+0.114*b)>0.62?'#2b3330':'#fff'}
 
 /* ========== state ========== */
@@ -513,7 +523,7 @@ function planRaw(s){let p;
   before=Math.min(before,s.total);
   const rem=Math.max(0,s.total-before);
   const dates=[],idx={},cum=[]; let d=s.start,g=0,acc=0;
-  while((dates.length===0||acc<rem-1e-9)&&g<3000){if(isStudy(s.days,d)){idx[d]=dates.length;dates.push(d);cum.push(acc);acc+=Math.max(1e-6,dayAmt(s,d))}d=addD(d,1);g++}
+  while((dates.length===0||acc<rem-1e-9)&&g<3000){if(studyOn(s,d)){idx[d]=dates.length;dates.push(d);cum.push(acc);acc+=Math.max(1e-6,dayAmt(s,d))}d=addD(d,1);g++}
   p={before,dates,idx,cum,end:dates[dates.length-1]};return p;
 }
 function doneAll(s){const ch=S.checks[s.id]||{};let t=s.pre||0;for(const d in ch)t+=markAmt(ch[d],dayAmt(s,d));return Math.min(t,s.total)}
@@ -532,17 +542,24 @@ function itemFor(s,date){
   const from=p.before+p.cum[k],to=Math.min(s.total,from+dayAmt(s,date));
   return {s,date,k,from,to,label:rangeTxt(s,from,to),time:dayTime(s,date),ov:!!(s.ov&&s.ov[date]!=null||s.ovm&&s.ovm[date]!=null),mins:dayMins(s,date),segs:spanSegs(dayTime(s,date),dayMins(s,date)),get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[s.id]||{})[date]||''};
 }
+/* one-off items: a single day only (not in month bands or subject list) */
+function onesOn(date){return (S.ones||[]).filter(o=>o.date===date).map(o=>{const sg=spanSegs(o.time,o.mins);
+  return {s:{id:o.id,name:o.name,color:o.color,oneoff:true},date,k:0,from:0,to:0,label:'',time:o.time,mins:o.mins,oo:true,segs:sg,get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[o.id]||{})[date]||''}})}
+function rePeriod(s){if(s.mode!=='period'||!s.end)return;let n=0,x=s.start,g=0;while(x<=s.end&&g<4000){if(studyOn(s,x))n++;x=addD(x,1);g++}
+  if(n>0)s.daily=Math.max(1e-6,(s.total-Math.min(s.pre||0,s.total))/n)}
+function setDay(s,d,kind,on){const o=s[kind]||(s[kind]={});if(on)o[d]=true;else delete o[d];
+  const other=kind==='add'?'skip':'add';if(on&&s[other])delete s[other][d];rePeriod(s);PC.clear()}
 /* one day's items, never overlapping: a subject that would start before the previous one ends waits until it ends */
 function itemsOn(date){
   const ord=new Map(listOrder().map((s,i)=>[s.id,i]));
-  const it=S.subjects.map(s=>itemFor(s,date)).filter(Boolean).sort((a,b)=>a.time-b.time||ord.get(a.s.id)-ord.get(b.s.id));
+  const it=S.subjects.map(s=>itemFor(s,date)).filter(Boolean).concat(onesOn(date)).sort((a,b)=>a.time-b.time||(ord.get(a.s.id)??1e9)-(ord.get(b.s.id)??1e9));
   let cur=-1;it.forEach(x=>{if(x.time<cur){x.segs=spanSegs(cur,x.mins);x.time=x.segs[0][0];x.pushed=true}cur=x.end});
   return it}
 function projEnd(s){
   const rem=s.total-doneAll(s); if(rem<=1e-9) return {done:true};
   const ch=S.checks[s.id]||{}; let st=s.start>TODAY?s.start:TODAY; if(st===TODAY&&ch[TODAY]) st=addD(TODAY,1);
   let d=st,c=0,g=0,last=st;
-  while(c<rem-1e-9&&g<3000){if(isStudy(s.days,d)){c+=Math.max(1e-6,dayAmt(s,d));last=d}d=addD(d,1);g++}
+  while(c<rem-1e-9&&g<3000){if(studyOn(s,d)){c+=Math.max(1e-6,dayAmt(s,d));last=d}d=addD(d,1);g++}
   return {date:last,rem};
 }
 /* overlap: other bands that collide with subject s (placed at start/time) on any shared day */
@@ -835,13 +852,14 @@ function renderWeek(){
     cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H}px;background-image:${bg}">`+meals+nwl+it.map(x=>x.segs.map(([t0,t1],si)=>{
       const first=si===0,last=si===x.segs.length-1;
       const top=(clamp(t0,a*60,b*60)-a*60)/60*HP,ht=Math.max(22,Math.min(t1-t0,b*60-t0)/60*HP-2);
+      if(x.oo)return `<div class="wone ${x.mark==='o'?'done':''}" data-lp="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.30)};border-color:${x.s.color}"><div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${ht>34&&first?'<div class="rg">오늘만</div>':''}</div></div>`;
       return `<div class="wblk ${x.ov?'ov':''} ${first?'':'cont'}" data-id="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.38)};border-color:${x.s.color}">
         <div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${first&&ht>34?`<div class="rg">${esc(x.label)}</div>`:''}${ht>(first?50:34)?`<div class="rg">${hm(t0)}~${hm(t1)}</div>`:''}</div>${first&&x.ov?`<span class="ovr" data-act="resetOv" data-id="${x.s.id}" data-date="${d}" title="원래 시간으로">↺</span>`:''}${last?'<i class="wrsz"></i>':''}</div>`}).join('')).join('')+`</div>`;
   }
   V.innerHTML=`<div class="toolbar">
     <button class="btn sq" data-act="wPrev">‹</button><div class="ttl">${md(ws)} ~ ${md(addD(ws,6))}</div><button class="btn sq" data-act="wNext">›</button>
     <button class="btn" data-act="wToday">이번 주</button><div class="spacer"></div>
-    <span class="hint">블록 꾹 눌러 위아래 = 그날 시간 이동 · 아래 손잡이 = 그날 공부량 늘이기/줄이기 · ↺ 원래대로 · 식사 시간엔 쉬고 이어서</span></div>
+    <span class="hint">블록 꾹 눌러 위아래 = 그날 시간 이동 · 아래 손잡이 = 그날 공부량 늘이기/줄이기 · ↺ 원래대로 · 빈 칸 꾹 = 오늘만 추가</span></div>
   <div class="wwrap"><div class="wscroll"><div class="whead">${head}</div><div class="wbody"><div class="wgut" style="height:${H}px">${gut}</div>${cols}</div></div></div>`;
   const sc=V.querySelector('.wscroll'),tc=V.querySelector('.wcol.today');
   if(sc&&tc&&sc.scrollWidth>sc.clientWidth)sc.scrollLeft=Math.max(0,tc.offsetLeft-44-tc.offsetWidth);
@@ -866,9 +884,9 @@ function renderDay(){
   const active=nowM==null?null:it.find(x=>x.segs.some(([p,q])=>nowM>=p&&nowM<q));
   const nextI=nowM==null||active?-1:it.findIndex(x=>x.time>nowM);
   const nowLine=`<div class="nowline"><span>${hm(nowM||0)}</span></div>`;
-  const rowsA=it.map((x,i)=>[x.time,(i===nextI&&i>0?nowLine:'')+`<div class="row ${x.mark==='o'?'done':''} ${x===active?'now':''}">
+  const rowsA=it.map((x,i)=>[x.time,(i===nextI&&i>0?nowLine:'')+`<div class="row ${x.mark==='o'?'done':''} ${x===active?'now':''}" data-lp="${x.s.id}" data-date="${d}">
       <div class="tm">${hm(x.segs[0][0])}<br>${hm(x.segs[0][1])}</div><div class="cb" style="background:${x.s.color}"></div>
-      <div class="tx"><div class="nm">${esc(x.s.name)}</div><div class="rg">${esc(x.label)}</div></div>
+      <div class="tx"><div class="nm">${esc(x.s.name)}${x.oo||(x.s.add&&x.s.add[d])?'<span class="xtag">오늘만</span>':''}</div>${x.label?`<div class="rg">${esc(x.label)}</div>`:''}</div>
       <div class="hr">${hrs(x.mins)}</div>
       <button class="mk ${x.mark}" data-act="mark" data-id="${x.s.id}" data-date="${d}">${markSym(x.mark)}</button></div>`]);
   it.forEach(x=>x.segs.slice(1).forEach(([t0,t1])=>rowsA.push([t0,`<div class="row ${x.mark==='o'?'done':''} ${x===active&&nowM>=t0&&nowM<t1?'now':''}">
@@ -878,7 +896,7 @@ function renderDay(){
   if(it.length)mealsOn().forEach(m=>rowsA.push([m.time-.5,`<div class="row meal"><div class="tm">${hm(m.time)}<br>${hm(m.time+m.mins)}</div><div class="cb">🍚</div><div class="tx"><div class="nm" style="font-size:15px">${m.n} 식사</div></div></div>`]));
   const rows=rowsA.sort((p,q)=>p[0]-q[0]).map(r=>r[1]).join('');
   // overdue
-  const od=[];for(let i=1;i<=21;i++){const x=addD(TODAY,-i);itemsOn(x).forEach(t=>{if(t.mark!=='o')od.push(t)})}
+  const od=[];for(let i=1;i<=21;i++){const x=addD(TODAY,-i);itemsOn(x).forEach(t=>{if(t.mark!=='o'&&!t.oo)od.push(t)})}
   const exs=examsOn(d);
   V.innerHTML=`<div class="dwrap">
    <div class="strip" id="strip">${strip}</div>
@@ -892,6 +910,8 @@ function renderDay(){
       ${d!==TODAY?'<button class="btn" data-act="dToday">오늘로</button>':''}</div>
     ${overBy(it)?`<div class="ovfbar">⚠ 계획이 ${S.cfg.dayEnd>24?'새벽 ':''}${hh(S.cfg.dayEnd)}:00을 <b>${durTxt(overBy(it))}</b> 넘어요<small>공부 시간을 줄이거나 과목을 다른 날로 옮겨 보세요</small></div>`:''}
     <div style="margin-top:10px">${rows||'<div class="empty">이 날은 계획된 공부가 없어요.</div>'}</div>
+    <div class="xadd" data-act="xAdd" data-date="${d}">＋ 오늘만 추가</div>
+    ${skippedOn(d).length?`<div class="xskip">오늘만 쉬기 · ${skippedOn(d).map(s=>`<span>${esc(s.name)} <b data-act="xUnskip" data-id="${s.id}" data-date="${d}">되돌리기</b></span>`).join('')}</div>`:''}
     <div class="foot"><span>${dn} / ${it.length} 완료</span><span>공부 ${hrs(mins)}</span></div>
    </div>
    <div class="center-hint">버튼을 누를 때마다 ○ 완료 → △ 일부 → × 못함 → 해제</div>
@@ -1122,6 +1142,46 @@ function askClash(so,want,oldT,cf,before,isNew){
     PC.clear();save();closeModal();render();if(S.ui.view==='month')renderBands(so.id);
     toast(k==='push'?`${c.name}부터 뒤로 밀었어요`:'자리를 바꿨어요')});
 }
+/* ---- 오늘만 추가 / 오늘만 쉬기 ---- */
+const skippedOn=d=>S.subjects.filter(s=>s.skip&&s.skip[d]);
+function dTitle(d){return `${pd(d).getMonth()+1}월 ${pd(d).getDate()}일 (${DOW[dow(d)]})`}
+function openAddDay(d,tm){
+  const on=new Set(itemsOn(d).map(x=>x.s.id));
+  const cand=S.subjects.filter(s=>!on.has(s.id)&&!(s.skip&&s.skip[d])&&s.start<=d&&!projEnd(s).done);
+  const dn=['일','월','화','수','목','금','토'];
+  openModal(`<h3>${dTitle(d)} 오늘만 추가</h3><p class="xsub">이날 하루만 더해요. 다음 주부터는 원래대로예요.</p>
+   ${cand.map(s=>`<button class="xit" data-act="xPick" data-id="${s.id}"><i style="background:${s.color}"></i>${esc(s.name)}<small>원래 ${s.days.length===7?'매일':s.days.map(x=>dn[x]).join('·')}</small></button>`).join('')||'<div class="xsub" style="padding:8px 0">더할 수 있는 과목이 없어요.</div>'}
+   <button class="xit xnewb" data-act="xNew">＋ 새로 적기 <small>과목 없이 이날 하루만</small></button>
+   <div id="xnew" hidden><div class="fld"><label>이름</label><input class="inp" id="xName" placeholder="예) 스터디 모임"></div>
+    <div class="fld"><label>시작 시각 · 소요시간</label><div class="xrow"><input class="inp" id="xTime" type="time" value="${tm!=null?(hm(tm).replace('+','')):''}"><div class="xhm"><input class="inp" id="xH" type="number" min="0" value="1"><span>시간</span><input class="inp" id="xM" type="number" min="0" step="10" value="0"><span>분</span></div></div></div>
+    <div class="sheet-acts"><div class="spacer"></div><button class="btn pri" data-act="xSaveNew">추가</button></div></div>
+   <div class="sheet-acts"><div class="spacer"></div><button class="btn" data-act="close">닫기</button></div>`);
+  SH.dataset.xd=d;SH.dataset.xt=tm!=null?tm:'';
+}
+function openDayMenu(id,d){
+  const o=(S.ones||[]).find(x=>x.id===id),s=sub(id);if(!o&&!s)return;
+  const added=s&&s.add&&s.add[d];
+  openModal(`<h3>${esc((o||s).name)}</h3><p class="xsub">${dTitle(d)}</p>
+   ${o?`<button class="xit" data-act="xDelOne" data-id="${id}">🗑 지우기</button>`:
+     added?`<button class="xit" data-act="xUnadd" data-id="${id}">↺ 오늘만 추가 취소</button>`:
+     `<button class="xit" data-act="xSkip" data-id="${id}">🌿 오늘만 쉬기<small>이날 분량은 다음 공부일로</small></button>`}
+   ${s?`<button class="xit" data-act="editSub" data-id="${id}">✏️ 과목 수정</button>`:''}
+   <div class="sheet-acts"><div class="spacer"></div><button class="btn" data-act="close">닫기</button></div>`);
+  SH.dataset.xd=d;
+}
+{let lp=null;const LP_MS=520;
+ const cancel=()=>{if(lp){clearTimeout(lp.t);lp=null}};
+ document.addEventListener('pointerdown',e=>{cancel();if(drag||hold)return;
+   const row=e.target.closest('[data-lp]');const col=!row&&S.ui.view==='week'&&e.target.closest('.wcol');
+   if(e.target.closest('.mk,.wblk,button:not([data-lp])'))return;
+   if(!row&&!col)return;
+   const x=e.clientX,y=e.clientY;
+   lp={x,y,t:setTimeout(()=>{lp=null;try{navigator.vibrate&&navigator.vibrate(12)}catch(_){}
+     if(row)openDayMenu(row.dataset.lp,row.dataset.date);
+     else{const L=locateWeek(x,y);if(L)openAddDay(col.dataset.date,Math.round(L.min/10)*10)}},LP_MS)}});
+ document.addEventListener('pointermove',e=>{if(lp&&Math.hypot(e.clientX-lp.x,e.clientY-lp.y)>9)cancel()},{passive:true});
+ ['pointerup','pointercancel','scroll'].forEach(k=>document.addEventListener(k,cancel,{passive:true,capture:true}));
+ document.addEventListener('contextmenu',e=>{if(e.target.closest('[data-lp],.wcol'))e.preventDefault()});}
 function delSubject(id){
   const s=sub(id);if(!s)return;
   ask(`'${s.name}' 띠를 삭제할까요? 체크 기록도 함께 지워져요.`,'삭제',()=>{S.subjects=S.subjects.filter(x=>x.id!==id);delete S.checks[id];save();closeModal();render();toast('삭제했어요');});
@@ -1149,7 +1209,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v37 · © 2026 healcye-sys. All rights reserved.<br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v38 · © 2026 healcye-sys. All rights reserved.<br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
@@ -1323,6 +1383,17 @@ document.addEventListener('click',e=>{
     case 'undo':undo();break;
     case 'newSub':openSubject(null);break;
     case 'editSub':openSubject(id);break;
+    case 'xAdd':openAddDay(el.dataset.date,null);break;
+    case 'xPick':{const s=sub(id),d=SH.dataset.xd,tm=SH.dataset.xt;setDay(s,d,'add',true);if(tm){s.ov=s.ov||{};s.ov[d]=+tm}save();closeModal();render();toast(`'${s.name}' 오늘만 추가했어요`);break}
+    case 'xNew':{const box=document.getElementById('xnew');box.hidden=false;el.hidden=true;document.getElementById('xName').focus();break}
+    case 'xSaveNew':{const name=fv('xName');if(!name)return toast('이름을 적어 주세요');const tv=fv('xTime');let mins=Math.round(num(fv('xH'))*60+num(fv('xM')));if(mins<10)mins=10;
+      const d=SH.dataset.xd;const used=(S.ones||[]).length+S.subjects.length;
+      (S.ones||(S.ones=[])).push({id:uid(),date:d,name,time:tv?inMin(tv):(SH.dataset.xt?+SH.dataset.xt:S.cfg.dayStart*60),mins,color:palVis()[used%palVis().length]});
+      save();closeModal();render();toast(`'${name}' 오늘만 추가했어요`);break}
+    case 'xSkip':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'skip',true);save();closeModal();render();toast(`'${s.name}' 오늘만 쉬어요`);break}
+    case 'xUnadd':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'add',false);if(s.ov)delete s.ov[d];save();closeModal();render();toast('오늘만 추가를 취소했어요');break}
+    case 'xUnskip':{const s=sub(id),d=el.dataset.date;setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 다시 공부하는 날이에요`);break}
+    case 'xDelOne':{S.ones=(S.ones||[]).filter(o=>o.id!==id);delete S.checks[id];save();closeModal();render();toast('지웠어요');break}
     case 'saveSub':saveSubject();break;
     case 'delSub':delSubject(id);break;
     case 'close':ASK=null;closeModal();break;
