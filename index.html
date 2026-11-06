@@ -317,6 +317,7 @@ td.nmc{white-space:normal;min-width:120px;font-weight:600}
 .hdl{display:inline-grid;place-items:center;width:40px;height:34px;margin:0 -4px 0 auto;color:var(--sub);opacity:.6;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;vertical-align:middle;border-radius:8px}
 .hdl:active{background:var(--line2)}
 .lsub{display:grid;gap:6px;margin:0 0 8px}.lsub .exbadge{justify-self:start}
+.ok2{color:var(--sub);font-weight:600}
 .rban{background:rgba(214,84,84,.09);color:#c0504d;border-radius:12px;padding:10px 12px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap}.rban b{margin-left:auto;font-weight:700;overflow:hidden;text-overflow:ellipsis}.rban:active{opacity:.7}
 .lsortb{position:relative;flex:0 0 auto;gap:6px;cursor:pointer}.lsort{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;cursor:pointer;border:0}
 .lhead{flex-wrap:nowrap!important;min-width:0}.lhead .btn{flex:0 0 auto}.lhead .sec-title{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -1130,7 +1131,7 @@ function renderList(){
   const rows=arr.map(s=>{
     const p=plan(s),pe=projEnd(s);const done=doneAll(s);const pct=Math.round(done/s.total*100);
     const late=!pe.done&&pe.date>p.end;
-    const endTxt=pe.done?`<span class="ok">완료 ✓</span>`:late?`<span class="late">${md(pe.date)} (계획 ${md(p.end)})</span>`:`<span class="ok">${md(p.end)}</span>`;
+    const endTxt=pe.done?`<span class="ok">완료 ✓</span>`:late?`<span class="ok2">${md(p.end)}</span> → <span class="late">${md(pe.date)}</span>`:`<span class="ok">${md(p.end)}</span>`;
     return `<tr data-id="${s.id}"><td class="nmc"><span class="sw" style="background:${s.color}"></span>${esc(s.name)}${exLate(s)?`<div class="exw">⚠ ${esc(fx.name)}(${md(fx.date)})보다 늦게 끝나요</div>`:''}</td>
       <td class="rem">${Math.round(s.total-done)}${esc(s.unit||'')} <span class="hint">/ ${fmtN(s.total)}</span><div class="minibar"><i style="width:${pct}%;background:${s.color}"></i></div></td>
       <td class="st">${md(p.dates[0])}</td><td class="en">${endTxt}</td>
