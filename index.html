@@ -369,6 +369,10 @@ body.dragging .zfab{pointer-events:none}
 .mP{display:none!important}
 .period .mP{display:grid!important}.period .mA{display:none!important}
 .g2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.clr{position:relative}.clr .inp{padding-right:30px;width:100%}.clr .tx{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--sub);font-size:14px;width:26px;height:26px;padding:0;cursor:pointer}
+.inp.auto{color:var(--brand);background:var(--other);font-weight:600}.atag{display:none;margin-left:6px;font-size:10px;font-weight:700;color:var(--brand);border:1px solid var(--brand);border-radius:6px;padding:0 4px;vertical-align:1px}.isauto .atag{display:inline-block}.isauto .tx{visibility:hidden}
+.fq{margin-bottom:8px}#sheet>.fq>.fld{flex:1 1 0;min-width:0}.fq input[type=date]{padding-left:8px;padding-right:28px;letter-spacing:-.3px}.fqh{margin:-2px 0 12px;font-size:12px}.preview.warn{background:#FFF4D6;background:color-mix(in srgb,var(--amber) 16%,var(--card));border-color:var(--amber);color:var(--ink)}
+.drafts{margin-top:16px}.drow{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px dashed var(--line2);border-radius:12px;margin-top:8px;cursor:pointer}.drow i{width:10px;height:10px;border-radius:50%;flex:none}.drow b{flex:none;font-size:14px}.drow span{flex:1;min-width:0;color:var(--sub);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.drow em{font-style:normal;color:var(--brand);font-size:12px;font-weight:700;flex:none}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .inrow{display:flex;gap:6px;align-items:center}
 .inrow .inp{flex:1}
@@ -605,7 +609,7 @@ const studyOn=(s,d)=>s.skip&&s.skip[d]?false:!!(s.add&&s.add[d])||isStudy(s.days
 function textOn(hex){const h=hex.replace('#','');const n=parseInt(h,16);const r=(n>>16&255)/255,g=(n>>8&255)/255,b=(n&255)/255;return (0.299*r+0.587*g+0.114*b)>0.62?'#2b3330':'#fff'}
 
 /* ========== state ========== */
-function defState(){return {exams:[],subjects:[],checks:{},cfg:{dayStart:6,dayEnd:24,rowH:270},ui:{view:'month'}}}
+function defState(){return {exams:[],subjects:[],drafts:[],checks:{},cfg:{dayStart:6,dayEnd:24,rowH:270},ui:{view:'month'}}}
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.subjects)){const d=defState();return {...d,...s,cfg:{...d.cfg,...s.cfg},ui:{...d.ui,...s.ui}}}}catch(e){}return defState()}
 let S=load();
 S.subjects.forEach(x=>{x.days=normDays(x.days);if(!(x.pre>0))x.pre=0});if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
@@ -683,7 +687,7 @@ function onesOn(date){return (S.ones||[]).filter(o=>o.date===date).map(o=>{const
 function rePeriod(s){if(s.mode!=='period'||!s.end)return;let n=0,x=s.start,g=0;while(x<=s.end&&g<4000){if(studyOn(s,x))n++;x=addD(x,1);g++}
   if(n>0)s.daily=Math.max(1e-6,(s.total-Math.min(s.pre||0,s.total))/n)}
 function setDay(s,d,kind,on){const o=s[kind]||(s[kind]={});if(on)o[d]=true;else delete o[d];if(kind==='skip'&&!on&&s.askip)delete s.askip[d];
-  const other=kind==='add'?'skip':'add';if(on&&s[other])delete s[other][d];rePeriod(s);PC.clear()}
+  const other=kind==='add'?'skip':'add';if(on&&s[other])delete s[other][d];if(kind==='add'&&on&&s.askip)delete s.askip[d];if(kind==='skip'&&on&&s.asplit&&s.asplit[d]){delete s.asplit[d];if(s.ovm)delete s.ovm[d]}rePeriod(s);PC.clear()}
 /* one day's items, never overlapping: a subject that would start before the previous one ends waits until it ends */
 function itemsOn(date){if(DEC){const c=ITC.get(date);if(c)return c;const r=itemsOn0(date);ITC.set(date,r);return r}return itemsOn0(date)}
 function itemsOn0(date){
@@ -956,7 +960,7 @@ function resizeFrame(s){
       document.querySelectorAll('.bands').forEach(layer=>{const h=segsHTML(t,p,layer.dataset.start,'ghost');if(h)layer.insertAdjacentHTML('beforeend',h)})}}
   const t=drag.target;
   if(t.end)showTip(drag.x,drag.y,s.name,`${mdw(planRaw(s).dates[0])} ~ ${mdw(t.end)}`,`공부일 ${t.n}일 · 하루 ${perDay(t.daily)}${esc(s.unit||'')}`);
-  else showTip(drag.x,drag.y,s.name,`${mdw(planRaw(s).dates[0])} ~ ${mdw(planRaw(s).end)}`,'좌우로 끌어 끝나는 날 조절');
+  else showTip(drag.x,drag.y,s.name,`${mdw(planRaw(s).dates[0])} ~ ${mdw(planRaw(s).end)}`,'좌우로 끌어 종료일 조절');
 }
 function wGhost(day,t,m){const a=S.cfg.dayStart*60,b=S.cfg.dayEnd*60;
   document.querySelectorAll('.wblk.ghost').forEach(e=>e.remove());
@@ -1125,7 +1129,7 @@ function renderDay(){
     ${od.length?od.map(x=>`<div class="row"><div class="tm">${md(x.date)}<br>${DOW[dow(x.date)]}</div><div class="cb" style="background:${x.s.color}"></div>
       <div class="tx"><div class="nm" style="font-size:15px">${esc(x.s.name)}</div><div class="rg">${esc(x.label)}</div></div>
       <button class="mk ${x.mark}" data-act="mark" data-id="${x.s.id}" data-date="${x.date}">${markSym(x.mark)}</button></div>`).join('')
-      +`<div class="hint" style="padding-top:8px">밀린 만큼 끝나는 날이 늦어져요. 과목 리스트에서 <b>오늘부터 재배치</b>를 누르면 남은 분량으로 띠가 다시 그려져요.</div>`
+      +`<div class="hint" style="padding-top:8px">밀린 만큼 종료일이 늦어져요. 과목 리스트에서 <b>오늘부터 재배치</b>를 누르면 남은 분량으로 띠가 다시 그려져요.</div>`
       :'<div class="hint" style="padding:8px 0">밀린 공부가 없어요 👍</div>'}
    </div></div>`;
   const on=V.querySelector('.sd.on');if(on)on.scrollIntoView({inline:'center',block:'nearest'});
@@ -1199,9 +1203,10 @@ function renderList(){
     <div class="toolbar lhead" style="margin:0 0 6px"><div class="lttl"><span class="lic"></span><div class="sec-title" style="margin:0;white-space:nowrap">과목 리스트</div>${arr.length?`<span class="lcnt">${arr.length}과목</span>`:''}</div><div class="spacer"></div>
       ${(()=>{const O=[['my','내 순서'],['name','이름 ㄱ→ㅎ'],['name_d','이름 ㅎ→ㄱ'],['start','시작일순']];return `<label class="btn lsortb" title="정렬"><span>${(O.find(o=>o[0]===LS)||O[0])[1]}</span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 3.5l3.5 3.5 3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><select class="lsort" onchange="setLSort(this.value)">${O.map(([k,v])=>`<option value="${k}" ${LS===k?'selected':''}>${v}</option>`).join('')}</select></label>`})()}</div>
     ${exN||lateN?`<div class="lsub">${exN?`<span class="exbadge">⚠ 첫 시험 전에 못 끝나는 과목 ${exN}개</span>`:''}${lateN?`<div class="rban" data-act="reschedAll">⏰ 밀린 과목 ${lateN}개<b>전부 오늘부터 다시 시작 ›</b></div>`:''}</div>`:''}
-    ${arr.length?`<div class="tblwrap"><table><thead><tr><th>과목</th><th>남은 양</th><th>시작</th><th>끝나는 날</th><th>설정</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${arr.length?`<div class="tblwrap"><table><thead><tr><th>과목</th><th>남은 양</th><th>시작</th><th>종료일</th><th>설정</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="hint lhint" style="margin-top:10px">${LS==='my'?'≡ 를 끌어 순서를 바꾸면 그 순서대로 시작 시간이 다시 맞춰져요':'≡ 로 순서를 바꾸려면 정렬을 "내 순서"로 바꿔 주세요'}</div><div class="hint lhint"><span class="late">빨간색</span> = 밀린 예정 일자 · <span class="ok">초록색</span> = 원래 계획</div>`
     :'<div class="empty">과목이 없어요. 오른쪽 아래 <b>+</b> 버튼으로 시작해 보세요.</div>'}
+    ${(S.drafts||[]).length?`<div class="drafts"><div class="sec-title">📝 날짜 미정 <span class="hint">2개를 더 채우면 달력에 나와요</span></div>${S.drafts.map(x=>`<div class="drow" data-act="editDraft" data-id="${x.id}"><i style="background:${x.color}"></i><b>${esc(x.name)}</b><span>${[x.total?'전체 '+fmtN(+x.total)+esc(x.unit||''):'',x.daily?'하루 '+fmtN(+x.daily)+esc(x.unit||''):'',x.end?'종료일 '+md(x.end):''].filter(Boolean).join(' · ')||'분량 · 날짜 미정'}</span><em>채우기 ›</em></div>`).join('')}</div>`:''}
   </div>`;
   if(LS!=='my')V.querySelectorAll('.hdl').forEach(h=>h.style.visibility='hidden');
   fitLine(V.querySelectorAll('.lhint'));
@@ -1218,60 +1223,59 @@ let F=null;
 function openSubject(id){
   {const r=id&&sub(id);if(r&&r.parent&&sub(r.parent))id=r.parent}
   const s=id?sub(id):null;
-  F=s?{...s,days:[...s.days],mode:s.mode||'amount',end:s.mode==='period'?plan(s).end:(s.end||'')}:{mode:'amount',end:'',name:'',color:palVis()[(S.subjects.length*7)%palVis().length],total:'',daily:'',unit:'p',mins:60,days:PRESET.daily.slice(),start:TODAY,time:null,pre:0};
+  const dr=!s&&id?(S.drafts||[]).find(x=>x.id===id):null;
+  F=s?{...s,days:[...s.days],mode:s.mode||'amount',end:s.mode==='period'?plan(s).end:(s.end||'')}:dr?{...dr,days:[...dr.days],draft:dr.id,id:undefined}:{mode:'amount',end:'',name:'',color:palVis()[(S.subjects.length*7)%palVis().length],total:'',daily:'',unit:'p',mins:60,days:PRESET.daily.slice(),start:TODAY,time:null,pre:0};
+  F.src=new Set(s?(F.mode==='period'&&F.end?['total','end']:['total','daily']):dr?['total','daily','end'].filter(k=>dr[k]):[]);
   palOpen=[...PAL.slice(1).flat(),...PAL_N].some(c=>c.toLowerCase()===String(F.color).toLowerCase());
   const h=Math.floor(F.mins/60),m=F.mins%60;
-  openModal(`<h3>${s?'과목 수정':'새 과목 추가'}</h3>
+  openModal(`<h3>${s?'과목 수정':dr?'날짜 미정 과목':'새 과목 추가'}</h3>
    <div class="fld"><label>과목명<i class="req">*</i></label><input class="inp" id="fName" value="${esc(F.name)}" placeholder="예) 맹자강의 듣기"></div>
-   <div class="fld"><label>색상<i class="req">*</i></label><div class="colors" id="fColors">${colorBtns()}</div><div class="hive hidden" id="fHive"></div></div>
-   <div class="g3">
-    <div class="fld"><label>전체 분량<i class="req">*</i></label><input class="inp" id="fTotal" type="number" inputmode="decimal" min="0" value="${F.total}" placeholder="예) 80"></div>
-    <div class="fld"><label>이미 진행한 양</label><input class="inp" id="fDone" type="number" inputmode="decimal" min="0" value="${F.pre>0?fmtN(F.pre):''}" placeholder="0"></div>
+   <div class="fld"><label>색상</label><div class="colors" id="fColors">${colorBtns()}</div><div class="hive hidden" id="fHive"></div></div>
+   <div class="g2 fq">
+    <div class="fld"><label>전체 분량<b class="atag">자동</b></label><div class="clr"><input class="inp" id="fTotal" type="text" inputmode="decimal" value="" placeholder="예) 80"><button type="button" class="tx" data-clr="total">✕</button></div></div>
+    <div class="fld"><label>하루 분량<b class="atag">자동</b></label><div class="clr"><input class="inp" id="fDaily" type="text" inputmode="decimal" value="" placeholder="예) 5"><button type="button" class="tx" data-clr="daily">✕</button></div></div>
+   </div>
+   <div class="g2 fq">
+    <div class="fld"><label>시작일</label><input class="inp" id="fStart" type="date" value="${F.start}"></div>
+    <div class="fld"><label>종료일<b class="atag">자동</b></label><div class="clr"><input class="inp" id="fEnd" type="date" value=""><button type="button" class="tx" data-clr="end">✕</button></div></div>
+   </div>
+   <div class="g2 fq">
     <div class="fld"><label>단위</label><select class="inp" id="fUnit">${unitOpts(F.unit)}</select></div>
+    <div class="fld"><label>이미 진행한 양</label><input class="inp" id="fDone" type="number" inputmode="decimal" min="0" value="${F.pre>0?fmtN(F.pre):''}" placeholder="0"></div>
    </div>
-   <div class="mbox">
-    <div class="mtabs" id="fMode"><button type="button" data-m="amount">분량으로</button><button type="button" data-m="period">기간으로</button></div>
-    <div class="mpanel">
-     <div class="g2 mA">
-      <div class="fld"><label>하루 공부량<i class="req">*</i></label><input class="inp" id="fDaily" type="number" inputmode="decimal" min="0" value="${F.daily}" placeholder="예) 5"></div>
-      <div class="fld"><label>시작일<i class="req">*</i></label><input class="inp" id="fStart" type="date" value="${F.start}"></div>
-     </div>
-     <div class="g2 mP">
-      <div class="fld"><label>시작일<i class="req">*</i></label><input class="inp" id="fStartP" type="date" value="${F.start}"></div>
-      <div class="fld"><label>종료일<i class="req">*</i></label><input class="inp" id="fEnd" type="date" value="${F.end||''}"></div>
-     </div>
-    </div>
-   </div>
+   <div class="hint fqh">전체 분량 · 하루 분량 · 종료일 중 <b>2개</b>만 채우면 나머지는 알아서 계산돼요</div>
    <div class="trow">
-    <div class="fld"><label>하루 소요시간<i class="req">*</i></label><div class="inrow hm"><input class="inp" id="fH" type="number" inputmode="numeric" min="0" max="18" value="${h}"><span>시간</span><input class="inp" id="fM" type="number" inputmode="numeric" min="0" max="59" step="5" value="${m}"><span>분</span></div></div>
+    <div class="fld"><label>하루 공부 시간</label><div class="inrow hm"><input class="inp" id="fH" type="number" inputmode="numeric" min="0" max="18" value="${h}"><span>시간</span><input class="inp" id="fM" type="number" inputmode="numeric" min="0" max="59" step="5" value="${m}"><span>분</span></div></div>
     <div class="fld"><label>시작 시각 (선택)</label><div class="tclr"><input class="inp" id="fTime" type="time" step="600" value="${F.time==null?'':hmv(F.time)}"><button type="button" class="tx" title="시작 시각 지우기" onclick="const i=this.previousElementSibling;i.value='';i.dataset.cleared='1';i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}))">✕</button></div></div>
    </div>
    <div class="fld"><label>공부하는 요일<i class="req">*</i></label><div class="dayts" id="fDays">${[1,2,3,4,5,6,0].map(x=>`<button data-d="${x}" class="${F.days.includes(x)?'on':''} ${x===6?'sat':x===0?'sun':''}">${DOW[x]}</button>`).join('')}</div>
     <div class="presets" id="fPresets"><button data-p="daily">매일</button><button data-p="weekday">평일</button><button data-p="weekend">주말</button></div></div>
    <div class="preview" id="fPrev"></div><div id="fRounds"></div>
-   <div class="sheet-acts">${s?`<button class="btn danger" data-act="delSub" data-id="${s.id}">띠 삭제</button>`:''}<div class="spacer"></div>
+   <div class="sheet-acts">${s?`<button class="btn danger" data-act="delSub" data-id="${s.id}">띠 삭제</button>`:dr?`<button class="btn danger" data-act="delDraft" data-id="${dr.id}">삭제</button>`:''}<div class="spacer"></div>
      <button class="btn" data-act="close">취소</button><button class="btn pri" data-act="saveSub">확인</button></div>`);
-  const upd=()=>{
-    if(F.mode==='period'){const t=num(fv('fTotal'));const pre=clamp(num(fv('fDone')),0,t);const st=fv('fStartP')||TODAY,en=fv('fEnd');const el=document.getElementById('fPrev');
-      if(!(t>0)||!en){el.textContent='전체 분량과 종료일을 넣으면 하루 공부량이 계산돼요.';return}
-      if(!F.days.length){el.textContent='공부할 요일을 하나 이상 골라 주세요.';return}
-      const n=studyDaysBetween(F.days,st,en);if(n<1){el.textContent='종료일이 시작일보다 뒤여야 하고, 그 사이에 공부하는 요일이 있어야 해요.';return}
-      const mins=num(fv('fH'))*60+num(fv('fM'));
-      el.innerHTML=`${pre>0?`남은 ${fmtN(t-pre)}${esc(fv('fUnit'))} · `:''}공부일 <b>${n}일</b> (${daysLabel(F.days)}) · 하루 <b>${perDay((t-pre)/n)}${esc(fv('fUnit'))}</b> · <b>${mdw(st)} ~ ${mdw(en)}</b> · 하루 ${Math.floor(mins/60)}시간 ${mins%60?mins%60+'분':''}`;return}
-    const t=num(fv('fTotal')),d=num(fv('fDaily'));const pre=clamp(num(fv('fDone')),0,t);const mins=num(fv('fH'))*60+num(fv('fM'));const st=fv('fStart')||TODAY;
-    const el=document.getElementById('fPrev');
-    if(!(t>0&&d>0)){el.textContent='전체 분량과 하루 공부량을 넣으면 기간이 계산돼요.';return}
-    if(!F.days.length){el.textContent='공부할 요일을 하나 이상 골라 주세요.';return}
-    const before=Math.min(t,pre+(s?Object.entries(S.checks[s.id]||{}).filter(([k])=>k<st).reduce((a,[,v])=>a+markAmt(v,d),0):0));
-    const n=Math.max(1,Math.ceil((t-before)/d-1e-9));let x=st,c=0,last=st,g=0;while(c<n&&g<3000){if(isStudy(F.days,x)){c++;last=x}x=addD(x,1);g++}
-    el.innerHTML=`${pre>0?`남은 ${fmtN(t-pre)}${esc(fv('fUnit'))} · `:''}공부일 <b>${n}일</b> (${daysLabel(F.days)}) · <b>${mdw(st)} ~ ${mdw(last)}</b> · 하루 ${Math.floor(mins/60)}시간 ${mins%60?mins%60+'분':''}`;
+  {const fi=(k,v)=>{const e=document.getElementById(k);e.value=v};
+    if(F.src.has('total'))fi('fTotal',fmtN(+F.total));if(F.src.has('daily'))fi('fDaily',fmtN(+F.daily));if(F.src.has('end'))fi('fEnd',F.end||'')}
+  const upd=()=>{const v=formVals(),el=document.getElementById('fPrev'),u=esc(fv('fUnit')),mins=num(fv('fH'))*60+num(fv('fM'));
+    const auto=(k,id,val)=>{const e=document.getElementById(id),on=!F.src.has(k);e.classList.toggle('auto',on);e.closest('.fld').classList.toggle('isauto',on&&val!=='');if(on)e.value=val};
+    const tm=`하루 ${Math.floor(mins/60)}시간${mins%60?' '+mins%60+'분':''}`;
+    if(!F.days.length){auto('total','fTotal','');auto('daily','fDaily','');auto('end','fEnd','');el.className='preview';el.textContent='공부할 요일을 하나 이상 골라 주세요.';return}
+    if(v.mode==='period'){auto('total','fTotal',v.autoT?fmtN(v.total):'');auto('daily','fDaily',v.n>0&&!F.src.has('daily')?perDay(v.daily):'');auto('end','fEnd','');
+      if(v.n<1){el.className='preview warn';el.textContent='종료일은 시작일 뒤로, 그 사이에 공부하는 요일이 들어가게 골라 주세요.';return}
+      const pre=clamp(num(fv('fDone')),0,v.total);let w='';
+      if(v.typedD>0&&Math.abs(v.typedD-v.daily)>=1){w=v.typedD<v.daily?`⚠ 하루 ${fmtN(v.typedD)}${u}로는 ${mdw(v.end)}까지 못 끝나요 → <b>하루 ${perDay(v.daily)}${u}</b>로 맞출게요<br><small>하루 ${fmtN(v.typedD)}${u}로 하고 싶으면 종료일을 지워 주세요</small>`:`⚠ 종료일에 맞춰 <b>하루 ${perDay(v.daily)}${u}</b>로 나눠요<br><small>하루 ${fmtN(v.typedD)}${u}로 하고 싶으면 종료일을 지워 주세요</small>`}
+      el.className='preview'+(w?' warn':'');el.innerHTML=w||`${pre>0?`남은 ${fmtN(v.total-pre)}${u} · `:''}${v.autoT?`하루 ${fmtN(v.daily)}${u} × ${v.n}일 = <b>전체 ${fmtN(v.total)}${u}</b> · `:`공부일 <b>${v.n}일</b> · 하루 <b>${perDay(v.daily)}${u}</b> · `}<b>${mdw(v.st)} ~ ${mdw(v.end)}</b> · ${tm}<br><small>종료일을 정했으니, 밀리면 하루 분량이 늘어나요</small>`;return}
+    if(v.mode==='amount'){const pre=clamp(num(fv('fDone')),0,v.total),st=v.st,d=v.daily;
+      const before=Math.min(v.total,pre+(F.id?Object.entries(S.checks[F.id]||{}).filter(([k])=>k<st).reduce((a,[,x])=>a+markAmt(x,d),0):0));
+      const n=Math.max(1,Math.ceil((v.total-before)/d-1e-9));let x=st,c=0,last=st,g=0;while(c<n&&g<3000){if(isStudy(F.days,x)){c++;last=x}x=addD(x,1);g++}
+      auto('total','fTotal','');auto('daily','fDaily','');auto('end','fEnd',last);
+      el.className='preview';el.innerHTML=`${pre>0?`남은 ${fmtN(v.total-pre)}${u} · `:''}공부일 <b>${n}일</b> (${daysLabel(F.days)}) · <b>${mdw(st)} ~ ${mdw(last)}</b> · ${tm}<br><small>종료일을 비워 두면, 밀릴 때 종료일이 뒤로 가요</small>`;return}
+    auto('total','fTotal','');auto('daily','fDaily','');auto('end','fEnd','');
+    el.className='preview warn';el.innerHTML='📌 전체 분량 · 하루 분량 · 종료일 중 2개를 채우면 달력에 나와요<br><small>지금 확인을 누르면 과목 리스트 아래 "날짜 미정"에 보관돼요</small>';
   };
   const updAll=()=>{upd();paintRounds()};SH.oninput=e=>{if(e&&e.target.closest&&e.target.closest('#fRounds'))roundInput(e);else updAll()};
-  const paintMode=()=>{SH.classList.toggle('period',F.mode==='period');SH.querySelectorAll('#fMode [data-m]').forEach(x=>x.classList.toggle('on',x.dataset.m===(F.mode||'amount')))};paintMode();
-  SH.querySelector('#fMode').onclick=e=>{const bt=e.target.closest('[data-m]');if(!bt)return;const v=bt.dataset.m;if(v===F.mode)return;
-    if(v==='period'){document.getElementById('fStartP').value=fv('fStart')||TODAY;if(!fv('fEnd')){const t=num(fv('fTotal')),d=num(fv('fDaily')),pre=num(fv('fDone'));if(t>0&&d>0){const st=fv('fStartP');let n=Math.max(1,Math.ceil((t-pre)/d-1e-9)),x=st,c=0,last=st,g=0;while(c<n&&g<3000){if(isStudy(F.days,x)){c++;last=x}x=addD(x,1);g++}document.getElementById('fEnd').value=last}}}
-    else document.getElementById('fStart').value=fv('fStartP')||fv('fStart');
-    F.mode=v;paintMode();updAll()};
+  [['fTotal','total'],['fDaily','daily'],['fEnd','end']].forEach(([id,k])=>{const e=document.getElementById(id);
+    const on=()=>{if(e.value.trim()){F.src.add(k);e.classList.remove('auto')}else F.src.delete(k);updAll()};e.addEventListener('input',on);e.addEventListener('change',on)});
+  SH.querySelectorAll('[data-clr]').forEach(b=>b.onclick=()=>{const k=b.dataset.clr;F.src.delete(k);const e=document.getElementById({total:'fTotal',daily:'fDaily',end:'fEnd'}[k]);e.value='';updAll()});
   const cbox=SH.querySelector('#fColors');
   // long-press a colour you added -> "−" badges appear to delete it
   let lp=null,justLong=false;
@@ -1286,14 +1290,19 @@ function openSubject(id){
   const paintDays=()=>SH.querySelectorAll('#fDays button').forEach(x=>x.classList.toggle('on',F.days.includes(+x.dataset.d)));
   SH.querySelector('#fDays').onclick=e=>{const b=e.target.closest('[data-d]');if(!b)return;const x=+b.dataset.d;F.days=F.days.includes(x)?F.days.filter(y=>y!==x):[...F.days,x];paintDays();updAll()};
   SH.querySelector('#fPresets').onclick=e=>{const b=e.target.closest('[data-p]');if(!b)return;F.days=PRESET[b.dataset.p].slice();paintDays();updAll()};
-  initRounds(s);updAll();if(!s)setTimeout(()=>document.getElementById('fName').focus(),50);
+  initRounds(s);updAll();if(!s)setTimeout(()=>{const e=document.getElementById('fName');if(e)e.focus()},50);
 }
 const fv=id=>document.getElementById(id).value.trim();
 let FR=[];const RDD=[1,2,3,4,5,6,0];
-function fMain(){const per=F.mode==='period';const total=num(fv('fTotal'));const pre=clamp(num(fv('fDone')),0,total);const st=(per?fv('fStartP'):fv('fStart'))||TODAY;const en=fv('fEnd');let daily=num(fv('fDaily'));
-  if(per){const n=studyDaysBetween(F.days,st,en);daily=n>0?(total-pre)/n:0}
-  if(!(total>0&&daily>0&&F.days.length))return null;
-  return {id:F.id||'_new',total,pre,daily,mode:per?'period':'amount',end:per?en:'',start:st,days:F.days,skip:F.skip,add:F.add,ovm:F.ovm}}
+/* the form: any 2 of total / daily / end give the third; end + total wins over a typed daily */
+function formVals(){const has=k=>F.src.has(k),pre0=num(fv('fDone')),st=fv('fStart')||TODAY;
+  const T=has('total')?num(fv('fTotal')):0,D=has('daily')?num(fv('fDaily')):0,E=has('end')?fv('fEnd'):'';const n=E?studyDaysBetween(F.days,st,E):0;
+  if(T>0&&E)return {mode:'period',total:T,end:E,n,daily:n>0?(T-Math.min(pre0,T))/n:0,typedD:D,st};
+  if(D>0&&E)return {mode:'period',total:Math.round((D*n+Math.max(0,pre0))*100)/100,end:E,n,daily:D,st,autoT:1};
+  if(T>0&&D>0)return {mode:'amount',total:T,daily:D,end:'',st};
+  return {mode:null,total:T,daily:D,end:E,st}}
+function fMain(){const v=formVals();if(!v.mode||!(v.total>0&&v.daily>0&&F.days.length))return null;const pre=clamp(num(fv('fDone')),0,v.total);
+  return {id:F.id||'_new',total:v.total,pre,daily:v.daily,mode:v.mode,end:v.mode==='period'?v.end:'',start:v.st,days:F.days,skip:F.skip,add:F.add,ovm:F.ovm}}
 function rTmp(r,i){const total=num(fv('fTotal'));let daily=r.daily;
   if(r.mode==='period'){const n=studyDaysBetween(r.days,r.start,r.end);daily=n>0?total/n:0}
   return {id:r.id||'_r'+i,total,pre:0,daily,mode:r.mode,end:r.mode==='period'?r.end:'',start:r.start,days:r.days,skip:r.skip,add:r.add,ovm:r.ovm}}
@@ -1301,7 +1310,7 @@ function roundChain(){let prev=fMain();const out=[];
   FR.forEach((r,i)=>{if(r.autoStart!==false&&prev){const st=addD(planRaw(prev).end,1);if(st!==r.start){if(r.mode==='period'&&r.end&&r.start)r.end=addD(r.end,diffD(r.start,st));r.start=st}}
     const t=rTmp(r,i);const ok=t.total>0&&t.days.length&&t.daily>0&&t.start;const pl=ok?planRaw(t):null;out.push(pl);prev=ok?t:null});return out}
 function rAmt(r,i){return r.mode==='period'?perDay(rTmp(r,i).daily):fmtN(r.daily)}
-function rSum(r,pl,i){if(!pl)return r.mode==='period'?'끝나는 날과 공부하는 요일을 골라 주세요':'하루 분량과 공부하는 요일을 넣어 주세요';
+function rSum(r,pl,i){if(!pl)return r.mode==='period'?'종료일과 공부하는 요일을 골라 주세요':'하루 분량과 공부하는 요일을 넣어 주세요';
   return `공부일 <b>${pl.dates.length}일</b> (${daysLabel(r.days)}) · 하루 <b>${rAmt(r,i)}${esc(fv('fUnit'))}</b> · <b>${mdw(pl.dates[0])} ~ ${mdw(pl.end)}</b> · 하루 ${durTxt(r.mins)}${r.time!=null?' · '+hm(r.time)+' 시작':''}`+
    (r.autoStart!==false?`<br><small>시작일은 ${i+1}회독 끝난 다음 날로 자동으로 들어가요</small>`:`<br><small><a class="rauto" data-r="auto">↺ ${i+1}회독 끝난 다음 날로 맞추기</a></small>`)}
 function initRounds(s){
@@ -1311,7 +1320,7 @@ function initRounds(s){
 function renderRounds(){const box=document.getElementById('fRounds');if(!box)return;
   box.innerHTML=`<div class="rd1"><em>1회독</em> <span id="rd1t">위에서 정한 일정</span></div>`+FR.map((r,i)=>r.open?`<div class="rd" data-i="${i}"><h5>${i+2}회독<b data-r="del" title="이 회독 지우기">×</b></h5>
    <div class="mtabs rmt"><button type="button" data-r="mode" data-m="amount" class="${r.mode!=='period'?'on':''}">분량으로</button><button type="button" data-r="mode" data-m="period" class="${r.mode==='period'?'on':''}">기간으로</button></div>
-   <div class="r2"><div><label>시작일</label><input class="inp" type="date" data-f="start" value="${r.start||''}"></div><div>${r.mode==='period'?`<label>끝나는 날</label><input class="inp" type="date" data-f="end" value="${r.end||''}">`:`<label>하루 분량</label><input class="inp" type="number" inputmode="decimal" min="0" data-f="daily" value="${r.daily>0?fmtN(r.daily):''}">`}</div></div>
+   <div class="r2"><div><label>시작일</label><input class="inp" type="date" data-f="start" value="${r.start||''}"></div><div>${r.mode==='period'?`<label>종료일</label><input class="inp" type="date" data-f="end" value="${r.end||''}">`:`<label>하루 분량</label><input class="inp" type="number" inputmode="decimal" min="0" data-f="daily" value="${r.daily>0?fmtN(r.daily):''}">`}</div></div>
    <div class="r2"><div><label>하루 소요시간</label><div class="hm2"><input class="inp" type="number" inputmode="numeric" min="0" data-f="h" value="${Math.floor((r.mins||0)/60)}"><span>시간</span><input class="inp" type="number" inputmode="numeric" min="0" max="59" step="5" data-f="m" value="${(r.mins||0)%60}"><span>분</span></div></div><div><label>시작 시각</label><input class="inp" type="time" step="600" data-f="time" value="${r.time==null?'':hmv(r.time)}"></div></div>
    <label class="rdl">공부하는 요일</label><div class="dd">${RDD.map(x=>`<button type="button" data-r="day" data-d="${x}" class="${r.days.includes(x)?'on':''} ${x===6?'sat':x===0?'sun':''}">${DOW[x]}</button>`).join('')}</div>
    <div class="sum"></div></div>`:`<div class="rd fold" data-i="${i}" data-r="open"><h5>${i+2}회독<span class="fs"></span><b>›</b></h5></div>`).join('')+
@@ -1367,11 +1376,14 @@ function unitOpts(cur){cur=cur==null?'':String(cur).trim();const list=UNITS.some
   return list.map(([v,l])=>`<option value="${esc(v)}" ${v===cur?'selected':''}>${esc(l)}</option>`).join('')}
 function studyDaysBetween(days,a,b){if(!a||!b||b<a)return 0;let n=0,x=a,g=0;while(x<=b&&g<4000){if(isStudy(days,x))n++;x=addD(x,1);g++}return n}
 function saveSubject(){
-  const period=F.mode==='period';const name=fv('fName'),total=num(fv('fTotal'));let daily=num(fv('fDaily'));
-  if(period){if(!(total>0))return toast('전체 분량을 입력해 주세요');const en=fv('fEnd'),st=fv('fStartP')||TODAY;if(!en)return toast('종료일을 골라 주세요');
-    if(!F.days.length)return toast('공부할 요일을 하나 이상 골라 주세요');
-    const n=studyDaysBetween(F.days,st,en);if(n<1)return toast('종료일은 시작일 뒤로, 공부하는 요일이 들어가게 골라 주세요');
-    const pre0=num(fv('fDone'));daily=Math.max(1e-6,(total-Math.min(pre0,total))/n);document.getElementById('fStart').value=st}
+  const v=formVals(),name=fv('fName');if(!name)return toast('과목명을 입력해 주세요');
+  if(!F.days.length)return toast('공부할 요일을 하나 이상 골라 주세요');
+  if(!v.mode){if(F.id)return toast('전체 분량 · 하루 분량 · 종료일 중 2개를 채워 주세요');
+    const dd={id:F.draft||uid(),name,color:F.color,unit:fv('fUnit'),total:v.total||'',daily:v.daily||'',end:v.end||'',start:v.st,pre:num(fv('fDone'))||0,mins:Math.max(10,Math.round(num(fv('fH'))*60+num(fv('fM')))),days:[...F.days].sort(),time:fv('fTime')?inMin(fv('fTime')):null};
+    S.drafts=(S.drafts||[]).filter(x=>x.id!==dd.id);S.drafts.push(dd);save();closeModal();render();return toast(`'${name}' 날짜 미정으로 보관했어요 · 과목 리스트 맨 아래에 있어요`)}
+  if(v.mode==='period'&&v.n<1)return toast('종료일은 시작일 뒤로, 공부하는 요일이 들어가게 골라 주세요');
+  const period=v.mode==='period',total=v.total;let daily=v.daily;
+  if(period){const pre0=num(fv('fDone'));daily=Math.max(1e-6,(total-Math.min(pre0,total))/v.n);F.end=v.end}
   let mins=Math.round(num(fv('fH'))*60+num(fv('fM')));
   if(!name)return toast('과목명을 입력해 주세요');
   if(!(total>0))return toast('전체 분량을 입력해 주세요');
@@ -1387,11 +1399,12 @@ function saveSubject(){
   for(let i=0;i<FR.length;i++){const r=FR[i],n=i+2;
     if(!r.days.length)return toast(`${n}회독: 공부할 요일을 하나 이상 골라 주세요`);
     if(!r.start)return toast(`${n}회독: 시작일을 골라 주세요`);
-    if(r.mode==='period'){if(!r.end||studyDaysBetween(r.days,r.start,r.end)<1)return toast(`${n}회독: 끝나는 날은 시작일 뒤로, 공부하는 요일이 들어가게 골라 주세요`)}
+    if(r.mode==='period'){if(!r.end||studyDaysBetween(r.days,r.start,r.end)<1)return toast(`${n}회독: 종료일은 시작일 뒤로, 공부하는 요일이 들어가게 골라 주세요`)}
     else if(!(r.daily>0))return toast(`${n}회독: 하루 분량을 넣어 주세요`)}
   const before=JSON.stringify(S.subjects),oldT=isNew?null:sub(id).time;
-  const o={id,name,color:F.color,total,daily,pre,unit:fv('fUnit'),mins,days:[...F.days].sort(),start,time:time??a*60,mode:period?'period':'amount',end:period?fv('fEnd'):''};
+  const o={id,name,color:F.color,total,daily,pre,unit:fv('fUnit'),mins,days:[...F.days].sort(),start,time:time??a*60,mode:period?'period':'amount',end:period?v.end:''};
   if(isNew)S.subjects.push(o);else Object.assign(sub(id),o);
+  if(F.draft)S.drafts=(S.drafts||[]).filter(x=>x.id!==F.draft);
   applyRounds(id);
   const so=sub(id);PC.clear();let moved=false;
   if(time==null){so.time=freeTime(so)}
@@ -1463,6 +1476,14 @@ function pullBack(){const DE=S.cfg.dayEnd*60,out=[];const cand=[];
       if(dayEndOf(d)<=DE&&ok()){out.push({d,s:so,split:f});continue}}
     back()}
   PC.clear();return out}
+/* safety net: any save that leaves a day more than lateMax past the day end (outside a gate) gets pushed back quietly */
+let SILENT=0,SETQ=0,LASTBAD='';
+function badDays(){CH=null;PC.clear();const lim=S.cfg.dayEnd*60+lateMax();return lateDays(S.subjects.map(x=>x.id)).filter(x=>x.end>lim&&!itemsOn(x.d).some(y=>y.s.keep&&y.s.keep[x.d]))}
+function queueSettle(){if(SETQ)return;SETQ=setTimeout(()=>{SETQ=0;settle()},30)}
+function settle(){if(DEC||drag||hold||!M.classList.contains('hidden')||document.querySelector('.ldim')||!S.subjects.length)return;
+  const b=badDays();if(!b.length){LASTBAD='';return}const key=x=>x.map(y=>y.d+':'+y.end).join(',');if(key(b)===LASTBAD)return;
+  SILENT=1;try{lateGate(S.subjects[0].id,'',JSON.stringify(S.subjects),()=>{const u0=UNDO;save();if(u0)UNDO=u0;render()},()=>{})}finally{SILENT=0}
+  LASTBAD=key(badDays())}
 function lateGate(id,name,before,fin,onNo,verb){DEC=new Map();ITC.clear();try{return lateGate0(id,name,before,fin,onNo,verb)}finally{DEC=null;ITC.clear()}}
 function lateGate0(id,name,before,fin,onNo,verb){CH=null;syncRounds();fixLateSkips();PC.clear();const pl=pullBack();const ids=[id,...S.subjects.filter(x=>x.parent===id).map(x=>x.id)];const L=lateDays(ids);
   const bigOld=()=>lateDays(S.subjects.map(x=>x.id)).some(x=>x.end>S.cfg.dayEnd*60+lateMax()&&!itemsOn(x.d).some(y=>y.s.keep&&y.s.keep[x.d]));
@@ -1480,12 +1501,13 @@ function lateGate0(id,name,before,fin,onNo,verb){CH=null;syncRounds();fixLateSki
     const km=new Set(mv.map(key));p2.forEach(x=>{if(!km.has(key(x)))pl.push(x)})}
   PC.clear();const ask=lateDays([...chk]).filter(isNew);
   if(!mv.length&&!ask.length){pullToast();return fin()}
+  if(SILENT){const n=new Set(mv.map(x=>x.d)).size;if(n)setTimeout(()=>toast(`하루 끝을 ${durTxt(lateMax())} 넘게 넘는 날 ${n}일을 뒤로 정리했어요`),500);return fin()}
   const lm=durTxt(lateMax()),day=x=>`${md(x.d)} (${DOW[dow(x.d)]}) ${lateTxt(x.end)}`;
   const unit=x=>x.split.amt+(x.s.unit||''),part=x=>`${esc(x.s.name)} ${durTxt(x.split.nm)}만 · ${unit(x)}`;
   const mvRows=mv.slice(0,300).map(x=>{const n=nextStudy(x.s,x.d);return `<div><span>${day(x)}</span><b>${x.split?part(x):x.s.mode==='period'&&x.s.end?`${esc(x.s.name)} 쉼 · 남은 날에 나눠 해요`:`${esc(x.s.name)} → ${n?md(n):'다음'}`}</b></div>`}).join('');
   const plRows=pl.slice(0,300).map(x=>`<div><span>${md(x.d)} (${DOW[dow(x.d)]})</span><b>${x.split?part(x):`${esc(x.s.name)} 다시 해요`}</b></div>`).join('');
   const notes=[...new Set(mv.map(x=>x.s))].map(x=>{const e0=pe.get(x.id),e1=plan(x).end;
-    return x.mode==='period'&&x.end?`'${esc(x.name)}' 끝나는 날은 그대로, 하루 분량이 조금 늘어요`:e0&&e1!==e0?`'${esc(x.name)}' 끝나는 날 <b>${md(e0)} → ${md(e1)}</b>`:''}).filter(Boolean).slice(0,3).join('<br>');
+    return x.mode==='period'&&x.end?`'${esc(x.name)}' 종료일은 그대로, 하루 분량이 조금 늘어요`:e0&&e1!==e0?`'${esc(x.name)}' 종료일 <b>${md(e0)} → ${md(e1)}</b>`:''}).filter(Boolean).slice(0,3).join('<br>');
   const askRows=ask.slice(0,300).map(x=>`<div><span>${day(x)}</span><b>+${durTxt(x.end-S.cfg.dayEnd*60)}</b></div>`).join('');
   const el=document.createElement('div');el.className='ldim';
   el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4>   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 ${new Set(mv.map(x=>x.d)).size}일 <small>· 뒤로 밀려요</small></div><div class="ld mv">${mvRows}</div>`:''}
@@ -1685,9 +1707,9 @@ async function startSync(){
   firebase.auth().getRedirectResult().catch(e=>toast('로그인 실패: '+e.code));
   firebase.auth().onAuthStateChanged(u=>{
     SY.user=u;if(SY.unsub){SY.unsub();SY.unsub=null}
-    if(!u){SY.on=false;setSync('로그인하면 폰·탭 연동');return}
+    if(!u){SY.on=false;setSync('로그인하면 폰·탭 연동');queueSettle();return}
     SY.ref=firebase.firestore().collection('planners').doc(u.uid);SY.on=true;SY.live=false;setSync('동기화 중…');
-    SY.unsub=SY.ref.onSnapshot(onRemote,e=>setSync('동기화 오류 ('+e.code+')',1));
+    SY.unsub=SY.ref.onSnapshot(sn=>{onRemote(sn);if(SY.live)queueSettle()},e=>setSync('동기화 오류 ('+e.code+')',1));
     if(!M.classList.contains('hidden')&&SH.querySelector('#syncBox'))openSettings();
   });
 }
@@ -1828,6 +1850,8 @@ document.addEventListener('click',e=>{
     case 'undo':undo();break;
     case 'newSub':openSubject(null);break;
     case 'editSub':closePick();openSubject(id);break;
+    case 'editDraft':openSubject(id);break;
+    case 'delDraft':ask('이 날짜 미정 과목을 삭제할까요?','삭제',()=>{S.drafts=(S.drafts||[]).filter(x=>x.id!==id);save();closeModal();render()});break;
     case 'focusSub':S.ui.focus=id&&S.ui.focus!==id?id:null;saveUI();applyFocus();break;
     case 'pickFocus':{closePick();S.ui.focus=id;saveUI();applyFocus();const s=sub(id);if(s)toast(`'${s.name}'만 보여요 · 꾹 눌러 끌 수 있어요 · 다시 보려면 "전체"`);break}
     case 'xAdd':openAddDay(el.dataset.date,null);break;
@@ -1932,6 +1956,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ds(new Da
 S.ui.view='day';S.ui.day=TODAY; // always open on today's daily schedule
 S.ui.seen=1;
 if(fixWildTimes()){save();setTimeout(()=>toast('겹치지 않는 날끼리 쌓였던 시작 시간을 다시 맞췄어요'),600)}
+{const save0=save;save=function(){save0();if(!DEC&&!UNDOING)queueSettle()}}
 render();
 startSync();
 // "앱 설치" button: Chrome hands us the install prompt only when the page is installable and not installed yet
