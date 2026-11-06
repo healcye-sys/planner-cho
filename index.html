@@ -1146,8 +1146,8 @@ function renderDay(){
       <div class="meta">${exs.length?`<span style="color:var(--red);font-weight:700">📌 ${exs.map(e=>esc(e.name)).join(', ')}</span>`:''}</div>
       ${d!==TODAY?'<button class="btn" data-act="dToday">오늘로</button>':''}</div>
     ${overBy(it)?`<div class="ovfbar">🌙 ${lateTxt(Math.max(...it.map(x=>x.end)))} 가요 · ${endH()}보다 <b>${durTxt(overBy(it))}</b> 넘어요<small>공부 시간을 줄이거나 과목을 다른 날로 옮겨 보세요</small></div>`:''}
-    ${askipOn(d).map(s=>{const n=nextStudy(s,d);return `<div class="mvban">🌙 하루 끝을 ${durTxt(lateMax())} 넘게 넘겨서 <b>${esc(jo(s.name,'은','는'))} 오늘 쉬어요</b>.${n?` ${DOW[dow(n)]}요일(${md(n)})에 이어서 해요.`:''}<div class="r"><button data-act="xKeep" data-id="${s.id}" data-date="${d}">오늘도 할래요</button></div></div>`}).join('')}
-    ${asplitOn(d).map(s=>{const n=nextStudy(s,d);return `<div class="mvban">🌙 하루 끝을 넘기지 않게 <b>${esc(jo(s.name,'은','는'))} 오늘 ${durTxt(dayMins(s,d))}(${dayAmt(s,d)}${esc(s.unit||'')})만 해요</b>.${n?` 나머지는 ${DOW[dow(n)]}요일(${md(n)})에 이어서 해요.`:''}<div class="r"><button data-act="xKeep" data-id="${s.id}" data-date="${d}">오늘도 다 할래요</button></div></div>`}).join('')}
+    ${askipOn(d).map(s=>{const n=nextStudy(s,d);return `<div class="mvban">🌙 하루 끝을 ${durTxt(lateMax())} 넘게 넘겨서 <b>${esc(jo(s.name,'은','는'))} 오늘 쉬어요</b>.${n?` ${DOW[dow(n)]}요일(${md(n)})에 이어서 해요.`:''}<div class="r"><button data-act="xKeep" data-id="${s.id}" data-date="${d}">오늘 할게요</button></div></div>`}).join('')}
+    ${asplitOn(d).map(s=>{const n=nextStudy(s,d);return `<div class="mvban">🌙 하루 끝을 넘기지 않게 <b>${esc(jo(s.name,'은','는'))} 오늘 ${durTxt(dayMins(s,d))}(${dayAmt(s,d)}${esc(s.unit||'')})만 해요</b>.${n?` 나머지는 ${DOW[dow(n)]}요일(${md(n)})에 이어서 해요.`:''}<div class="r"><button data-act="xKeep" data-id="${s.id}" data-date="${d}">오늘 다 할게요</button></div></div>`}).join('')}
     <div style="margin-top:10px">${rows||'<div class="empty">이 날은 계획된 공부가 없어요.</div>'}</div>
     <div class="xadd" data-act="xAdd" data-date="${d}">＋ 오늘만 추가</div>
     ${skippedOn(d).length?`<div class="xskip">오늘만 쉬기 · ${skippedOn(d).map(s=>`<span>${esc(s.name)} <b data-act="xUnskip" data-id="${s.id}" data-date="${d}">되돌리기</b></span>`).join('')}</div>`:''}
@@ -1905,7 +1905,7 @@ document.addEventListener('click',e=>{
       save();closeModal();render();toast(`'${name}' 오늘만 추가했어요`);break}
     case 'xSkip':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'skip',true);save();closeModal();render();toast(`'${s.name}' 오늘만 쉬어요`);break}
     case 'xUnadd':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'add',false);if(s.ov)delete s.ov[d];save();closeModal();render();toast('오늘만 추가를 취소했어요');break}
-    case 'xKeep':{const s=sub(id),d=el.dataset.date;if(!s)break;(s.keep||(s.keep={}))[d]=true;if(s.asplit&&s.asplit[d]){delete s.asplit[d];if(s.ovm)delete s.ovm[d]}setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 오늘도 해요`);break}
+    case 'xKeep':{const s=sub(id),d=el.dataset.date;if(!s)break;(s.keep||(s.keep={}))[d]=true;if(s.asplit&&s.asplit[d]){delete s.asplit[d];if(s.ovm)delete s.ovm[d]}setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 오늘 해요`);break}
     case 'mealTap':{const now=Date.now(),n=el.dataset.n;if(MTAP&&MTAP.n===n&&now-MTAP.t<450){MTAP=null;openMeal(n)}else MTAP={n,t:now};break}
     case 'mealSave':{const m=(S.cfg.meals||[]).find(x=>x.n===el.dataset.n);if(!m)break;const t=SH.querySelector('#mlT').value,mm=+SH.querySelector('#mlM').value;
       if(t){const [h,mi]=t.split(':').map(Number);m.time=h*60+mi}if(mm>=5)m.mins=Math.min(240,mm);PC.clear();save();closeModal();render();toast(`${m.n} ${hm(m.time)}부터 ${durTxt(m.mins)}`);break}
