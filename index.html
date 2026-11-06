@@ -1240,19 +1240,24 @@ function demo(){
 /* ========== swipe left/right: next/prev month (먼슬리) or day (데일리) ========== */
 let sw=null;
 V.addEventListener('touchstart',e=>{
-  if(e.touches.length!==1||!['month','day'].includes(S.ui.view)){sw=null;return}
-  if(e.target.closest('.strip,.wscroll,.tblwrap,button,input')){sw=null;return}
+  if(e.touches.length!==1||!['month','day','week'].includes(S.ui.view)){sw=null;return}
+  if(e.target.closest('.strip,.tblwrap,button,input')||(S.ui.view!=='week'&&e.target.closest('.wscroll'))){sw=null;return}
   const t=e.touches[0];sw={x:t.clientX,y:t.clientY,t:Date.now()};
+  // week columns may scroll sideways first: only flip the week from the scroll edge
+  const sc=S.ui.view==='week'&&e.target.closest('.wscroll');
+  if(sc&&sc.scrollWidth>sc.clientWidth+2){sw.atL=sc.scrollLeft<=2;sw.atR=sc.scrollLeft>=sc.scrollWidth-sc.clientWidth-2}else{sw.atL=sw.atR=true}
 },{passive:true});
 V.addEventListener('touchend',e=>{
   if(!sw||drag||hold){sw=null;return}
-  const t=e.changedTouches[0];const dx=t.clientX-sw.x,dy=t.clientY-sw.y,dt=Date.now()-sw.t;sw=null;
+  const t=e.changedTouches[0];const sw0=sw;const dx=t.clientX-sw.x,dy=t.clientY-sw.y,dt=Date.now()-sw.t;sw=null;
   if(Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*1.6||dt>700)return;
   const next=dx<0;
-  if(S.ui.view==='month'){const {y,mo}=monthWeeks();S.ui.month=ds(new Date(y,mo-1+(next?1:-1),1,12)).slice(0,7)}
+  if(S.ui.view==='week'){if(next?!sw0.atR:!sw0.atL)return;S.ui.week=addD(S.ui.week||monday(TODAY),next?7:-7)}
+  else if(S.ui.view==='month'){const {y,mo}=monthWeeks();S.ui.month=ds(new Date(y,mo-1+(next?1:-1),1,12)).slice(0,7)}
   else S.ui.day=addD(S.ui.day||TODAY,next?1:-1);
   saveUI();render();
-  const el=V.querySelector(S.ui.view==='month'?'.mwrap':'.card');if(el)el.classList.add(next?'slide-l':'slide-r');
+  if(S.ui.view==='week'){const sc=V.querySelector('.wscroll');if(sc)sc.scrollLeft=next?0:sc.scrollWidth}
+  const el=V.querySelector(S.ui.view==='month'?'.mwrap':S.ui.view==='week'?'.wwrap':'.card');if(el)el.classList.add(next?'slide-l':'slide-r');
 },{passive:true});
 
 /* ========== events ========== */
