@@ -999,7 +999,7 @@ function renderWeek(){
     const meals=mealsOn().filter(m=>m.time<b*60&&m.time+m.mins>a*60).map(m=>{const t0=Math.max(m.time,a*60),t1=Math.min(m.time+m.mins,b*60);
       return `<div class="wmeal" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">🍚 ${m.n}</div>`}).join('');
     const nwl=d===TODAY?`<div class="wnow" style="top:${(nowMin()-a*60)/60*HP}px;${nowMin()<a*60||nowMin()>b*60?'display:none':''}"><span>${hm(nowMin())}</span></div>`:'';
-    cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H2}px;background-image:${bg}">`+meals+nwl+(ob?`<div class="lnight" style="top:${(b-a)*HP}px;height:${ob/60*HP}px"><span>🌙 +${Math.floor(ob/60)}:${pad(ob%60)}</span></div>`:'')+(MV[i]?MV[i].am.map((s,j)=>{const n=nextStudy(s,d);return `<div class="mvchip" data-act="gotoDay" data-date="${d}" style="top:${MV[i].top+j*36}px">${esc(s.name)}<br>${n?md(n):''}</div>`}).join(''):'')+it.map(x=>x.segs.map(([t0,t1],si)=>{
+    cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H2}px;background-image:${bg}">`+meals+nwl+(ob?`<div class="lnight" style="top:${(b-a)*HP}px;height:${ob/60*HP}px"><span>🌙 +${Math.floor(ob/60)}:${pad(ob%60)}</span></div>`:'')+(MV[i]?MV[i].am.map((s,j)=>{const n=nextStudy(s,d);return `<div class="mvchip" data-act="gotoDay" data-date="${d}" style="top:${MV[i].top+j*36}px">${esc(s.name)}<br>${n?md(n)+'로':''}</div>`}).join(''):'')+it.map(x=>x.segs.map(([t0,t1],si)=>{
       const first=si===0,last=si===x.segs.length-1;
       const top=(clamp(t0,a*60,(b+XH)*60)-a*60)/60*HP,ht=Math.max(22,Math.min(t1-t0,(b+XH)*60-t0)/60*HP-2);
       if(x.oo)return `<div class="wone ${x.mark==='o'?'done':''}" data-lp="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.30)};border-color:${x.s.color}"><div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${ht>34&&first?'<div class="rg">오늘만</div>':''}</div></div>`;
@@ -1365,7 +1365,7 @@ function lateGate(id,name,before,fin,onNo,verb){syncRounds();PC.clear();const id
     return x.mode==='period'&&x.end?`'${esc(x.name)}' 끝나는 날은 그대로, 하루 분량이 조금 늘어요`:e0&&e1!==e0?`'${esc(x.name)}' 끝나는 날 <b>${md(e0)} → ${md(e1)}</b> (늦어져요)`:''}).filter(Boolean).slice(0,3).join('<br>');
   const askRows=ask.slice(0,300).map(x=>`<div><span>${day(x)}</span><b>+${durTxt(x.end-S.cfg.dayEnd*60)}</b></div>`).join('');
   const el=document.createElement('div');el.className='ldim';
-  el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4>   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 ${new Set(mv.map(x=>x.d)).size}일 <small>· 다음 공부일로 넘겨요</small></div><div class="ld mv">${mvRows}</div>${notes?`<div class="lnote">${notes}</div>`:''}`:''}
+  el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4>   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 ${new Set(mv.map(x=>x.d)).size}일 <small>· 뒤로 밀려요</small></div><div class="ld mv">${mvRows}</div>${notes?`<div class="lnote">${notes}</div>`:''}`:''}
    ${ask.length?`<div class="lsec">${ask.every(x=>x.end<=M)?lm+' 안으로 넘치는 날':'넘치는 날'} ${ask.length}일 <small>· 그대로 해도 될까요?</small></div><div class="ld">${askRows}</div>`:''}
    <button class="lbtn pri" data-k="ok">${ask.length?'그래도 저장':'저장'}</button><button class="lbtn ghost" data-k="no">취소</button></div>`;
   document.body.appendChild(el);fitLine(el.querySelectorAll('.lbox h4,.lbox .lsec'));
