@@ -951,7 +951,7 @@ document.addEventListener('pointerdown',e=>{
   const L=locate(e.clientX,e.clientY);if(!L)return;
   hold={el:seg,wk:seg.classList.contains('wblk'),wrs:!!(e.target.closest&&e.target.closest('.wrsz')),wday:seg.dataset.date,id:seg.dataset.id,pid:e.pointerId,x:e.clientX,y:e.clientY,L,mouse:e.pointerType==='mouse',timer:0,rs:!!(e.target.closest&&e.target.closest('.rsz'))&&seg.classList.contains('seg')};
   if(hold.rs)seg.classList.add('rs');
-  if(!hold.wk&&!hold.rs&&!hold.mouse&&!S.ui.focus&&S.ui.view==='month'){const c=bandsNear(e.clientX,e.clientY);if(c.length>1)hold.cands=c}
+  // stacked-band picker removed: month bands no longer overlap
   if(hold.mouse){e.preventDefault();return} // mouse: drag starts as soon as it moves
   document.querySelectorAll(`.seg[data-id="${hold.id}"],.wblk[data-id="${hold.id}"]`).forEach(x=>x.classList.add('hold'));
   if(!hold.cands){const s0=sub(hold.id);if(s0){if(hold.wk){const it=itemsOn(hold.wday).find(x=>x.s.id===s0.id);if(it)showTip(hold.x,hold.y,s0.name,`${hm(it.segs[0][0])}~${hm(it.end)}`,`${mdw(hold.wday)}`)}else bandTip(s0,s0.start,s0.time,hold.x,hold.y)}}
