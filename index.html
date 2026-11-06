@@ -526,7 +526,8 @@ function save(){const uj=ubody();if(uj!==UJ&&!UNDOING)UNDO={j:UJ,t:Date.now()};U
 function saveUI(){stamp();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const sub=id=>S.subjects.find(x=>x.id===id);
 const chk=id=>S.checks[id]||(S.checks[id]={});
-const dayAmt=(s,d)=>s.mode!=='period'&&s.ovm&&s.ovm[d]!=null&&s.mins>0?s.daily*s.ovm[d]/s.mins:s.daily;
+const dayAmt=(s,d)=>s.mode!=='period'&&s.ovm&&s.ovm[d]!=null&&s.mins>0?Math.max(1,Math.round(s.daily*s.ovm[d]/s.mins)):s.daily;
+const perDay=v=>{const f=Math.floor(v+1e-6),c=Math.ceil(v-1e-6);return f===c?String(c):f<1?'1':f+'~'+c};
 const markAmt=(m,daily)=>m==='o'?daily:m==='t'?daily/2:0;
 
 /* plan: which dates a subject occupies */
@@ -540,9 +541,11 @@ function planRaw(s){let p;
   before+=s.pre||0;
   before=Math.min(before,s.total);
   const rem=Math.max(0,s.total-before);
-  const dates=[],idx={},cum=[]; let d=s.start,g=0,acc=0;
-  while((dates.length===0||acc<rem-1e-9)&&g<3000){if(studyOn(s,d)){idx[d]=dates.length;dates.push(d);cum.push(acc);acc+=Math.max(1e-6,dayAmt(s,d))}d=addD(d,1);g++}
-  p={before,dates,idx,cum,end:dates[dates.length-1]};return p;
+  const dates=[],idx={},cum=[],amt=[]; let d=s.start,g=0,acc=0;let part=null;
+  if(s.mode==='period'&&s.end){let N=0,x=s.start,g2=0;while(x<=s.end&&g2<4000){if(studyOn(s,x))N++;x=addD(x,1);g2++}
+    const r=Math.round(rem);part=N>0&&r>=N?k=>Math.round((k+1)*r/N)-Math.round(k*r/N):()=>1}
+  while((dates.length===0||acc<rem-1e-9)&&g<3000){if(studyOn(s,d)){const a=part?part(dates.length):Math.max(1e-6,dayAmt(s,d));idx[d]=dates.length;dates.push(d);cum.push(acc);amt.push(a);acc+=a}d=addD(d,1);g++}
+  p={before,dates,idx,cum,amt,end:dates[dates.length-1]};return p;
 }
 function doneAll(s){const ch=S.checks[s.id]||{};let t=s.pre||0;for(const d in ch)t+=markAmt(ch[d],dayAmt(s,d));return Math.min(t,s.total)}
 function rangeTxt(s,from,to){
@@ -557,7 +560,7 @@ function spanSegs(t,m){const out=[];let cur=t,left=m;
 const dayMins=(s,d)=>s.ovm&&s.ovm[d]!=null?s.ovm[d]:s.mins;
 function itemFor(s,date){
   const p=plan(s);const k=p.idx[date];if(k===undefined)return null;
-  const from=p.before+p.cum[k],to=Math.min(s.total,from+dayAmt(s,date));
+  const from=p.before+p.cum[k],to=Math.min(s.total,from+(s.mode==='period'?p.amt[k]:dayAmt(s,date)));
   return {s,date,k,from,to,label:rangeTxt(s,from,to),time:dayTime(s,date),ov:!!(s.ov&&s.ov[date]!=null||s.ovm&&s.ovm[date]!=null),mins:dayMins(s,date),segs:spanSegs(dayTime(s,date),dayMins(s,date)),get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[s.id]||{})[date]||''};
 }
 /* one-off items: a single day only (not in month bands or subject list) */
@@ -646,7 +649,7 @@ function renderHeader(){
   }).join('')+`<button class="dchip add" data-act="newExam" title="D-day 추가">+</button>`;
   let tot=0,done=0;S.subjects.forEach(s=>{tot+=s.total;done+=doneAll(s)});
   const pct=tot?Math.round(done/tot*100):0;
-  document.getElementById('progTxt').textContent=`전체 ${fmtN(Math.round(done*10)/10)} / ${fmtN(tot)} 완료`;
+  document.getElementById('progTxt').textContent=`전체 ${Math.round(done)} / ${fmtN(tot)} 완료`;
   document.getElementById('progPct').textContent=pct+'%';
   document.getElementById('progBar').style.width=pct+'%';
 }
@@ -794,7 +797,7 @@ function resizeFrame(s){
       document.querySelectorAll('.bands').forEach(layer=>{const h=segsHTML(t,p,layer.dataset.start,'ghost');if(h)layer.insertAdjacentHTML('beforeend',h)})}}
   const t=drag.target;const tip=document.getElementById('tip');tip.classList.remove('hidden');
   tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
-  tip.textContent=t.end?`${s.name} · ~${mdw(t.end)} 종료 · 공부일 ${t.n}일 · 하루 약 ${fmtN(Math.round(t.daily*10)/10)}${s.unit||''}`:`${s.name} · 좌우로 끌어 종료일 조절`;
+  tip.textContent=t.end?`${s.name} · ~${mdw(t.end)} 종료 · 공부일 ${t.n}일 · 하루 ${perDay(t.daily)}${s.unit||''}`:`${s.name} · 좌우로 끌어 종료일 조절`;
 }
 function wGhost(day,t,m){const a=S.cfg.dayStart*60,b=S.cfg.dayEnd*60;
   document.querySelectorAll('.wblk.ghost').forEach(e=>e.remove());
@@ -859,7 +862,7 @@ function endDrag(cancel){
   else if(d.wk){if(!cancel&&s&&d.target.time!==dayTime(s,d.day)){s.ov=s.ov||{};if(d.target.time===s.time)delete s.ov[d.day];else s.ov[d.day]=d.target.time;save();
       toast(d.target.time===s.time?'원래 시간으로 돌아왔어요':`${mdw(d.day)} 하루만 ${hm(d.target.time)}로 옮겼어요`)}}
   else if(d.rs){if(!cancel&&s&&d.target.end&&Math.abs(d.target.daily-s.daily)>1e-9){s.daily=d.target.daily;s.mode='period';s.end=d.target.end;PC.delete(s.id);save();renderHeader();
-      toast(`${mdw(plan(s).end)}까지 · 하루 약 ${fmtN(Math.round(s.daily*10)/10)}${s.unit||''}`)}}
+      toast(`${mdw(plan(s).end)}까지 · 하루 ${perDay(s.daily)}${s.unit||''}`)}}
   else if(d.moved&&!cancel&&s&&(d.target.start!==s.start||d.target.time!==s.time)){s.start=d.target.start;s.time=d.target.time;save();renderHeader()}
   if(S.ui.view==='week'){const sc=V.querySelector('.wscroll'),sl=sc?sc.scrollLeft:0;renderWeek();const n=V.querySelector('.wscroll');if(n)n.scrollLeft=sl}
   else renderBands();
@@ -1009,9 +1012,9 @@ function renderList(){
     const late=!pe.done&&pe.date>p.end;
     const endTxt=pe.done?`<span class="ok">완료 ✓</span>`:late?`<span class="late">${md(pe.date)} (계획 ${md(p.end)})</span>`:`<span class="ok">${md(p.end)}</span>`;
     return `<tr data-id="${s.id}"><td class="nmc"><span class="sw" style="background:${s.color}"></span>${esc(s.name)}${exLate(s)?`<div class="exw">⚠ ${esc(fx.name)}(${md(fx.date)})보다 늦게 끝나요</div>`:''}</td>
-      <td class="rem">${fmtN(Math.round((s.total-done)*10)/10)}${esc(s.unit||'')} <span class="hint">/ ${fmtN(s.total)}</span><div class="minibar"><i style="width:${pct}%;background:${s.color}"></i></div></td>
+      <td class="rem">${Math.round(s.total-done)}${esc(s.unit||'')} <span class="hint">/ ${fmtN(s.total)}</span><div class="minibar"><i style="width:${pct}%;background:${s.color}"></i></div></td>
       <td class="st">${md(p.dates[0])}</td><td class="en">${endTxt}</td>
-      <td class="hint cfgc">${fmtN(s.daily)}${esc(s.unit||'')}/일 · ${daysLabel(s.days)} · ${hm(s.time)}~${hm(s.time+s.mins)}</td>
+      <td class="hint cfgc">${s.mode==='period'?perDay(s.daily):fmtN(s.daily)}${esc(s.unit||'')}/일 · ${daysLabel(s.days)} · ${hm(s.time)}~${hm(s.time+s.mins)}</td>
       <td class="ac"><div class="acts">${late?`<button class="btn sm" data-act="resched" data-id="${s.id}">오늘부터 재배치</button>`:''}
         <button class="btn sm" data-act="editSub" data-id="${s.id}">수정</button><button class="btn sm danger" data-act="delSub" data-id="${s.id}">삭제</button><span class="hdl" title="끌어서 순서 바꾸기"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M1.5 1.5h13M1.5 6h13M1.5 10.5h13"/></svg></span></div></td></tr>`}).join('');
   V.innerHTML=`<div class="card">
@@ -1073,7 +1076,7 @@ function openSubject(id){
       if(!F.days.length){el.textContent='공부할 요일을 하나 이상 골라 주세요.';return}
       const n=studyDaysBetween(F.days,st,en);if(n<1){el.textContent='종료일이 시작일보다 뒤여야 하고, 그 사이에 공부하는 요일이 있어야 해요.';return}
       const mins=num(fv('fH'))*60+num(fv('fM'));
-      el.innerHTML=`${pre>0?`남은 ${fmtN(t-pre)}${esc(fv('fUnit'))} · `:''}공부일 <b>${n}일</b> (${daysLabel(F.days)}) · 하루 <b>약 ${fmtN(Math.round((t-pre)/n*10)/10)}${esc(fv('fUnit'))}</b> · <b>${mdw(st)} ~ ${mdw(en)}</b> · 하루 ${Math.floor(mins/60)}시간 ${mins%60?mins%60+'분':''}`;return}
+      el.innerHTML=`${pre>0?`남은 ${fmtN(t-pre)}${esc(fv('fUnit'))} · `:''}공부일 <b>${n}일</b> (${daysLabel(F.days)}) · 하루 <b>${perDay((t-pre)/n)}${esc(fv('fUnit'))}</b> · <b>${mdw(st)} ~ ${mdw(en)}</b> · 하루 ${Math.floor(mins/60)}시간 ${mins%60?mins%60+'분':''}`;return}
     const t=num(fv('fTotal')),d=num(fv('fDaily'));const pre=clamp(num(fv('fDone')),0,t);const mins=num(fv('fH'))*60+num(fv('fM'));const st=fv('fStart')||TODAY;
     const el=document.getElementById('fPrev');
     if(!(t>0&&d>0)){el.textContent='전체 분량과 하루 공부량을 넣으면 기간이 계산돼요.';return}
@@ -1246,7 +1249,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v1.0.1 · © 2026 healcye-sys. All rights reserved.<br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v1.0.2 · © 2026 healcye-sys. All rights reserved.<br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
