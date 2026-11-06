@@ -960,7 +960,7 @@ window.addEventListener('pointermove',e=>{
 function endDrag(cancel){
   if(!drag)return;const d=drag;drag=null;clearInterval(autoT);if(raf){cancelAnimationFrame(raf);raf=0}
   document.body.classList.remove('dragging');document.getElementById('tip').classList.add('hidden');
-  const s=sub(d.id);
+  const s=sub(d.id);const before0=JSON.stringify(S.subjects);
   document.querySelectorAll('.seg.rs').forEach(x=>x.classList.remove('rs'));
   if(d.wk&&d.wrs){if(!cancel&&s&&d.target.mins!==dayMins(s,d.day)){s.ovm=s.ovm||{};if(d.target.mins===s.mins)delete s.ovm[d.day];else s.ovm[d.day]=d.target.mins;save();
       toast(`${mdw(d.day)} 하루만 ${Math.floor(d.target.mins/60)?Math.floor(d.target.mins/60)+'시간 ':''}${d.target.mins%60?d.target.mins%60+'분':''}`)}}
@@ -969,8 +969,10 @@ function endDrag(cancel){
   else if(d.rs){if(!cancel&&s&&d.target.end&&Math.abs(d.target.daily-s.daily)>1e-9){s.daily=d.target.daily;s.mode='period';s.end=d.target.end;PC.delete(s.id);save();renderHeader();
       toast(`${mdw(plan(s).end)}까지 · 하루 ${perDay(s.daily)}${s.unit||''}`)}}
   else if(d.moved&&!cancel&&s&&(d.target.start!==s.start||d.target.time!==s.time)){if(s.parent&&d.target.start!==s.start)s.autoStart=false;if(s.mode==='period'&&s.end&&d.target.start!==s.start){s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s)}s.start=d.target.start;s.time=d.target.time;PC.delete(s.id);save();renderHeader()}
-  if(S.ui.view==='week'){const sc=V.querySelector('.wscroll'),sl=sc?sc.scrollLeft:0;renderWeek();const n=V.querySelector('.wscroll');if(n)n.scrollLeft=sl}
-  else renderBands();
+  const rr=()=>{if(S.ui.view==='week'){const sc=V.querySelector('.wscroll'),sl=sc?sc.scrollLeft:0;renderWeek();const n=V.querySelector('.wscroll');if(n)n.scrollLeft=sl}
+  else{renderHeader();renderBands()}};rr();
+  /* a drop that runs the day past its end: same rule as saving (ask up to the limit, move the last subject beyond it) */
+  if(s&&!cancel&&JSON.stringify(S.subjects)!==before0)lateGate(s.id,s.name,before0,()=>{save();rr()},()=>{save();rr();toast('옮기기 전으로 돌렸어요')},'바꾸면');
   setTimeout(applyPending,0);
 }
 window.addEventListener('pointerup',e=>{
@@ -1348,7 +1350,7 @@ function autoMove(L,M){const mv=[];
     const c=it.filter(y=>!y.oo&&!(y.s.keep&&y.s.keep[x.d])).sort((p,q)=>q.end-p.end)[0];if(!c)break;
     const so=c.s;(so.askip||(so.askip={}))[x.d]=true;setDay(so,x.d,'skip',true);PC.clear();mv.push({d:x.d,end:x.end,s:so})}}
   return mv}
-function lateGate(id,name,before,fin){syncRounds();PC.clear();const ids=[id,...S.subjects.filter(x=>x.parent===id).map(x=>x.id)];const L=lateDays(ids);
+function lateGate(id,name,before,fin,onNo,verb){syncRounds();PC.clear();const ids=[id,...S.subjects.filter(x=>x.parent===id).map(x=>x.id)];const L=lateDays(ids);
   if(!L.length)return fin();
   const cur=S.subjects;S.subjects=JSON.parse(before);PC.clear();const old=new Map(lateDays(S.subjects.map(x=>x.id).concat(ids)).map(x=>[x.d,x.end]));S.subjects=cur;PC.clear();
   const isNew=x=>!old.has(x.d)||x.end>old.get(x.d);
@@ -1363,13 +1365,13 @@ function lateGate(id,name,before,fin){syncRounds();PC.clear();const ids=[id,...S
     return x.mode==='period'&&x.end?`'${esc(x.name)}' 끝나는 날은 그대로, 하루 분량이 조금 늘어요`:e0&&e1!==e0?`'${esc(x.name)}' 끝나는 날 <b>${md(e0)} → ${md(e1)}</b> (늦어져요)`:''}).filter(Boolean).slice(0,3).join('<br>');
   const askRows=ask.slice(0,3).map(x=>`<div><span>${day(x)}</span><b>+${durTxt(x.end-S.cfg.dayEnd*60)}</b></div>`).join('')+(ask.length>3?`<div class="more">외 ${ask.length-3}일</div>`:'');
   const el=document.createElement('div');el.className='ldim';
-  el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4><p>${jo(name,'을','를')} 넣으면 하루 끝을 넘기는 날이 생겨요.</p>
+  el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4><p>${jo(name,'을','를')} ${verb||'넣으면'} 하루 끝을 넘기는 날이 생겨요.</p>
    ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 <small>· 맨 뒤 과목은 쉬고 다음 공부하는 날로 넘겨요</small></div><div class="ld mv">${mvRows}</div>${notes?`<div class="lnote">${notes}</div>`:''}`:''}
    ${ask.length?`<div class="lsec">${ask.every(x=>x.end<=M)?lm+' 안으로 넘치는 날':'넘치는 날'} <small>· 그대로 해도 될까요?</small></div><div class="ld">${askRows}</div>`:''}
    <button class="lbtn pri" data-k="ok">${ask.length?'그래도 저장':'저장'}</button><button class="lbtn ghost" data-k="no">취소</button></div>`;
   document.body.appendChild(el);
   el.addEventListener('click',e=>{const k=(e.target.closest('[data-k]')||{}).dataset?.k;if(!k&&e.target!==el)return;el.remove();
-    if(k==='ok')fin();else{S.subjects=JSON.parse(before);PC.clear()}})}
+    if(k==='ok')fin();else{S.subjects=JSON.parse(before);PC.clear();if(onNo)onNo()}})}
 /* time edit collides with another subject: ask push-back / swap */
 function clashDay(so){const ds=plan(so).dates;return ds.find(d=>d>=TODAY)||ds[0]}
 function clashOf(so,want){PC.clear();const d=clashDay(so);if(!d)return null;
