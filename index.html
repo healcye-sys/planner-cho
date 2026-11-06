@@ -128,7 +128,7 @@ main{padding:0 14px}
 .seg.lift .bar{opacity:.85;box-shadow:0 0 0 2px var(--ink),0 8px 18px rgba(0,0,0,.28)}
 .seg.ghost{pointer-events:none;z-index:4}
 .seg .rsz{position:absolute;right:-6px;top:0;bottom:0;width:22px;pointer-events:auto;cursor:ew-resize;z-index:2;touch-action:none}
-.seg .rsz:after{content:"";position:absolute;right:8px;top:50%;width:4px;height:min(14px,70%);transform:translateY(-50%);border-radius:2px;background:rgba(255,255,255,.95);box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.seg .rsz:after{content:"";position:absolute;right:11px;top:50%;width:7px;height:7px;transform:translateY(-50%);border-radius:50%;background:rgba(255,255,255,.95);box-shadow:0 0 0 1px rgba(0,0,0,.35)}
 .seg.hold.rs .rsz:after,.seg.lift.rs .rsz:after{background:var(--ink)}
 .seg.ghost .bar{background:transparent!important;border:2px dashed var(--ink);box-shadow:none;opacity:.55}
 .seg.flash .bar{animation:flash 1.2s ease 2}
@@ -152,7 +152,7 @@ main{padding:0 14px}
 .wcol.today{background:var(--todayW)}
 .mlab{flex:0 0 74px;font-size:14px;font-weight:600}
 .meal-row{margin-bottom:6px;align-items:center}.meal-row .inp{flex:1}.meal-row .inp.mmin{flex:0 0 76px;text-align:center;padding:0 6px}.mlab{flex:0 0 44px!important}
-.wmeal{position:absolute;left:0;right:0;z-index:0;background:repeating-linear-gradient(135deg,var(--line2) 0 6px,transparent 6px 12px);border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);font-size:11px;color:var(--sub);padding:2px 4px;overflow:hidden;white-space:nowrap;pointer-events:none}
+.wmeal{position:absolute;left:0;right:0;z-index:0;background:repeating-linear-gradient(135deg,var(--line2) 0 6px,transparent 6px 12px);border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);font-size:11px;color:var(--sub);padding:2px 4px;overflow:hidden;white-space:nowrap;pointer-events:auto;cursor:pointer}
 .row.meal{background:repeating-linear-gradient(135deg,var(--line2) 0 6px,transparent 6px 12px);border-radius:0;opacity:1;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);padding:7px 0}
 .row.meal .nm{font-size:13.5px!important;color:var(--sub);font-weight:600}
 .row.meal .cb{background:none!important;font-size:15px;display:grid;place-items:center;width:auto}
@@ -248,9 +248,9 @@ input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:tex
 @media (min-width:700px){.row.one{padding:10px 0}.row.one .tm{width:100px;font-size:13.5px}.row.one .nm{font-size:17px}.row.one .rg{font-size:13.5px}.row.one .hr{font-size:13px}.row.one .mk{width:36px;height:36px;font-size:18px}}
 .zbox{overflow:hidden;overflow:clip}.zbox.zd .whead,.zbox.zd .wgut,.zbox.zd .whead>div:first-child{position:relative;top:auto;left:auto}.zin{transform-origin:0 0}
 .zreset{position:fixed;left:16px;bottom:calc(24px + env(safe-area-inset-bottom));z-index:40;background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:999px;padding:9px 14px;font-size:13.5px;font-weight:700;box-shadow:0 3px 12px rgba(0,0,0,.15);font-family:inherit}
-.chips{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 10px;margin:0 0 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.chips::-webkit-scrollbar{display:none}
-.chips button{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:6px 11px;border-radius:999px;background:var(--card);border:1.5px solid var(--line);font-size:13px;font-weight:700;white-space:nowrap;color:var(--ink);font-family:inherit}
-.chips button i{width:10px;height:10px;border-radius:50%}.chips button.on{border-color:var(--ink);background:var(--ink);color:var(--card)}.chips button.all{color:var(--sub)}.chips button.all.on{color:var(--card)}
+.chips{display:flex;gap:5px;overflow-x:auto;padding:2px 2px 8px;margin:0 0 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.chips::-webkit-scrollbar{display:none}
+.chips button{flex:0 0 auto;display:flex;align-items:center;gap:4px;padding:2px 8px;line-height:18px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-size:11.5px;font-weight:700;white-space:nowrap;color:var(--ink);font-family:inherit}
+.chips button i{width:7px;height:7px;border-radius:50%}.chips button.on{border-color:var(--ink);background:var(--ink);color:var(--card)}.chips button.all{color:var(--sub)}.chips button.all.on{color:var(--card)}
 .bpick{position:fixed;z-index:3500;background:var(--card);color:var(--ink);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:8px;width:250px;max-width:calc(100vw - 16px);max-height:60vh;overflow-y:auto}
 .bpick h6{margin:2px 6px 6px;font-size:12px;color:var(--sub);font-weight:700}
 .bpr{display:flex;align-items:center;gap:8px;padding:9px 8px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer}.bpr:active{background:var(--brandSoft)}
@@ -316,6 +316,7 @@ td.nmc{white-space:normal;min-width:120px;font-weight:600}
 .exbadge{font-size:12.5px;font-weight:700;color:var(--red);background:rgba(229,83,75,.1);border-radius:8px;padding:5px 9px}
 .hdl{display:inline-grid;place-items:center;width:40px;height:34px;margin:0 -4px 0 auto;color:var(--sub);opacity:.6;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;vertical-align:middle;border-radius:8px}
 .hdl:active{background:var(--line2)}
+.lsort{width:auto!important;max-width:150px;height:38px;padding:0 28px 0 10px;font-size:13.5px;font-weight:600;flex:0 0 auto}
 tbody tr{transition:transform .15s}
 tbody tr.lrow{transition:none;position:relative;z-index:5;background:var(--card);box-shadow:0 6px 16px rgba(0,0,0,.18);border-radius:10px}
 .sw{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-right:6px}
@@ -326,6 +327,9 @@ tbody tr.lrow{transition:none;position:relative;z-index:5;background:var(--card)
 .acts{display:flex;gap:4px;align-items:center;width:100%}
 
 /* fab */
+.zfab{position:fixed;right:92px;bottom:24px;width:60px;height:60px;z-index:60;display:flex;flex-direction:column;border-radius:20px;overflow:hidden;background:var(--card);border:1.5px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,.15)}
+.zfab button{flex:1;display:grid;place-items:center;border:0;background:none;color:var(--ink);padding:0;font-family:inherit;cursor:pointer}.zfab button+button{border-top:1px solid var(--line)}.zfab button:active{background:var(--line2)}
+body.dragging .zfab{pointer-events:none}
 .fab{position:fixed;right:22px;bottom:24px;width:60px;height:60px;border-radius:20px;background:var(--brand);color:var(--onBrand);font-size:32px;
   box-shadow:0 6px 18px rgba(47,90,80,.4);z-index:30;display:grid;place-items:center;line-height:1}
 
@@ -472,6 +476,7 @@ tbody tr.lrow{transition:none;position:relative;z-index:5;background:var(--card)
   td.ac{grid-column:1/-1}
   .acts{flex-wrap:wrap}
   .fab{right:16px;bottom:18px;width:54px;height:54px;font-size:28px}
+  .zfab{right:78px;bottom:18px;width:54px;height:54px}
 }
 
 /* fit: nothing may be wider than its box, on any screen or browser */
@@ -764,8 +769,8 @@ function renderMonth(){
     <button class="btn" data-act="mToday">오늘</button>
     <div class="spacer"></div>
     <span class="hint">띠를 꾹 누른 채 끌면 날짜(←→)·시간대(↑↓) 이동 · 두 번 누르면 수정/삭제 · 화면을 옆으로 밀면 다음 달</span>
-    <button class="btn sq" data-act="zoomOut" title="화면 축소 (칸 작게)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20.5 20.5"/><path d="M7.8 10.5h5.4"/></svg></button><button class="btn sq" data-act="zoomIn" title="화면 확대 (칸 크게)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20.5 20.5"/><path d="M7.8 10.5h5.4"/><path d="M10.5 7.8v5.4"/></svg></button>
   </div>
+  <div class="zfab"><button data-act="zoomIn" title="화면 확대 (칸 크게)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20.5 20.5"/><path d="M7.8 10.5h5.4"/><path d="M10.5 7.8v5.4"/></svg></button><button data-act="zoomOut" title="화면 축소 (칸 작게)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20.5 20.5"/><path d="M7.8 10.5h5.4"/></svg></button></div>
   ${S.subjects.length>1?`<div class="chips"><button data-act="focusSub" data-id="" class="all">전체</button>${listOrder().map(s=>`<button data-act="focusSub" data-id="${s.id}"><i style="background:${s.color}"></i>${esc(s.name)}</button>`).join('')}</div>`:''}
   ${LM.length?`<div class="lban" data-act="gotoDay" data-date="${LM[0]}">🌙 이번 달 ${LM.length}일이 ${S.cfg.dayEnd>=24?'새벽까지':'늦게까지'} 가요<b>보기 ›</b></div>`:''}
   <div class="mwrap" style="--rowH:${S.cfg.rowH}px">
@@ -997,7 +1002,7 @@ function renderWeek(){
     const lanes=[];it.forEach(x=>{let l=lanes.findIndex(e=>e<=x.time);if(l<0){l=lanes.length;lanes.push(0)}lanes[l]=x.end;x.lane=l});
     const L=Math.max(1,lanes.length);
     const meals=mealsOn().filter(m=>m.time<b*60&&m.time+m.mins>a*60).map(m=>{const t0=Math.max(m.time,a*60),t1=Math.min(m.time+m.mins,b*60);
-      return `<div class="wmeal" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">🍚 ${m.n}</div>`}).join('');
+      return `<div class="wmeal" data-act="mealTap" data-n="${esc(m.n)}" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">🍚 ${m.n}</div>`}).join('');
     const nwl=d===TODAY?`<div class="wnow" style="top:${(nowMin()-a*60)/60*HP}px;${nowMin()<a*60||nowMin()>b*60?'display:none':''}"><span>${hm(nowMin())}</span></div>`:'';
     cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H2}px;background-image:${bg}">`+meals+nwl+(ob?`<div class="lnight" style="top:${(b-a)*HP}px;height:${ob/60*HP}px"><span>🌙 +${Math.floor(ob/60)}:${pad(ob%60)}</span></div>`:'')+(MV[i]?MV[i].am.map((s,j)=>{const n=nextStudy(s,d);return `<div class="mvchip" data-act="gotoDay" data-date="${d}" style="top:${MV[i].top+j*36}px">${esc(s.name)}<br>${n?md(n)+'로':''}</div>`}).join(''):'')+it.map(x=>x.segs.map(([t0,t1],si)=>{
       const first=si===0,last=si===x.segs.length-1;
@@ -1055,8 +1060,8 @@ function renderDay(){
       <h2>${pd(d).getMonth()+1}월 ${pd(d).getDate()}일 (${DOW[dow(d)]})${d===TODAY?'<span class="tdy">오늘</span>':''}</h2>
       <button class="btn sq" data-act="dNext">›</button></div>
     <div class="dsub">
-      <div class="meta"><span>공부 ${hrs(mins).replace('h','시간')}</span><span>${it.length}개 항목</span>${exs.length?`<span style="color:var(--red);font-weight:700">📌 ${exs.map(e=>esc(e.name)).join(', ')}</span>`:''}</div>
       <div class="ring"><svg width="54" height="54" viewBox="0 0 54 54"><circle cx="27" cy="27" r="22" fill="none" stroke="var(--line2)" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="var(--brand)" stroke-width="5" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 27 27)"/></svg><b>${dn}/${it.length}</b></div>
+      <div class="meta">${exs.length?`<span style="color:var(--red);font-weight:700">📌 ${exs.map(e=>esc(e.name)).join(', ')}</span>`:''}</div>
       ${d!==TODAY?'<button class="btn" data-act="dToday">오늘로</button>':''}</div>
     ${overBy(it)?`<div class="ovfbar">🌙 ${lateTxt(Math.max(...it.map(x=>x.end)))} 가요 · ${endH()}보다 <b>${durTxt(overBy(it))}</b> 넘어요<small>공부 시간을 줄이거나 과목을 다른 날로 옮겨 보세요</small></div>`:''}
     ${askipOn(d).map(s=>{const n=nextStudy(s,d);return `<div class="mvban">🌙 하루 끝을 ${durTxt(lateMax())} 넘게 넘겨서 <b>${esc(jo(s.name,'은','는'))} 오늘 쉬어요</b>.${n?` ${DOW[dow(n)]}요일(${md(n)})에 이어서 해요.`:''}<div class="r"><button data-act="xKeep" data-id="${s.id}" data-date="${d}">오늘도 할래요</button></div></div>`}).join('')}
@@ -1065,7 +1070,6 @@ function renderDay(){
     ${skippedOn(d).length?`<div class="xskip">오늘만 쉬기 · ${skippedOn(d).map(s=>`<span>${esc(s.name)} <b data-act="xUnskip" data-id="${s.id}" data-date="${d}">되돌리기</b></span>`).join('')}</div>`:''}
     <div class="foot"><span>${dn} / ${it.length} 완료</span><span>공부 ${hrs(mins)}</span></div>
    </div>
-   <div class="center-hint">버튼을 누를 때마다 ○ 완료 → △ 일부 → × 못함 → 해제</div>
    <div class="card"><div class="sec-title">⏰ 밀린 공부 <span class="hint">(최근 3주, ○ 아닌 항목)</span></div>
     ${od.length?od.map(x=>`<div class="row"><div class="tm">${md(x.date)}<br>${DOW[dow(x.date)]}</div><div class="cb" style="background:${x.s.color}"></div>
       <div class="tx"><div class="nm" style="font-size:15px">${esc(x.s.name)}</div><div class="rg">${esc(x.label)}</div></div>
@@ -1112,8 +1116,10 @@ function endList(e){if(!LD||e.pointerId!==LD.pid)return;const d=LD;LD=null;
   const ids=d.rows.map(r=>r.dataset.id);const [m]=ids.splice(d.idx,1);ids.splice(d.to,0,m);applyOrder(ids);
 }
 document.addEventListener('pointerup',endList);document.addEventListener('pointercancel',endList);
+function setLSort(v){S.ui.lsort=v;saveUI();render()}
 function renderList(){
-  const arr=listOrder();
+  const LS=S.ui.lsort||'my',ko=(a,b)=>a.name.localeCompare(b.name,'ko');
+  const arr=listOrder();if(LS==='name')arr.sort(ko);else if(LS==='name_d')arr.sort((a,b)=>ko(b,a));else if(LS==='start')arr.sort((a,b)=>plan(a).dates[0].localeCompare(plan(b).dates[0])||a.time-b.time);
   const lateN=arr.filter(s=>{const p=projEnd(s);return !p.done&&p.date>plan(s).end}).length;
   const fx=[...S.exams].filter(e=>e.date>=TODAY).sort((a,b)=>a.date.localeCompare(b.date))[0];
   const exLate=s=>{if(!fx)return false;const pe=projEnd(s);if(pe.done)return false;const e=pe.date>plan(s).end?pe.date:plan(s).end;return e>fx.date};
@@ -1132,11 +1138,14 @@ function renderList(){
     <div class="toolbar wrap" style="margin:0 0 6px"><div class="sec-title" style="margin:0;white-space:nowrap">과목 리스트</div><div class="spacer"></div>
       ${exN?`<span class="exbadge">⚠ 첫 시험 전에 못 끝나는 과목 ${exN}개</span>`:''}
       ${lateN?`<button class="btn" data-act="reschedAll">밀린 ${lateN}과목 오늘부터 재배치</button>`:''}
-      <button class="btn pri" data-act="newSub">+ 과목 추가</button></div>
+      <button class="btn pri" data-act="newSub">+ 과목 추가</button>
+      <select class="inp lsort" onchange="setLSort(this.value)" title="정렬">${[['my','내 순서'],['name','과목명 ㄱ→ㅎ'],['name_d','과목명 ㅎ→ㄱ'],['start','시작 날짜순']].map(([k,v])=>`<option value="${k}" ${LS===k?'selected':''}>${v}</option>`).join('')}</select></div>
     ${arr.length?`<div class="tblwrap"><table><thead><tr><th>과목</th><th>남은 양</th><th>시작</th><th>끝나는 날</th><th>설정</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="hint" style="margin-top:10px">≡ 를 끌어 순서를 바꾸면 그 순서대로 시작 시간이 다시 맞춰져요<br><span class="late">빨간색</span> = 체크가 밀려서 계획보다 늦게 끝날 예정 · <span class="ok">초록색</span> = 계획대로</div>`
+    <div class="hint lhint" style="margin-top:10px">${LS==='my'?'≡ 를 끌어 순서를 바꾸면 그 순서대로 시작 시간이 다시 맞춰져요':'≡ 로 순서를 바꾸려면 정렬을 "내 순서"로 바꿔 주세요'}</div><div class="hint lhint"><span class="late">빨간색</span> = 밀린 예정 일자 · <span class="ok">초록색</span> = 원래 계획</div>`
     :'<div class="empty">과목이 없어요. <b>+ 과목 추가</b>로 시작해 보세요.</div>'}
   </div>`;
+  if(LS!=='my')V.querySelectorAll('.hdl').forEach(h=>h.style.visibility='hidden');
+  fitLine(V.querySelectorAll('.lhint'));
 }
 
 /* ========== modals ========== */
@@ -1362,7 +1371,7 @@ function lateGate(id,name,before,fin,onNo,verb){syncRounds();PC.clear();const id
   const lm=durTxt(lateMax()),day=x=>`${md(x.d)} (${DOW[dow(x.d)]}) ${lateTxt(x.end)}`;
   const mvRows=mv.slice(0,300).map(x=>{const n=nextStudy(x.s,x.d);return `<div><span>${day(x)}</span><b>${n?md(n):'다음'}</b></div>`}).join('');
   const notes=[...new Set(mv.map(x=>x.s))].map(x=>{const e0=pe.get(x.id),e1=plan(x).end;
-    return x.mode==='period'&&x.end?`'${esc(x.name)}' 끝나는 날은 그대로, 하루 분량이 조금 늘어요`:e0&&e1!==e0?`'${esc(x.name)}' 끝나는 날 <b>${md(e0)} → ${md(e1)}</b> (늦어져요)`:''}).filter(Boolean).slice(0,3).join('<br>');
+    return x.mode==='period'&&x.end?`'${esc(x.name)}' 끝나는 날은 그대로, 하루 분량이 조금 늘어요`:e0&&e1!==e0?`'${esc(x.name)}' 끝나는 날 <b>${md(e0)} → ${md(e1)}</b>`:''}).filter(Boolean).slice(0,3).join('<br>');
   const askRows=ask.slice(0,300).map(x=>`<div><span>${day(x)}</span><b>+${durTxt(x.end-S.cfg.dayEnd*60)}</b></div>`).join('');
   const el=document.createElement('div');el.className='ldim';
   el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4>   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 ${new Set(mv.map(x=>x.d)).size}일 <small>· 뒤로 밀려요</small></div><div class="ld mv">${mvRows}</div>${notes?`<div class="lnote">${notes}</div>`:''}`:''}
@@ -1405,6 +1414,12 @@ function askClash(so,want,oldT,cf,before,isNew){
     PC.clear();lateGate(so.id,so.name,before,()=>{save();closeModal();render();if(S.ui.view==='month')renderBands(so.id);
     toast(k==='push'?`${c.name}부터 뒤로 밀었어요`:'자리를 바꿨어요')})});
 }
+let MTAP=null;
+function openMeal(n){const m=(S.cfg.meals||[]).find(x=>x.n===n);if(!m)return;
+  openModal(`<h3>🍚 ${esc(m.n)} 시간</h3><div class="g2"><div class="fld"><label>시작</label><input class="inp" type="time" step="600" id="mlT" value="${hmv(m.time)}"></div>
+   <div class="fld"><label>소요시간 (분)</label><input class="inp" type="number" inputmode="numeric" min="5" max="240" step="5" id="mlM" value="${m.mins}"></div></div>
+   <div class="hint" style="margin:-2px 0 12px">매일 같은 시간으로 바뀌어요</div>
+   <div class="sheet-acts"><div class="spacer"></div><button class="btn" data-act="close">취소</button><button class="btn pri" data-act="mealSave" data-n="${esc(m.n)}">저장</button></div>`)}
 /* ---- 오늘만 추가 / 오늘만 쉬기 ---- */
 const skippedOn=d=>S.subjects.filter(s=>s.skip&&s.skip[d]&&!(s.askip&&s.askip[d]));
 const askipOn=d=>S.subjects.filter(s=>s.askip&&s.askip[d]&&s.skip&&s.skip[d]);
@@ -1688,6 +1703,9 @@ document.addEventListener('click',e=>{
     case 'xSkip':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'skip',true);save();closeModal();render();toast(`'${s.name}' 오늘만 쉬어요`);break}
     case 'xUnadd':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'add',false);if(s.ov)delete s.ov[d];save();closeModal();render();toast('오늘만 추가를 취소했어요');break}
     case 'xKeep':{const s=sub(id),d=el.dataset.date;if(!s)break;(s.keep||(s.keep={}))[d]=true;setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 오늘도 해요`);break}
+    case 'mealTap':{const now=Date.now(),n=el.dataset.n;if(MTAP&&MTAP.n===n&&now-MTAP.t<450){MTAP=null;openMeal(n)}else MTAP={n,t:now};break}
+    case 'mealSave':{const m=(S.cfg.meals||[]).find(x=>x.n===el.dataset.n);if(!m)break;const t=SH.querySelector('#mlT').value,mm=+SH.querySelector('#mlM').value;
+      if(t){const [h,mi]=t.split(':').map(Number);m.time=h*60+mi}if(mm>=5)m.mins=Math.min(240,mm);PC.clear();save();closeModal();render();toast(`${m.n} ${hm(m.time)}부터 ${durTxt(m.mins)}`);break}
     case 'xUnskip':{const s=sub(id),d=el.dataset.date;setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 다시 공부하는 날이에요`);break}
     case 'xDelOne':{S.ones=(S.ones||[]).filter(o=>o.id!==id);delete S.checks[id];save();closeModal();render();toast('지웠어요');break}
     case 'saveSub':saveSubject();break;
