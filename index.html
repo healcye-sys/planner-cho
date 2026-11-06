@@ -172,6 +172,9 @@ main{padding:0 14px}
 .ovfbar{margin-top:10px;background:rgba(229,83,75,.1);color:var(--red);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:600}
 .ovfbar small{display:block;font-weight:400;color:var(--sub);font-size:12px;margin-top:2px}
 .ovft{display:block;margin:2px auto 0;width:max-content;background:var(--red);color:#fff;border-radius:6px;font-size:10px;font-weight:800;padding:0 5px;line-height:16px}
+.wnow{position:absolute;left:0;right:0;height:0;border-top:2px solid #e5534b;z-index:5;pointer-events:none}
+.wnow:before{content:"";position:absolute;left:-4px;top:-6px;width:10px;height:10px;border-radius:50%;background:#e5534b}
+.wnow span{position:absolute;right:2px;top:-17px;background:#e5534b;color:#fff;font-size:10px;font-weight:800;border-radius:5px;padding:0 4px;line-height:15px}
 .wblk .ctn{font-weight:600;opacity:.75;font-size:.92em}
 .row .ctn{font-weight:600;color:var(--accent,#3f6f63);font-size:13px}
 .wblk.ghost{pointer-events:none;z-index:4;background:transparent!important;border:2px dashed var(--ink);opacity:.55}
@@ -818,7 +821,8 @@ function renderWeek(){
     const L=Math.max(1,lanes.length);
     const meals=mealsOn().filter(m=>m.time<b*60&&m.time+m.mins>a*60).map(m=>{const t0=Math.max(m.time,a*60),t1=Math.min(m.time+m.mins,b*60);
       return `<div class="wmeal" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">🍚 ${m.n}</div>`}).join('');
-    cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H}px;background-image:${bg}">`+meals+it.map(x=>x.segs.map(([t0,t1],si)=>{
+    const nwl=d===TODAY?`<div class="wnow" style="top:${(nowMin()-a*60)/60*HP}px;${nowMin()<a*60||nowMin()>b*60?'display:none':''}"><span>${hm(nowMin())}</span></div>`:'';
+    cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H}px;background-image:${bg}">`+meals+nwl+it.map(x=>x.segs.map(([t0,t1],si)=>{
       const first=si===0,last=si===x.segs.length-1;
       const top=(clamp(t0,a*60,b*60)-a*60)/60*HP,ht=Math.max(22,Math.min(t1-t0,b*60-t0)/60*HP-2);
       return `<div class="wblk ${x.ov?'ov':''} ${first?'':'cont'}" data-id="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.38)};border-color:${x.s.color}">
@@ -834,6 +838,10 @@ function renderWeek(){
 }
 const overBy=it=>it.length?Math.max(0,Math.max(...it.map(x=>x.end))-S.cfg.dayEnd*60):0;
 const durTxt=m=>`${Math.floor(m/60)?Math.floor(m/60)+'시간 ':''}${m%60?m%60+'분':''}`.trim();
+const nowMin=()=>{const n=new Date();return n.getHours()*60+n.getMinutes()};
+// keep the week's "now" line moving without re-rendering
+setInterval(()=>{const el=document.querySelector('.wcol.today .wnow');if(!el)return;const a=S.cfg.dayStart*60,m=nowMin();
+  el.style.top=(m-a)/60*56+'px';el.style.display=m<a||m>S.cfg.dayEnd*60?'none':'';const sp=el.querySelector('span');if(sp)sp.textContent=hm(m)},30000);
 const markSym=m=>m==='o'?'○':m==='t'?'△':m==='x'?'×':'';
 const nextMark=m=>({'':'o',o:'t',t:'x',x:''})[m||''];
 
@@ -1097,7 +1105,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v34 · © 2026 healcye-sys. All rights reserved.<br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v35 · © 2026 healcye-sys. All rights reserved.<br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
