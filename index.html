@@ -241,6 +241,14 @@ input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:tex
 @media (min-width:700px){.row.one{padding:10px 0}.row.one .tm{width:100px;font-size:13.5px}.row.one .nm{font-size:17px}.row.one .rg{font-size:13.5px}.row.one .hr{font-size:13px}.row.one .mk{width:36px;height:36px;font-size:18px}}
 .zbox{overflow:hidden;overflow:clip}.zbox.zd .whead,.zbox.zd .wgut,.zbox.zd .whead>div:first-child{position:relative;top:auto;left:auto}.zin{transform-origin:0 0}
 .zreset{position:fixed;left:16px;bottom:calc(24px + env(safe-area-inset-bottom));z-index:40;background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:999px;padding:9px 14px;font-size:13.5px;font-weight:700;box-shadow:0 3px 12px rgba(0,0,0,.15);font-family:inherit}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 10px;margin:0 0 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.chips::-webkit-scrollbar{display:none}
+.chips button{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:6px 11px;border-radius:999px;background:var(--card);border:1.5px solid var(--line);font-size:13px;font-weight:700;white-space:nowrap;color:var(--ink);font-family:inherit}
+.chips button i{width:10px;height:10px;border-radius:50%}.chips button.on{border-color:var(--ink);background:var(--ink);color:var(--card)}.chips button.all{color:var(--sub)}.chips button.all.on{color:var(--card)}
+.bpick{position:fixed;z-index:3500;background:var(--card);color:var(--ink);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:8px;width:250px;max-width:calc(100vw - 16px);max-height:60vh;overflow-y:auto}
+.bpick h6{margin:2px 6px 6px;font-size:12px;color:var(--sub);font-weight:700}
+.bpr{display:flex;align-items:center;gap:8px;padding:9px 8px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer}.bpr:active{background:var(--brandSoft)}
+.bpr i{width:12px;height:12px;border-radius:4px;flex:0 0 auto}.bpr span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bpr small{color:var(--sub);font-weight:500;font-size:12px}
+.bpr b{font-size:12px;color:var(--brand);border:1px solid var(--line);border-radius:7px;padding:3px 7px;font-weight:700}
 .wnow{position:absolute;left:0;right:0;height:0;border-top:2px solid #e5534b;z-index:5;pointer-events:none}
 .wnow:before{content:"";position:absolute;left:-4px;top:-6px;width:10px;height:10px;border-radius:50%;background:#e5534b}
 .wnow span{position:absolute;right:2px;top:-17px;background:#e5534b;color:#fff;font-size:10px;font-weight:800;border-radius:5px;padding:0 4px;line-height:15px}
@@ -751,13 +759,14 @@ function renderMonth(){
     <span class="hint">띠를 꾹 누른 채 끌면 날짜(←→)·시간대(↑↓) 이동 · 두 번 누르면 수정/삭제 · 화면을 옆으로 밀면 다음 달</span>
     <button class="btn sq" data-act="zoomOut" title="화면 축소 (칸 작게)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20.5 20.5"/><path d="M7.8 10.5h5.4"/></svg></button><button class="btn sq" data-act="zoomIn" title="화면 확대 (칸 크게)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20.5 20.5"/><path d="M7.8 10.5h5.4"/><path d="M10.5 7.8v5.4"/></svg></button>
   </div>
+  ${S.subjects.length>1?`<div class="chips"><button data-act="focusSub" data-id="" class="all">전체</button>${listOrder().map(s=>`<button data-act="focusSub" data-id="${s.id}"><i style="background:${s.color}"></i>${esc(s.name)}</button>`).join('')}</div>`:''}
   ${LM.length?`<div class="lban" data-act="gotoDay" data-date="${LM[0]}">🌙 이번 달 ${LM.length}일이 ${S.cfg.dayEnd>=24?'새벽까지':'늦게까지'} 가요<b>보기 ›</b></div>`:''}
   <div class="mwrap" style="--rowH:${S.cfg.rowH}px">
     <div class="dowrow"><div></div>${'월화수목금토일'.split('').map((c,i)=>`<div class="${i===5?'sat':i===6?'sun':''}">${c}</div>`).join('')}</div>
     ${rows}
   </div>
   ${S.subjects.length?'':`<div class="empty">아직 과목이 없어요. 오른쪽 아래 <b>+</b> 버튼으로 과목을 추가하면 먼슬리에 띠가 생겨요.<br><button class="btn" data-act="demo" style="margin-top:8px">예시 데이터로 둘러보기</button></div>`}`;
-  renderBands();
+  renderBands();applyFocus();
 }
 function segsHTML(s,p,ws,cls){
   const {dayStart:a,dayEnd:b}=S.cfg;const R=(b-a)*60;const we=addD(ws,6);
@@ -780,6 +789,23 @@ function segsHTML(s,p,ws,cls){
       <div class="bar" style="background:${s.color};color:${textOn(s.color)};font-size:${fs}px">${fs?`<span style="overflow:hidden;text-overflow:ellipsis">${cls?'':esc(s.name)}</span>${dots?`<span class="dots">${dots}</span>`:''}`:''}</div>${!cls&&d1===p.end?'<i class="rsz" title="꾹 눌러 길이 조절"></i>':''}</div>`;
   }).join('');
 }
+/* A: one subject in focus -> only its band is drawn strong and can be grabbed */
+function applyFocus(){let st=document.getElementById('fxst');if(!st){st=document.createElement('style');st.id='fxst';document.head.appendChild(st)}
+  if(S.ui.focus&&!sub(S.ui.focus))S.ui.focus=null;const id=S.ui.focus;const w=V.querySelector('.mwrap');if(w)w.classList.toggle('bfx',!!id);
+  const q=id?`[data-id="${String(id).replace(/"/g,'')}"]`:'';
+  st.textContent=id?`.bfx .seg:not(.ghost){opacity:.13}.bfx .seg${q}{opacity:1;z-index:3}.bfx .seg${q} .bar{box-shadow:0 0 0 2px var(--ink)}.bfx .seg:not(${q}),.bfx .seg:not(${q}) *{pointer-events:none!important}`:'';
+  V.querySelectorAll('.chips [data-id]').forEach(b=>b.classList.toggle('on',b.dataset.id===(id||'')));
+  const on=V.querySelector('.chips .on');if(on&&id)on.scrollIntoView({inline:'nearest',block:'nearest'})}
+/* B: long-press where several bands are stacked -> pick one */
+let PCL=null;function closePick(){document.querySelectorAll('.bpick').forEach(x=>x.remove());if(PCL){document.removeEventListener('pointerdown',PCL,true);PCL=null}}
+function bandsNear(x,y){const seen=new Map();document.querySelectorAll('.seg:not(.ghost)').forEach(g=>{const r=g.querySelector('.bar').getBoundingClientRect();
+  if(x<r.left||x>r.right)return;const d=y<r.top?r.top-y:y>r.bottom?y-r.bottom:0;if(d<=9&&!seen.has(g.dataset.id))seen.set(g.dataset.id,r.top)});
+  return [...seen].sort((a,b)=>a[1]-b[1]).map(a=>a[0])}
+function showPick(h){closePick();const el=document.createElement('div');el.className='bpick';
+  el.innerHTML=`<h6>여기 겹친 띠 ${h.cands.length}개 · 고르면 그 띠만 보여요</h6>`+h.cands.map(id=>{const s=sub(id);return s?`<div class="bpr" data-act="pickFocus" data-id="${id}"><i style="background:${s.color}"></i><span>${esc(s.name)}</span><small>${hm(s.time)}</small><b data-act="editSub" data-id="${id}">수정</b></div>`:''}).join('');
+  document.body.appendChild(el);const w=el.offsetWidth,ht=el.offsetHeight;el.style.left=clamp(h.x-w/2,8,innerWidth-w-8)+'px';el.style.top=(h.y+30+ht>innerHeight-8?Math.max(8,h.y-30-ht):h.y+30)+'px';
+  try{navigator.vibrate&&navigator.vibrate(12)}catch(_){}
+  setTimeout(()=>{PCL=e=>{if(!e.target.closest('.bpick'))closePick()};document.addEventListener('pointerdown',PCL,true)},0)}
 function renderBands(flashId){
   document.querySelectorAll('.bands').forEach(layer=>{
     const ws=layer.dataset.start;
@@ -843,10 +869,11 @@ document.addEventListener('pointerdown',e=>{
   const L=locate(e.clientX,e.clientY);if(!L)return;
   hold={el:seg,wk:seg.classList.contains('wblk'),wrs:!!(e.target.closest&&e.target.closest('.wrsz')),wday:seg.dataset.date,id:seg.dataset.id,pid:e.pointerId,x:e.clientX,y:e.clientY,L,mouse:e.pointerType==='mouse',timer:0,rs:!!(e.target.closest&&e.target.closest('.rsz'))&&seg.classList.contains('seg')};
   if(hold.rs)seg.classList.add('rs');
+  if(!hold.wk&&!hold.rs&&!hold.mouse&&!S.ui.focus&&S.ui.view==='month'){const c=bandsNear(e.clientX,e.clientY);if(c.length>1)hold.cands=c}
   if(hold.mouse){e.preventDefault();return} // mouse: drag starts as soon as it moves
   document.querySelectorAll(`.seg[data-id="${hold.id}"],.wblk[data-id="${hold.id}"]`).forEach(x=>x.classList.add('hold'));
-  {const s0=sub(hold.id);if(s0){if(hold.wk){const it=itemsOn(hold.wday).find(x=>x.s.id===s0.id);if(it)showTip(hold.x,hold.y,s0.name,`${hm(it.segs[0][0])}~${hm(it.end)}`,`${mdw(hold.wday)}`)}else bandTip(s0,s0.start,s0.time,hold.x,hold.y)}}
-  hold.timer=setTimeout(()=>{const h=hold;hold=null;if(h)beginDrag(h)},HOLD_MS);
+  if(!hold.cands){const s0=sub(hold.id);if(s0){if(hold.wk){const it=itemsOn(hold.wday).find(x=>x.s.id===s0.id);if(it)showTip(hold.x,hold.y,s0.name,`${hm(it.segs[0][0])}~${hm(it.end)}`,`${mdw(hold.wday)}`)}else bandTip(s0,s0.start,s0.time,hold.x,hold.y)}}
+  hold.timer=setTimeout(()=>{const h=hold;hold=null;if(!h)return;if(h.cands){document.querySelectorAll('.seg.hold').forEach(x=>x.classList.remove('hold'));hideTip();showPick(h)}else beginDrag(h)},HOLD_MS);
 });
 document.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('.seg,.wblk'))e.preventDefault()});
 document.addEventListener('touchmove',e=>{if(drag)e.preventDefault()},{passive:false});
@@ -1610,7 +1637,9 @@ document.addEventListener('click',e=>{
   switch(a){
     case 'undo':undo();break;
     case 'newSub':openSubject(null);break;
-    case 'editSub':openSubject(id);break;
+    case 'editSub':closePick();openSubject(id);break;
+    case 'focusSub':S.ui.focus=id&&S.ui.focus!==id?id:null;saveUI();applyFocus();break;
+    case 'pickFocus':{closePick();S.ui.focus=id;saveUI();applyFocus();const s=sub(id);if(s)toast(`'${s.name}'만 보여요 · 꾹 눌러 끌 수 있어요 · 다시 보려면 "전체"`);break}
     case 'xAdd':openAddDay(el.dataset.date,null);break;
     case 'xPick':{const s=sub(id),d=SH.dataset.xd,tm=SH.dataset.xt;setDay(s,d,'add',true);if(tm){s.ov=s.ov||{};s.ov[d]=+tm}save();closeModal();render();toast(`'${s.name}' 오늘만 추가했어요`);break}
     case 'xNew':{document.getElementById('xpick').hidden=true;document.getElementById('xnew').hidden=false;document.getElementById('xOk').hidden=false;document.getElementById('xName').focus();break}
