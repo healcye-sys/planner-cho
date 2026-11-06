@@ -131,6 +131,9 @@ main{padding:0 14px}
 .seg.ghost{pointer-events:none;z-index:4}
 .seg .rsz{position:absolute;right:-6px;top:0;bottom:0;width:22px;pointer-events:auto;cursor:ew-resize;z-index:2;touch-action:none}
 .seg .rsz:after{content:"";position:absolute;right:11px;top:50%;width:7px;height:7px;transform:translateY(-50%);border-radius:50%;background:rgba(255,255,255,.95);box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.mwrap.lanes{--gut:0px}.lanes .gutter{border:0;overflow:hidden;min-width:0}.lanes .week{transition:none}.lanes .seg .bar{height:100%;border-radius:4px}
+.lanes .seg .rsz{right:0;width:20px}.lanes .seg .rsz:after{display:none}.lanesg .bar{position:relative}.lanesg .bar .rzg{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:12px;height:8px;background-color:currentColor;opacity:.9;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 8%27%3E%3Cpath d=%27M1 4h10M3.5 1.2L1 4l2.5 2.8M8.5 1.2L11 4 8.5 6.8%27 fill=%27none%27 stroke=%27black%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 8%27%3E%3Cpath d=%27M1 4h10M3.5 1.2L1 4l2.5 2.8M8.5 1.2L11 4 8.5 6.8%27 fill=%27none%27 stroke=%27black%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center/contain no-repeat}.seg:not(.lanesg) .rzg{display:none}
+.lanes .seg:has(.rsz) .bar{padding-right:18px}
 .seg.hold.rs .rsz:after,.seg.lift.rs .rsz:after{background:var(--ink)}
 .seg.ghost .bar{background:transparent!important;border:2px dashed var(--ink);box-shadow:none;opacity:.55}
 .seg.flash .bar{animation:flash 1.2s ease 2}
@@ -807,8 +810,8 @@ function monthWeeks(){
 function renderMonth(){
   const {y,mo,w}=monthWeeks();const {dayStart:a,dayEnd:b}=S.cfg;const R=b-a;
   const step=S.cfg.rowH>=380?1:S.cfg.rowH>=230?2:3;
-  let gut='';for(let h=a;h<b;h+=step)gut+=`<span style="top:calc(var(--headH) + (100% - var(--headH)) * ${(h-a)/R})">${h%24}</span>`;
-  let lines='';for(let h=a+step;h<b;h+=step)lines+=`<div class="hline" style="top:${(h-a)/R*100}%"></div>`;
+  let gut='';if(0)for(let h=a;h<b;h+=step)gut+=`<span style="top:calc(var(--headH) + (100% - var(--headH)) * ${(h-a)/R})">${h%24}</span>`;
+  let lines='';if(0)for(let h=a+step;h<b;h+=step)lines+=`<div class="hline" style="top:${(h-a)/R*100}%"></div>`;
   const LT=new Map();w.forEach(ws=>{for(let i=0;i<7;i++){const d=addD(ws,i);if(d<TODAY)continue;const it=itemsOn(d);if(overBy(it))LT.set(d,1)}});
   const LM=[...LT.keys()].filter(d=>+d.slice(5,7)===mo);
   const rows=w.map(ws=>{
@@ -822,19 +825,19 @@ function renderMonth(){
     <button class="btn sq" data-act="mPrev">‹</button><div class="ttl">${y}년 ${mo}월</div><button class="btn sq" data-act="mNext">›</button>
     <button class="btn" data-act="mToday">오늘</button>
     <div class="spacer"></div>
-    <span class="hint">띠를 꾹 누른 채 끌면 날짜(←→)·시간대(↑↓) 이동 · 두 번 누르면 수정/삭제 · 화면을 옆으로 밀면 다음 달</span>
+    <span class="hint">띠를 꾹 누른 채 끌면 날짜(←→)·순서(↑↓) 이동 · 끝의 ↔를 끌면 종료일 조절 · 두 번 누르면 수정/삭제 · 화면을 옆으로 밀면 다음 달</span>
   </div>
   <div class="zfab"><button data-act="zoomIn" title="화면 확대 (칸 크게)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20.5 20.5"/><path d="M7.8 10.5h5.4"/><path d="M10.5 7.8v5.4"/></svg></button><button data-act="zoomOut" title="화면 축소 (칸 작게)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20.5 20.5"/><path d="M7.8 10.5h5.4"/></svg></button></div>
   ${S.subjects.length>1?`<div class="chips"><button data-act="focusSub" data-id="" class="all">전체</button>${listOrder().map(s=>`<button data-act="focusSub" data-id="${s.id}"><i style="background:${s.color}"></i>${esc(s.name)}</button>`).join('')}</div>`:''}
   ${LM.length?`<div class="lban" data-act="gotoDay" data-date="${LM[0]}">🌙 이번 달 ${LM.length}일이 ${S.cfg.dayEnd>=24?'새벽까지':'늦게까지'} 가요<b>보기 ›</b></div>`:''}
-  <div class="mwrap" style="--rowH:${S.cfg.rowH}px">
+  <div class="mwrap lanes" style="--rowH:${S.cfg.rowH}px">
     <div class="dowrow"><div></div>${'월화수목금토일'.split('').map((c,i)=>`<div class="${i===5?'sat':i===6?'sun':''}">${c}</div>`).join('')}</div>
     ${rows}
   </div>
   ${S.subjects.length?'':`<div class="empty">아직 과목이 없어요. 오른쪽 아래 <b>+</b> 버튼으로 과목을 추가하면 먼슬리에 띠가 생겨요.<br><button class="btn" data-act="demo" style="margin-top:8px">예시 데이터로 둘러보기</button></div>`}`;
   renderBands();applyFocus();
 }
-function segsHTML(s,p,ws,cls){
+function segsHTML(s,p,ws,cls,lane){
   const {dayStart:a,dayEnd:b}=S.cfg;const R=(b-a)*60;const we=addD(ws,6);
   if(p.dates[0]>we||p.end<ws)return '';
   const ch=S.checks[s.id]||{};
@@ -843,16 +846,17 @@ function segsHTML(s,p,ws,cls){
   const segs=[];cols.forEach(c=>{const l=segs[segs.length-1];if(l&&l[1]===c-1)l[1]=c;else segs.push([c,c])});
   const ht=80/R*100; // every band has the same thickness (= 1h20m at the current zoom); position still follows the start time
   const top=Math.min(clamp((s.time-a*60)/R,0,1)*100,100-ht);
-  const px=ht/100*(S.cfg.rowH-22);
+  const LH=LANEH(),useL=lane!=null;
+  const px=useL?LH-2:ht/100*(S.cfg.rowH-22);
   const fs=px>=13?10:px>=9?8:0;
   return segs.map(([c0,c1])=>{
     const d0=addD(ws,c0),d1=addD(ws,c1);
     const contL=p.idx[d0]>0&&diffD(p.dates[p.idx[d0]-1],d0)===1&&c0===0;
     const contR=p.idx[d1]<p.dates.length-1&&c1===6&&diffD(d1,p.dates[p.idx[d1]+1])===1;
     let dots='';if(!cls)for(let c=c0;c<=c1;c++){const m=ch[addD(ws,c)];dots+=m==='o'?'●':m==='t'?'◐':m==='x'?'✕':''}
-    return `<div class="seg ${cls||''} ${contL?'cont-l':''} ${contR?'cont-r':''}" data-id="${s.id}"
-      style="left:calc(${c0/7*100}% + 1px);width:calc(${(c1-c0+1)/7*100}% - 2px);top:calc(${top}% - 6px);height:calc(${ht}% + 12px)">
-      <div class="bar" style="background:${s.color};color:${textOn(s.color)};font-size:${fs}px">${fs?`<span style="overflow:hidden;text-overflow:ellipsis">${cls?'':esc(s.name)}</span>${dots?`<span class="dots">${dots}</span>`:''}`:''}</div>${!cls&&d1===p.end?'<i class="rsz" title="꾹 눌러 길이 조절"></i>':''}</div>`;
+    return `<div class="seg ${useL?'lanesg':''} ${cls||''} ${contL?'cont-l':''} ${contR?'cont-r':''}" data-id="${s.id}"
+      style="left:calc(${c0/7*100}% + 1px);width:calc(${(c1-c0+1)/7*100}% - 2px);${useL?`top:${lane*LH+1}px;height:${LH-2}px;padding:0`:`top:calc(${top}% - 6px);height:calc(${ht}% + 12px)`}">
+      <div class="bar" style="background:${s.color};color:${textOn(s.color)};font-size:${fs}px">${fs?`<span style="overflow:hidden;text-overflow:ellipsis">${cls?'':esc(s.name)}</span>${dots?`<span class="dots">${dots}</span>`:''}`:''}${useL&&!cls&&d1===p.end?'<b class="rzg"></b>':''}</div>${!cls&&d1===p.end?`<i class="rsz" title="꾹 눌러 끌면 종료일 조절" style="color:${textOn(s.color)}"></i>`:''}</div>`;
   }).join('');
 }
 /* A: one subject in focus -> only its band is drawn strong and can be grabbed */
@@ -872,11 +876,20 @@ function showPick(h){closePick();const el=document.createElement('div');el.class
   document.body.appendChild(el);const w=el.offsetWidth,ht=el.offsetHeight;el.style.left=clamp(h.x-w/2,8,innerWidth-w-8)+'px';el.style.top=(h.y+30+ht>innerHeight-8?Math.max(8,h.y-30-ht):h.y+30)+'px';
   try{navigator.vibrate&&navigator.vibrate(12)}catch(_){}
   setTimeout(()=>{PCL=e=>{if(!e.target.closest('.bpick'))closePick()};document.addEventListener('pointerdown',PCL,true)},0)}
+/* month: bands stacked in rows by start time (earliest on top); bands whose dates don't overlap share a row */
+const LAY={};const LANEH=()=>clamp(Math.round(S.cfg.rowH/14),14,26),HEADH=()=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--headH'))||22;
+function laneLayout(ws){const order=[...S.subjects].sort((x,y)=>x.time-y.time||(x.time+x.mins)-(y.time+y.mins)),lane={},occ=[],used=[];
+  order.forEach(s=>{const p=plan(s),c=[];for(let i=0;i<7;i++)if(p.idx[addD(ws,i)]!==undefined)c.push(i);if(!c.length)return;
+    let L=used.findIndex(u=>c.every(i=>!u.has(i)));if(L<0){L=used.length;used.push(new Set());occ.push([])}
+    c.forEach(i=>used[L].add(i));occ[L].push(s.id);lane[s.id]=L});
+  return {order,lane,occ}}
 function renderBands(flashId){
   document.querySelectorAll('.bands').forEach(layer=>{
     const ws=layer.dataset.start;
     // later time of day is drawn on top when bands touch/overlap
-    layer.innerHTML=[...S.subjects].sort((x,y)=>x.time-y.time||(x.time+x.mins)-(y.time+y.mins)).map(s=>segsHTML(s,plan(s),ws,flashId===s.id?'flash':'')).join('');
+    const lay=laneLayout(ws);LAY[ws]=lay;
+    layer.innerHTML=lay.order.map(s=>segsHTML(s,plan(s),ws,flashId===s.id?'flash':'',lay.lane[s.id])).join('');
+    const row=layer.closest('.week');if(row)row.style.height=(HEADH()+Math.max(3,lay.occ.length)*LANEH()+6)+'px';
   });
 }
 function renderGhost(s,start,time){
@@ -886,8 +899,9 @@ function renderGhost(s,start,time){
     document.querySelectorAll('.wcol').forEach((c,i)=>{if(p.idx[addD(ws,i)]===undefined)return;
       const top=(clamp(time,a*60,b*60)-a*60)/60*56,ht=Math.max(22,Math.min(s.mins,b*60-time)/60*56-2);
       c.insertAdjacentHTML('beforeend',`<div class="wblk ghost" style="top:${top}px;height:${ht}px;left:2px;right:2px"></div>`)});return}
-  document.querySelectorAll('.bands').forEach(layer=>{const h=segsHTML(t,p,layer.dataset.start,'ghost');if(h)layer.insertAdjacentHTML('beforeend',h)});
+  document.querySelectorAll('.bands').forEach(layer=>{const ws=layer.dataset.start,ly=LAY[ws];const h=segsHTML(t,p,ws,'ghost',GLANE&&GLANE.ws===ws?GLANE.li:ly&&ly.lane[s.id]!=null?ly.lane[s.id]:ly?ly.occ.length:null);if(h)layer.insertAdjacentHTML('beforeend',h)});
 }
+let GLANE=null;
 
 /* drag on month: band follows the finger, dashed outline shows where it will land */
 let drag=null,autoT=null,raf=0;
@@ -987,6 +1001,14 @@ function dayFrame(s){
   const sg=spanSegs(nt,dayMins(s,drag.day));showTip(drag.x,drag.y,s.name,`${hm(nt)}~${hm(sg[sg.length-1][1])}`,`${mdw(drag.day)} 이날만`);
 }
 const shiftS=(s,ns)=>s.mode==='period'&&s.end&&ns!==s.start?{...s,start:ns,end:addD(s.end,diffD(s.start,ns))}:{...s,start:ns};
+/* month drag up/down: the row under the finger says where in the order the band goes */
+function laneTime(s,L){GLANE=null;if(drag)drag.pick=null;const row=[...document.querySelectorAll('.week')].find(r=>L.date>=r.dataset.start&&L.date<=addD(r.dataset.start,6));if(!row)return drag.time0;
+  const ws=row.dataset.start,ly=LAY[ws],layer=row.querySelector('.bands');if(!ly||!layer)return drag.time0;
+  const li=Math.max(0,Math.floor((drag.y-layer.getBoundingClientRect().top)/(LANEH()*ZM())));GLANE={ws,li};const own=ly.lane[s.id];
+  if(li===own)return drag.time0;const col=diffD(ws,L.date);const ids=(ly.occ[Math.min(li,ly.occ.length-1)]||[]).filter(id=>id!==s.id);if(!ids.length)return drag.time0;
+  const t=sub(ids.find(id=>plan(sub(id)).idx[addD(ws,col)]!==undefined)||ids[0]);
+  const after=li>=ly.occ.length||(own!=null?li>own:t.time<=drag.time0);drag.pick={ws,t:t.id,after};
+  return after?spanSegs(t.time,t.mins).pop()[1]:t.time-s.mins}
 function dragFrame(){
   raf=0;if(!drag||!drag.moved)return;const s=sub(drag.id);
   if(drag.rs)return resizeFrame(s);
@@ -996,7 +1018,7 @@ function dragFrame(){
   const L=locate(drag.x,drag.y);if(!L)return;
   const {dayStart:a,dayEnd:b}=S.cfg;
   const ns=addD(drag.start0,diffD(drag.d0,L.date));
-  const nt=clamp(Math.round((drag.time0+L.min-drag.m0)/10)*10,a*60,Math.max(a*60,b*60-Math.min(s.mins,(b-a)*60)));
+  const nt=clamp(Math.round(laneTime(s,L)/10)*10,a*60,Math.max(a*60,b*60-Math.min(s.mins,(b-a)*60)));
   const key=ns+'|'+nt;const sm=shiftS(s,ns);
   if(key!==drag.key){drag.key=key;
     const ok=resolveTime(sm,ns,nt,nt-drag.target.time);
@@ -1017,7 +1039,7 @@ window.addEventListener('pointermove',e=>{
   e.preventDefault();kick();
 },{passive:false});
 function endDrag(cancel){
-  if(!drag)return;const d=drag;drag=null;clearInterval(autoT);if(raf){cancelAnimationFrame(raf);raf=0}
+  if(!drag)return;GLANE=null;const d=drag;drag=null;clearInterval(autoT);if(raf){cancelAnimationFrame(raf);raf=0}
   document.body.classList.remove('dragging');document.getElementById('tip').classList.add('hidden');
   const s=sub(d.id);const before0=JSON.stringify(S.subjects);
   document.querySelectorAll('.seg.rs').forEach(x=>x.classList.remove('rs'));
@@ -1027,6 +1049,10 @@ function endDrag(cancel){
       toast(d.target.time===s.time?'원래 시간으로 돌아왔어요':`${mdw(d.day)} 하루만 ${hm(d.target.time)}로 옮겼어요`)}}
   else if(d.rs){if(!cancel&&s&&d.target.end&&Math.abs(d.target.daily-s.daily)>1e-9){s.daily=d.target.daily;s.mode='period';s.end=d.target.end;PC.delete(s.id);save();renderHeader();
       toast(`${mdw(plan(s).end)}까지 · 하루 ${perDay(s.daily)}${s.unit||''}`)}}
+  else if(d.moved&&!cancel&&s&&d.pick&&LAY[d.pick.ws]){const ly=LAY[d.pick.ws];
+    if(d.target.start!==s.start){if(s.parent)s.autoStart=false;if(s.mode==='period'&&s.end)s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s);PC.delete(s.id)}
+    const ids=ly.order.filter(x=>ly.lane[x.id]!=null&&x.id!==s.id).map(x=>x.id);let k=ids.indexOf(d.pick.t);k=k<0?ids.length:k+(d.pick.after?1:0);ids.splice(k,0,s.id);
+    rechain(ids);save();renderHeader()}
   else if(d.moved&&!cancel&&s&&(d.target.start!==s.start||d.target.time!==s.time)){if(s.parent&&d.target.start!==s.start)s.autoStart=false;if(s.mode==='period'&&s.end&&d.target.start!==s.start){s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s)}s.start=d.target.start;s.time=d.target.time;PC.delete(s.id);save();renderHeader()}
   const rr=()=>{if(S.ui.view==='week'){const sc=V.querySelector('.wscroll'),sl=sc?sc.scrollLeft:0;renderWeek();const n=V.querySelector('.wscroll');if(n)n.scrollLeft=sl}
   else{renderHeader();renderBands()}};rr();
@@ -1637,7 +1663,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button><button class="btn" data-act="restoreMenu">↺ 이전 내용 되살리기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.0<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.1<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
