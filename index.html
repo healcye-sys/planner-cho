@@ -385,7 +385,8 @@ tbody tr.lrow{transition:none;position:relative;z-index:5;background:var(--card)
 .sheet-acts{display:flex;gap:8px;justify-content:flex-end;align-items:center}
 .sheet-acts .btn{height:42px;padding:0 18px;font-size:15px}
 
-.tip{position:fixed;z-index:60;background:var(--tipbg);color:var(--tipfg);font-size:13px;padding:6px 10px;border-radius:9px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-130%)}
+.tip{position:fixed;z-index:60;background:var(--tipbg);color:var(--tipfg);font-size:13px;padding:6px 11px;border-radius:10px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-100%);line-height:1.4;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.tip b{display:block;font-size:12px;opacity:.8;font-weight:700}.tip span{font-weight:700;font-size:14px}.tip small{display:block;font-size:11.5px;opacity:.8}
 #toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:var(--tipbg);color:var(--tipfg);padding:10px 16px;border-radius:12px;font-size:14px;z-index:70;opacity:0;transition:opacity .2s;pointer-events:none}
 #toast.on{opacity:1}
 #toast.u{pointer-events:auto;display:flex;align-items:center;gap:12px;padding:8px 8px 8px 16px}
@@ -810,7 +811,7 @@ function beginDrag(h){
     const sc=S.ui.view==='week'&&document.querySelector('.wscroll');if(sc&&sc.scrollWidth>sc.clientWidth){const r=sc.getBoundingClientRect();const dx=drag.x<r.left+50?-12:drag.x>r.right-50?12:0;if(dx){const o=sc.scrollLeft;sc.scrollLeft+=dx;if(sc.scrollLeft!==o){drag.x0-=sc.scrollLeft-o;kick()}}}},30);
   kick();
 }
-function cancelHold(){if(hold){clearTimeout(hold.timer);document.querySelectorAll('.seg.hold,.wblk.hold').forEach(x=>x.classList.remove('hold'));hold=null}}
+function cancelHold(){if(hold){clearTimeout(hold.timer);if(!drag)hideTip();document.querySelectorAll('.seg.hold,.wblk.hold').forEach(x=>x.classList.remove('hold'));hold=null}}
 document.addEventListener('pointerdown',e=>{
   if(drag||hold)return;
   if(e.target.closest&&e.target.closest('.ovr'))return;
@@ -824,10 +825,17 @@ document.addEventListener('pointerdown',e=>{
   if(hold.rs)seg.classList.add('rs');
   if(hold.mouse){e.preventDefault();return} // mouse: drag starts as soon as it moves
   document.querySelectorAll(`.seg[data-id="${hold.id}"],.wblk[data-id="${hold.id}"]`).forEach(x=>x.classList.add('hold'));
+  {const s0=sub(hold.id);if(s0){if(hold.wk){const it=itemsOn(hold.wday).find(x=>x.s.id===s0.id);if(it)showTip(hold.x,hold.y,s0.name,`${hm(it.segs[0][0])}~${hm(it.end)}`,`${mdw(hold.wday)}`)}else bandTip(s0,s0.start,s0.time,hold.x,hold.y)}}
   hold.timer=setTimeout(()=>{const h=hold;hold=null;if(h)beginDrag(h)},HOLD_MS);
 });
 document.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('.seg,.wblk'))e.preventDefault()});
 document.addEventListener('touchmove',e=>{if(drag)e.preventDefault()},{passive:false});
+function showTip(x,y,name,main,sub){const tip=document.getElementById('tip');
+  tip.innerHTML=`<b>${esc(name)}</b><span>${main}</span>${sub?`<small>${sub}</small>`:''}`;tip.classList.remove('hidden');
+  const w=tip.offsetWidth,h=tip.offsetHeight;tip.style.left=clamp(x,w/2+8,innerWidth-w/2-8)+'px';tip.style.top=Math.max(h+8,y-30)+'px'}
+const hideTip=()=>document.getElementById('tip').classList.add('hidden');
+function bandTip(s,start,time,x,y){const pl=planRaw(shiftS(s,start));const sg=spanSegs(time,s.mins);
+  showTip(x,y,s.name,`${mdw(pl.dates[0])} ~ ${mdw(pl.end)}`,`${hm(sg[0][0])}~${hm(sg[sg.length-1][1])}`)}
 function resizeFrame(s){
   const L=locate(drag.x,drag.y);if(!L)return;
   let en=addD(drag.end0,diffD(drag.d0,L.date));if(en<s.start)en=s.start;
@@ -837,9 +845,9 @@ function resizeFrame(s){
       document.querySelectorAll('.seg.ghost').forEach(e=>e.remove());
       const t={...s,daily};const p=planRaw(t);
       document.querySelectorAll('.bands').forEach(layer=>{const h=segsHTML(t,p,layer.dataset.start,'ghost');if(h)layer.insertAdjacentHTML('beforeend',h)})}}
-  const t=drag.target;const tip=document.getElementById('tip');tip.classList.remove('hidden');
-  tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
-  tip.textContent=t.end?`${s.name} · ~${mdw(t.end)} 종료 · 공부일 ${t.n}일 · 하루 ${perDay(t.daily)}${s.unit||''}`:`${s.name} · 좌우로 끌어 종료일 조절`;
+  const t=drag.target;
+  if(t.end)showTip(drag.x,drag.y,s.name,`${mdw(planRaw(s).dates[0])} ~ ${mdw(t.end)}`,`공부일 ${t.n}일 · 하루 ${perDay(t.daily)}${esc(s.unit||'')}`);
+  else showTip(drag.x,drag.y,s.name,`${mdw(planRaw(s).dates[0])} ~ ${mdw(planRaw(s).end)}`,'좌우로 끌어 끝나는 날 조절');
 }
 function wGhost(day,t,m){const a=S.cfg.dayStart*60,b=S.cfg.dayEnd*60;
   document.querySelectorAll('.wblk.ghost').forEach(e=>e.remove());
@@ -852,7 +860,7 @@ function durFrame(s){
   if(nm!==drag.key){drag.key=nm;drag.target={start:s.start,time:t0,mins:nm};
     drag.els.forEach(el=>el.style.opacity='.35');wGhost(drag.day,t0,nm)}
   const tip=document.getElementById('tip');tip.classList.remove('hidden');tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
-  const sg=spanSegs(t0,nm);tip.textContent=`${s.name} · ${mdw(drag.day)} ${hm(t0)}~${hm(sg[sg.length-1][1])} · ${Math.floor(nm/60)?Math.floor(nm/60)+'시간 ':''}${nm%60?nm%60+'분':''}`;
+  const sg=spanSegs(t0,nm);showTip(drag.x,drag.y,s.name,`${hm(t0)}~${hm(sg[sg.length-1][1])}`,`${mdw(drag.day)} 이날만 · ${durTxt(nm)}`);
 }
 function dayFrame(s){
   const dy=drag.y-drag.y0+(scrollY-drag.sy0);drag.els.forEach(el=>el.style.transform=`translate3d(0,${dy}px,0)`);
@@ -863,7 +871,7 @@ function dayFrame(s){
     const col=document.querySelector(`.wcol[data-date="${drag.day}"]`);
     wGhost(drag.day,nt,dayMins(s,drag.day))}
   const tip=document.getElementById('tip');tip.classList.remove('hidden');tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
-  const sg=spanSegs(nt,dayMins(s,drag.day));tip.textContent=`${s.name} · ${mdw(drag.day)} 이날만 · ${hm(nt)}~${hm(sg[sg.length-1][1])}`;
+  const sg=spanSegs(nt,dayMins(s,drag.day));showTip(drag.x,drag.y,s.name,`${hm(nt)}~${hm(sg[sg.length-1][1])}`,`${mdw(drag.day)} 이날만`);
 }
 const shiftS=(s,ns)=>s.mode==='period'&&s.end&&ns!==s.start?{...s,start:ns,end:addD(s.end,diffD(s.start,ns))}:{...s,start:ns};
 function dragFrame(){
@@ -883,7 +891,7 @@ function dragFrame(){
   }
   const t=drag.target;const tip=document.getElementById('tip');tip.classList.remove('hidden');
   tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
-  tip.textContent=`${s.name} · ${mdw(planRaw(shiftS(s,t.start)).dates[0])} 시작 · ${hm(t.time)}~${hm(t.time+s.mins)}`;
+  bandTip(s,t.start,t.time,drag.x,drag.y);
 }
 const kick=()=>{if(!raf)raf=requestAnimationFrame(dragFrame)};
 window.addEventListener('pointermove',e=>{
@@ -1377,7 +1385,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v1.1.4<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v1.1.5<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
