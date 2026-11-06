@@ -1149,7 +1149,7 @@ function renderDay(){
     ${overBy(it)?`<div class="ovfbar">🌙 ${lateTxt(Math.max(...it.map(x=>x.end)))} 가요 · ${endH()}보다 <b>${durTxt(overBy(it))}</b> 넘어요<small>공부 시간을 줄이거나 과목을 다른 날로 옮겨 보세요</small></div>`:''}
     <div style="margin-top:10px">${rows||'<div class="empty">이 날은 계획된 공부가 없어요.</div>'}</div>
     <div class="xadd" data-act="xAdd" data-date="${d}">＋ 오늘만 추가</div>
-    ${(()=>{const a=askipOn(d).length,b=asplitOn(d).length;return a+b?`<div class="restln" data-act="xAdd" data-date="${d}">🌙<span>하루 끝을 넘어서 ${[a?a+'과목은 쉬어요':'',b?b+'과목은 일부만 해요':''].filter(Boolean).join(' · ')}</span><i>보기 ›</i></div>`:''})()}
+    ${(()=>{const a=askipOn(d).length,b=asplitOn(d).length;return a+b?`<div class="restln" data-act="xAdd" data-date="${d}">🌙<span>${a+b}과목을 다른 날로 옮겼어요</span><i>보기 ›</i></div>`:''})()}
     ${skippedOn(d).length?`<div class="xskip">오늘만 쉬기 · ${skippedOn(d).map(s=>`<span>${esc(s.name)} <b data-act="xUnskip" data-id="${s.id}" data-date="${d}">되돌리기</b></span>`).join('')}</div>`:''}
     <div class="foot"><span>${dn} / ${it.length} 완료</span><span>공부 ${hrs(mins)}</span></div>
    </div>
@@ -1602,10 +1602,10 @@ function openAddDay(d,tm){
   const cand=S.subjects.filter(s=>!on.has(s.id)&&!projEnd(s).done&&!(s.mode==='period'&&s.end&&d>s.end));
   const dn=['일','월','화','수','목','금','토'];
   openModal(`<h3>${dTitle(d)} 오늘만 추가</h3><p class="xsub">이날 하루만 더해요. 다음 주부터는 원래대로예요.</p>
-   <div id="xpick">${(()=>{const it=s=>`<button class="xit" data-act="${s.askip&&s.askip[d]||s.asplit&&s.asplit[d]?'xKeep':'xPick'}" data-id="${s.id}" data-date="${d}"><i style="background:${s.color}"></i><span class="xnm">${esc(s.name)}</span><small>${(()=>{const p=plan(s),n=p.dates.find(x=>x>d);return s.asplit&&s.asplit[d]?'일부만':p.end<d?md(p.end):s.askip&&s.askip[d]?'':n?md(n):''})()}</small></button>`;
-     const g1=[...asplitOn(d).filter(s=>!cand.includes(s)),...cand.filter(s=>s.askip&&s.askip[d]||plan(s).end<d)],g2=cand.filter(s=>!g1.includes(s)).sort((a,b)=>(plan(a).dates.find(x=>x>d)||a.start).localeCompare(plan(b).dates.find(x=>x>d)||b.start)||a.time-b.time),g3=[];
+   <div id="xpick">${(()=>{const it=s=>`<button class="xit" data-act="${s.askip&&s.askip[d]||s.asplit&&s.asplit[d]?'xKeep':'xPick'}" data-id="${s.id}" data-date="${d}"><i style="background:${s.color}"></i><span class="xnm">${esc(s.name)}</span><small>${(()=>{const p=plan(s),n=p.dates.find(x=>x>d);return s.asplit&&s.asplit[d]?'':p.end<d?md(p.end):s.askip&&s.askip[d]?'':n?md(n):''})()}</small></button>`;
+     const g1=[...asplitOn(d).filter(s=>!cand.includes(s)),...cand.filter(s=>s.askip&&s.askip[d])],g2=cand.filter(s=>!g1.includes(s)).sort((a,b)=>(plan(a).dates.find(x=>x>d)||a.start).localeCompare(plan(b).dates.find(x=>x>d)||b.start)||a.time-b.time),g3=[];
      const sec=(t,h,a)=>a.length?`<div class="xlab">${t} <small>${h}</small></div><div class="xlist ${a.length>5?'long':''}">${a.map(it).join('')}</div>`:'';
-     return sec('밀린 과목','다시 넣기',g1)+sec('앞으로 당겨오기','먼저 하면 종료일도 당겨져요',g2)+sec('그 밖의 과목',g3.length+'개',g3)})()}
+     return sec('이날에서 옮긴 과목','누르면 다시 넣어요',g1)+sec('다른 과목 당겨오기','',g2)+sec('그 밖의 과목',g3.length+'개',g3)})()}
    <button class="xit xnewb" data-act="xNew">＋ 새로 적기 <small>과목 없이 이날 하루만</small></button></div>
    <div id="xnew" hidden>${cand.length?'<button class="xback" data-act="xBack">‹ 과목에서 고르기</button>':''}<div class="fld"><label>이름</label><input class="inp" id="xName" placeholder="예) 스터디 모임"></div>
     <div class="fld"><label>시작 시각 · 소요시간</label><div class="xrow"><input class="inp" id="xTime" type="time" value="${tm!=null?(hm(tm).replace('+','')):''}"><div class="xhm"><input class="inp" id="xH" type="number" min="0" value="1"><span>시간</span><input class="inp" id="xM" type="number" min="0" step="10" value="0"><span>분</span></div></div></div></div>
