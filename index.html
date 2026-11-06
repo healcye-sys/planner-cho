@@ -1101,7 +1101,7 @@ function renderDay(){
   if(it.length)mealsOn().forEach(m=>rowsA.push([m.time-.5,`<div class="row meal one"><div class="tm">${hm(m.time)}</div><div class="cb">🍚</div><div class="tx"><div class="nm" style="font-size:15px">${m.n} 식사</div></div></div>`]));
   const rows=rowsA.sort((p,q)=>p[0]-q[0]).map(r=>r[1]).join('');
   // overdue
-  const od=[];for(let i=1;i<=21;i++){const x=addD(TODAY,-i);itemsOn(x).forEach(t=>{if(t.mark!=='o'&&!t.oo)od.push(t)})}
+  const od=[];for(let i=1;i<=21;i++){const x=addD(TODAY,-i);itemsOn(x).forEach(t=>{if((t.mark==='t'||t.mark==='x')&&!t.oo)od.push(t)})}
   const exs=examsOn(d);
   V.innerHTML=`<div class="dwrap">
    <div class="strip" id="strip">${strip}</div>
@@ -1121,7 +1121,7 @@ function renderDay(){
     ${skippedOn(d).length?`<div class="xskip">오늘만 쉬기 · ${skippedOn(d).map(s=>`<span>${esc(s.name)} <b data-act="xUnskip" data-id="${s.id}" data-date="${d}">되돌리기</b></span>`).join('')}</div>`:''}
     <div class="foot"><span>${dn} / ${it.length} 완료</span><span>공부 ${hrs(mins)}</span></div>
    </div>
-   <div class="card"><div class="sec-title">⏰ 밀린 공부 <span class="hint">(최근 3주, ○ 아닌 항목)</span></div>
+   <div class="card"><div class="sec-title">⏰ 밀린 공부 <span class="hint">(최근 3주, △·× 친 항목)</span></div>
     ${od.length?od.map(x=>`<div class="row"><div class="tm">${md(x.date)}<br>${DOW[dow(x.date)]}</div><div class="cb" style="background:${x.s.color}"></div>
       <div class="tx"><div class="nm" style="font-size:15px">${esc(x.s.name)}</div><div class="rg">${esc(x.label)}</div></div>
       <button class="mk ${x.mark}" data-act="mark" data-id="${x.s.id}" data-date="${x.date}">${markSym(x.mark)}</button></div>`).join('')
