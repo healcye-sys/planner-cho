@@ -647,15 +647,17 @@ function plan(s){
   p=planRaw(s);PC.set(s.id,p);return p;
 }
 function planRaw(s){let p;
+  let st0=s.start;for(const d in s.add||{})if(s.add[d]&&d<st0)st0=d; // "오늘만 추가" before the start pulls the subject forward (only that day)
+  const SO=x=>x<s.start?!!(s.add&&s.add[x])&&!(s.skip&&s.skip[x]):studyOn(s,x);
   const ch=S.checks[s.id]||{}; let before=0;
-  for(const d in ch) if(d<s.start) before+=markAmt(ch[d],dayAmt(s,d));
+  for(const d in ch) if(d<st0) before+=markAmt(ch[d],dayAmt(s,d));
   before+=s.pre||0;
   before=Math.min(before,s.total);
   const rem=Math.max(0,s.total-before);
-  const dates=[],idx={},cum=[],amt=[]; let d=s.start,g=0,acc=0;let part=null;
-  if(s.mode==='period'&&s.end){let N=0,x=s.start,g2=0;while(x<=s.end&&g2<4000){if(studyOn(s,x))N++;x=addD(x,1);g2++}
+  const dates=[],idx={},cum=[],amt=[]; let d=st0,g=0,acc=0;let part=null;
+  if(s.mode==='period'&&s.end){let N=0,x=st0,g2=0;while(x<=s.end&&g2<4000){if(SO(x))N++;x=addD(x,1);g2++}
     const r=Math.round(rem);part=N===0?()=>Math.max(1,r):r>=N?k=>Math.round((k+1)*r/N)-Math.round(k*r/N):()=>1}
-  while((dates.length===0||acc<rem-1e-9)&&g<3000){if(studyOn(s,d)){const a=part?part(dates.length):Math.max(1e-6,dayAmt(s,d));idx[d]=dates.length;dates.push(d);cum.push(acc);amt.push(a);acc+=a}d=addD(d,1);g++}
+  while((dates.length===0||acc<rem-1e-9)&&g<3000){if(SO(d)){const a=part?part(dates.length):Math.max(1e-6,dayAmt(s,d));idx[d]=dates.length;dates.push(d);cum.push(acc);amt.push(a);acc+=a}d=addD(d,1);g++}
   p={before,dates,idx,cum,amt,end:dates[dates.length-1]};return p;
 }
 /* rounds (2회독, 3회독…): separate subjects with parent+round; they follow the parent's name/colour/total,
@@ -1597,11 +1599,14 @@ const askipOn=d=>S.subjects.filter(s=>s.askip&&s.askip[d]&&s.skip&&s.skip[d]);
 function dTitle(d){return `${pd(d).getMonth()+1}월 ${pd(d).getDate()}일 (${DOW[dow(d)]})`}
 function openAddDay(d,tm){
   const on=new Set(itemsOn(d).map(x=>x.s.id));
-  const cand=S.subjects.filter(s=>!on.has(s.id)&&!(s.skip&&s.skip[d])&&s.start<=d&&!projEnd(s).done);
+  const cand=S.subjects.filter(s=>!on.has(s.id)&&!projEnd(s).done&&!(s.mode==='period'&&s.end&&d>s.end));
   const dn=['일','월','화','수','목','금','토'];
   openModal(`<h3>${dTitle(d)} 오늘만 추가</h3><p class="xsub">이날 하루만 더해요. 다음 주부터는 원래대로예요.</p>
-   <div id="xpick"><button class="xit xnewb" data-act="xNew">＋ 새로 적기 <small>과목 없이 이날 하루만</small></button>
-   ${cand.length?`<div class="xlab">과목에서 고르기 <small>${cand.length}개</small></div><div class="xlist ${cand.length>5?'long':''}">${cand.map(s=>`<button class="xit" data-act="xPick" data-id="${s.id}"><i style="background:${s.color}"></i><span class="xnm">${esc(s.name)}</span><small>원래 ${s.days.length===7?'매일':s.days.map(x=>dn[x]).join('·')}</small></button>`).join('')}</div>`:''}</div>
+   <div id="xpick">${(()=>{const it=s=>`<button class="xit" data-act="xPick" data-id="${s.id}"><i style="background:${s.color}"></i><span class="xnm">${esc(s.name)}</span><small>${durTxt(s.mins)} · ${s.askip&&s.askip[d]?'밀려서 빠졌어요':plan(s).dates.find(x=>x>d)?`다음 ${md(plan(s).dates.find(x=>x>d))}`:s.skip&&s.skip[d]?'이날 쉬는 중':plan(s).end<d?`${md(plan(s).end)} 분량 옮겨오기`:`원래 ${s.days.length===7?'매일':s.days.map(x=>dn[x]).join('·')}`}</small></button>`;
+     const g1=cand.filter(s=>s.askip&&s.askip[d]||plan(s).end<d),g2=cand.filter(s=>!g1.includes(s)).sort((a,b)=>(plan(a).dates.find(x=>x>d)||a.start).localeCompare(plan(b).dates.find(x=>x>d)||b.start)||a.time-b.time),g3=[];
+     const sec=(t,h,a)=>a.length?`<div class="xlab">${t} <small>${h}</small></div><div class="xlist ${a.length>5?'long':''}">${a.map(it).join('')}</div>`:'';
+     return sec('밀린 과목','다시 넣기',g1)+sec('앞으로 당겨오기','먼저 하면 종료일도 당겨져요',g2)+sec('그 밖의 과목',g3.length+'개',g3)})()}
+   <button class="xit xnewb" data-act="xNew">＋ 새로 적기 <small>과목 없이 이날 하루만</small></button></div>
    <div id="xnew" hidden>${cand.length?'<button class="xback" data-act="xBack">‹ 과목에서 고르기</button>':''}<div class="fld"><label>이름</label><input class="inp" id="xName" placeholder="예) 스터디 모임"></div>
     <div class="fld"><label>시작 시각 · 소요시간</label><div class="xrow"><input class="inp" id="xTime" type="time" value="${tm!=null?(hm(tm).replace('+','')):''}"><div class="xhm"><input class="inp" id="xH" type="number" min="0" value="1"><span>시간</span><input class="inp" id="xM" type="number" min="0" step="10" value="0"><span>분</span></div></div></div></div>
    <div class="sheet-acts xacts"><div class="spacer"></div><button class="btn" data-act="close">닫기</button><button class="btn pri" id="xOk" data-act="xSaveNew" hidden>추가</button></div>`);
@@ -1887,7 +1892,11 @@ document.addEventListener('click',e=>{
     case 'focusSub':S.ui.focus=id&&S.ui.focus!==id?id:null;saveUI();applyFocus();break;
     case 'pickFocus':{closePick();S.ui.focus=id;saveUI();applyFocus();const s=sub(id);if(s)toast(`'${s.name}'만 보여요 · 꾹 눌러 끌 수 있어요 · 다시 보려면 "전체"`);break}
     case 'xAdd':openAddDay(el.dataset.date,null);break;
-    case 'xPick':{const s=sub(id),d=SH.dataset.xd,tm=SH.dataset.xt;setDay(s,d,'add',true);if(tm){s.ov=s.ov||{};s.ov[d]=+tm}save();closeModal();render();toast(`'${s.name}' 오늘만 추가했어요`);break}
+    case 'xPick':{const s=sub(id),d=SH.dataset.xd,tm=SH.dataset.xt;const b0=JSON.stringify(s);setDay(s,d,'add',true);PC.clear();
+      // nothing left for that day (its last day was earlier and not checked): move that last day here
+      let moved=null;for(let k=0;k<10&&plan(s).idx[d]===undefined;k++){const ck=S.checks[s.id]||{};const L=plan(s).dates.filter(x=>x<d&&!ck[x]).pop();if(!L)break;setDay(s,L,'skip',true);setDay(s,d,'add',true);PC.clear();moved=moved||L}
+      if(plan(s).idx[d]===undefined){Object.assign(s,JSON.parse(b0));PC.clear();closeModal();render();toast(`'${s.name}'은 이날 할 분량이 남아 있지 않아요`);break}
+      if(tm){s.ov=s.ov||{};s.ov[d]=+tm}save();closeModal();render();toast(moved?`'${s.name}' ${md(moved)} 분량을 ${md(d)}로 옮겼어요`:`'${s.name}' 오늘만 추가했어요`);break}
     case 'xNew':{document.getElementById('xpick').hidden=true;document.getElementById('xnew').hidden=false;document.getElementById('xOk').hidden=false;document.getElementById('xName').focus();break}
     case 'xBack':{document.getElementById('xpick').hidden=false;document.getElementById('xnew').hidden=true;document.getElementById('xOk').hidden=true;break}
     case 'xSaveNew':{const name=fv('xName');if(!name)return toast('이름을 적어 주세요');const tv=fv('xTime');let mins=Math.round(num(fv('xH'))*60+num(fv('xM')));if(mins<10)mins=10;
