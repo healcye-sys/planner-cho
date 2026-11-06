@@ -1397,7 +1397,7 @@ function lateGate(id,name,before,fin,onNo,verb){syncRounds();PC.clear();const id
   const cur=S.subjects;S.subjects=JSON.parse(before);PC.clear();const old=new Map(lateDays(S.subjects.map(x=>x.id).concat(ids)).map(x=>[x.d,x.end]));S.subjects=cur;PC.clear();
   const isNew=x=>!old.has(x.d)||x.end>old.get(x.d);
   const pe=new Map(S.subjects.map(x=>[x.id,plan(x).end]));const M=S.cfg.dayEnd*60+lateMax();const chk=new Set(ids);let mv=[];
-  for(let r=0;r<5;r++){const big=lateDays([...chk]).filter(x=>isNew(x)&&x.end>M&&!mv.some(m=>m.d===x.d));if(!big.length)break;
+  for(let r=0;r<80;r++){const big=lateDays([...chk]).filter(x=>isNew(x)&&x.end>M&&!mv.some(m=>m.d===x.d));if(!big.length)break;
     const m=autoMove(big,M);if(!m.length)break;mv=mv.concat(m);m.forEach(x=>chk.add(x.s.id))}
   PC.clear();const ask=lateDays([...chk]).filter(isNew);
   if(!mv.length&&!ask.length)return fin();
