@@ -318,7 +318,7 @@ td.nmc{white-space:normal;min-width:120px;font-weight:600}
 .hdl:active{background:var(--line2)}
 .lsub{display:grid;gap:6px;margin:0 0 8px}.lsub .exbadge{justify-self:start}
 .ok2{color:var(--sub);font-weight:600}
-.rban{background:rgba(214,84,84,.09);color:#c0504d;border-radius:10px;padding:6px 11px;font-size:12.5px;line-height:1.35;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap}.rban b{margin-left:auto;font-weight:700;overflow:hidden;text-overflow:ellipsis}.rban:active{opacity:.7}
+.rban{background:rgba(214,84,84,.09);color:#c0504d;border-radius:9px;padding:3px 10px;font-size:12px;line-height:1.3;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap}.rban b{margin-left:auto;font-weight:700;overflow:hidden;text-overflow:ellipsis}.rban:active{opacity:.7}
 .lsortb{position:relative;flex:0 0 auto;gap:6px;cursor:pointer}.lsort{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;cursor:pointer;border:0}
 .lhead{flex-wrap:nowrap!important;min-width:0}.lhead .btn{flex:0 0 auto}.lhead .sec-title{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
 tbody tr{transition:transform .15s}
@@ -1131,7 +1131,7 @@ function renderList(){
   const rows=arr.map(s=>{
     const p=plan(s),pe=projEnd(s);const done=doneAll(s);const pct=Math.round(done/s.total*100);
     const late=!pe.done&&pe.date>p.end;
-    const endTxt=pe.done?`<span class="ok">완료 ✓</span>`:late?`<span class="ok2">${md(p.end)}</span> → <span class="late">${md(pe.date)}</span>`:`<span class="ok">${md(p.end)}</span>`;
+    const endTxt=pe.done?`<span class="ok">완료 ✓</span>`:late?`<span class="late">${md(pe.date)} (계획 ${md(p.end)})</span>`:`<span class="ok">${md(p.end)}</span>`;
     return `<tr data-id="${s.id}"><td class="nmc"><span class="sw" style="background:${s.color}"></span>${esc(s.name)}${exLate(s)?`<div class="exw">⚠ ${esc(fx.name)}(${md(fx.date)})보다 늦게 끝나요</div>`:''}</td>
       <td class="rem">${Math.round(s.total-done)}${esc(s.unit||'')} <span class="hint">/ ${fmtN(s.total)}</span><div class="minibar"><i style="width:${pct}%;background:${s.color}"></i></div></td>
       <td class="st">${md(p.dates[0])}</td><td class="en">${endTxt}</td>
@@ -1371,7 +1371,7 @@ function lateGate(id,name,before,fin,onNo,verb){syncRounds();PC.clear();const id
   PC.clear();const ask=lateDays([...chk]).filter(isNew);
   if(!mv.length&&!ask.length)return fin();
   const lm=durTxt(lateMax()),day=x=>`${md(x.d)} (${DOW[dow(x.d)]}) ${lateTxt(x.end)}`;
-  const mvRows=mv.slice(0,300).map(x=>{const n=nextStudy(x.s,x.d);return `<div><span>${day(x)}</span><b>${n?md(n):'다음'}</b></div>`}).join('');
+  const mvRows=mv.slice(0,300).map(x=>{const n=nextStudy(x.s,x.d);return `<div><span>${day(x)}</span><b>${esc(x.s.name)} → ${n?md(n):'다음'}</b></div>`}).join('');
   const notes=[...new Set(mv.map(x=>x.s))].map(x=>{const e0=pe.get(x.id),e1=plan(x).end;
     return x.mode==='period'&&x.end?`'${esc(x.name)}' 끝나는 날은 그대로, 하루 분량이 조금 늘어요`:e0&&e1!==e0?`'${esc(x.name)}' 끝나는 날 <b>${md(e0)} → ${md(e1)}</b>`:''}).filter(Boolean).slice(0,3).join('<br>');
   const askRows=ask.slice(0,300).map(x=>`<div><span>${day(x)}</span><b>+${durTxt(x.end-S.cfg.dayEnd*60)}</b></div>`).join('');
