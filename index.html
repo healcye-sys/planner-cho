@@ -430,7 +430,10 @@ const DOW='일월화수목금토';
 const md=s=>{const d=pd(s);return (d.getMonth()+1)+'/'+d.getDate()};
 const mdw=s=>md(s)+'('+DOW[dow(s)]+')';
 const monday=s=>addD(s,-((dow(s)+6)%7));
-const hm=m=>m>1440?'+'+pad(Math.floor(m/60)-24)+':'+pad(m%60):pad(Math.floor(m/60))+':'+pad(m%60);
+const hh=h=>pad(((h%24)+24)%24);
+const hmv=m=>hh(Math.floor(m/60))+':'+pad(m%60);
+const inMin=v=>{if(!/^\d{1,2}:\d{2}/.test(v||''))return null;let m=(+v.slice(0,2))*60+(+v.slice(3,5));if(m<S.cfg.dayStart*60&&S.cfg.dayEnd>24)m+=1440;return m};
+const hm=m=>m>1440?(typeof S!=='undefined'&&m<=S.cfg.dayEnd*60?'':'+')+pad(Math.floor(m/60)-24)+':'+pad(m%60):pad(Math.floor(m/60))+':'+pad(m%60);
 const hrs=m=>(Math.round(m/6)/10)+'h';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
@@ -583,7 +586,7 @@ function monthWeeks(){
 function renderMonth(){
   const {y,mo,w}=monthWeeks();const {dayStart:a,dayEnd:b}=S.cfg;const R=b-a;
   const step=S.cfg.rowH>=380?1:S.cfg.rowH>=230?2:3;
-  let gut='';for(let h=a;h<b;h+=step)gut+=`<span style="top:calc(var(--headH) + (100% - var(--headH)) * ${(h-a)/R})">${h}</span>`;
+  let gut='';for(let h=a;h<b;h+=step)gut+=`<span style="top:calc(var(--headH) + (100% - var(--headH)) * ${(h-a)/R})">${h%24}</span>`;
   let lines='';for(let h=a+step;h<b;h+=step)lines+=`<div class="hline" style="top:${(h-a)/R*100}%"></div>`;
   const rows=w.map(ws=>{
     let cells='';
@@ -788,7 +791,7 @@ window.addEventListener('pointercancel',e=>{if(hold&&e.pointerId===hold.pid)canc
 function renderWeek(){
   const ws=S.ui.week||monday(TODAY);const {dayStart:a,dayEnd:b}=S.cfg;const HP=56;const H=(b-a)*HP;
   let head='<div></div>',gut='',cols='';
-  for(let h=a;h<b;h++)gut+=`<span style="top:${(h-a)*HP+ (h===a?8:0)}px">${pad(h)}:00</span>`;
+  for(let h=a;h<b;h++)gut+=`<span style="top:${(h-a)*HP+ (h===a?8:0)}px">${hh(h)}:00</span>`;
   const bg=`repeating-linear-gradient(to bottom,var(--line2) 0,var(--line2) 1px,transparent 1px,transparent ${HP}px)`;
   for(let i=0;i<7;i++){
     const d=addD(ws,i);const it=itemsOn(d);const dn=it.filter(x=>x.mark==='o').length;
@@ -852,7 +855,7 @@ function renderDay(){
       <div class="meta"><span>공부 ${hrs(mins).replace('h','시간')}</span><span>${it.length}개 항목</span>${exs.length?`<span style="color:var(--red);font-weight:700">📌 ${exs.map(e=>esc(e.name)).join(', ')}</span>`:''}</div>
       <div class="ring"><svg width="54" height="54" viewBox="0 0 54 54"><circle cx="27" cy="27" r="22" fill="none" stroke="var(--line2)" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="var(--brand)" stroke-width="5" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 27 27)"/></svg><b>${dn}/${it.length}</b></div>
       ${d!==TODAY?'<button class="btn" data-act="dToday">오늘로</button>':''}</div>
-    ${overBy(it)?`<div class="ovfbar">⚠ 계획이 ${pad(S.cfg.dayEnd)}:00을 <b>${durTxt(overBy(it))}</b> 넘어요<small>공부 시간을 줄이거나 과목을 다른 날로 옮겨 보세요</small></div>`:''}
+    ${overBy(it)?`<div class="ovfbar">⚠ 계획이 ${S.cfg.dayEnd>24?'새벽 ':''}${hh(S.cfg.dayEnd)}:00을 <b>${durTxt(overBy(it))}</b> 넘어요<small>공부 시간을 줄이거나 과목을 다른 날로 옮겨 보세요</small></div>`:''}
     <div style="margin-top:10px">${rows||'<div class="empty">이 날은 계획된 공부가 없어요.</div>'}</div>
     <div class="foot"><span>${dn} / ${it.length} 완료</span><span>공부 ${hrs(mins)}</span></div>
    </div>
@@ -965,7 +968,7 @@ function openSubject(id){
    </div>
    <div class="trow">
     <div class="fld"><label>하루 소요시간<i class="req">*</i></label><div class="inrow hm"><input class="inp" id="fH" type="number" inputmode="numeric" min="0" max="18" value="${h}"><span>시간</span><input class="inp" id="fM" type="number" inputmode="numeric" min="0" max="59" step="5" value="${m}"><span>분</span></div></div>
-    <div class="fld"><label>시작 시각 (선택)</label><input class="inp" id="fTime" type="time" step="600" value="${F.time==null?'':hm(F.time)}"></div>
+    <div class="fld"><label>시작 시각 (선택)</label><input class="inp" id="fTime" type="time" step="600" value="${F.time==null?'':hmv(F.time)}"></div>
    </div>
    <div class="fld"><label>공부하는 요일<i class="req">*</i></label><div class="dayts" id="fDays">${[1,2,3,4,5,6,0].map(x=>`<button data-d="${x}" class="${F.days.includes(x)?'on':''} ${x===6?'sat':x===0?'sun':''}">${DOW[x]}</button>`).join('')}</div>
     <div class="presets" id="fPresets"><button data-p="daily">매일</button><button data-p="weekday">평일</button><button data-p="weekend">주말</button></div></div>
@@ -1038,7 +1041,7 @@ function saveSubject(){
   const {dayStart:a,dayEnd:b}=S.cfg;mins=Math.min(mins,(b-a)*60);
   const start=fv('fStart')||TODAY;const tv=fv('fTime');
   const isNew=!F.id;const id=F.id||uid();
-  let time=tv?(+tv.slice(0,2))*60+(+tv.slice(3,5)):(isNew?null:F.time);
+  let time=tv?inMin(tv):(isNew?null:F.time);
   const o={id,name,color:F.color,total,daily,pre,unit:fv('fUnit'),mins,days:[...F.days].sort(),start,time:time??a*60,mode:period?'period':'amount',end:period?fv('fEnd'):''};
   if(isNew)S.subjects.push(o);else Object.assign(sub(id),o);
   const so=sub(id);PC.clear();let moved=false;
@@ -1064,13 +1067,13 @@ function openExam(id){
   if(!e)setTimeout(()=>document.getElementById('eName').focus(),50);
 }
 function openSettings(){
-  const opt=(v,lo,hi)=>{let o='';for(let i=lo;i<=hi;i++)o+=`<option value="${i}" ${i===v?'selected':''}>${pad(i)}:00</option>`;return o};
+  const opt=(v,lo,hi)=>{let o='';for(let i=lo;i<=hi;i++)o+=`<option value="${i}" ${i===v?'selected':''}>${i>24?'새벽 '+hh(i):pad(i)}:00</option>`;return o};
   openModal(`<h3>설정</h3>
    <div class="fld"><label>폰·탭 동기화</label>${syncBox()}</div>
    <div class="g2"><div class="fld"><label>하루 시작 시각</label><select class="inp" id="sA">${opt(S.cfg.dayStart,0,12)}</select></div>
-   <div class="fld"><label>하루 끝 시각</label><select class="inp" id="sB">${opt(S.cfg.dayEnd,14,24)}</select></div></div>
+   <div class="fld"><label>하루 끝 시각</label><select class="inp" id="sB">${opt(S.cfg.dayEnd,14,28)}</select></div></div>
    <div class="fld"><label>식사 시간 <span class="hint" style="font-weight:400">(비워 두면 표시 안 함)</span></label>
-    ${S.cfg.meals.map((m,i)=>`<div class="inrow meal-row"><span class="mlab">${m.n}</span><input class="inp" type="time" step="600" id="mT${i}" value="${m.time==null?'':hm(m.time)}">
+    ${S.cfg.meals.map((m,i)=>`<div class="inrow meal-row"><span class="mlab">${m.n}</span><input class="inp" type="time" step="600" id="mT${i}" value="${m.time==null?'':hmv(m.time)}">
      <input class="inp mmin" type="number" inputmode="numeric" min="5" max="240" step="5" id="mM${i}" value="${m.mins}"><span class="hint">분</span></div>`).join('')}</div>
    <div class="fld"><label>테마 색상</label><div class="hive">${honeycomb()}<div class="hivePrev" id="hivePrev"></div></div></div>
    <div class="fld"><label>화면 모드</label><div class="seg3 small">${[['system','기기 설정'],['light','밝게'],['dark','어둡게']].map(([k,v])=>`<button data-act="pickMode" data-k="${k}" class="${(S.cfg.mode||'system')===k?'on':''}">${v}</button>`).join('')}</div></div>
@@ -1267,7 +1270,7 @@ document.addEventListener('click',e=>{
     case 'pickTheme':S.cfg.theme=el.dataset.k;saveUI();applyTheme();SH.querySelectorAll('[data-act=pickTheme]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'pickMode':S.cfg.mode=el.dataset.k;saveUI();applyTheme();SH.querySelectorAll('[data-act=pickMode]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'saveSettings':{const A=+fv('sA'),B=+fv('sB');if(B-A<4)return toast('시간 범위가 너무 좁아요');S.cfg.dayStart=A;S.cfg.dayEnd=B;
-      S.cfg.meals.forEach((m,i)=>{const v=fv('mT'+i);m.time=/^\d{1,2}:\d{2}/.test(v)?(+v.slice(0,2))*60+(+v.slice(3,5)):null;const n=Math.round(+fv('mM'+i));if(n>0)m.mins=clamp(n,5,240)});
+      S.cfg.meals.forEach((m,i)=>{const v=fv('mT'+i);m.time=inMin(v);const n=Math.round(+fv('mM'+i));if(n>0)m.mins=clamp(n,5,240)});
       S.subjects.forEach(s=>{s.mins=Math.min(s.mins,(B-A)*60);s.time=clamp(s.time,A*60,B*60-s.mins)});save();closeModal();render();break}
     case 'export':exportBackup();break;
     case 'resetOv':{const so=sub(id);if(so&&(so.ov||so.ovm)){if(so.ov)delete so.ov[el.dataset.date];if(so.ovm)delete so.ovm[el.dataset.date];save();render();toast('원래 시간으로 돌렸어요')}break}
