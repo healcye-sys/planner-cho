@@ -1937,7 +1937,8 @@ document.addEventListener('click',e=>{
     case 'pickLate':S.cfg.lateMax=+el.dataset.k;save();render();SH.querySelectorAll('[data-act=pickLate]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'pickPack':S.cfg.pack=el.dataset.k==='on';save();render();{const pv=document.getElementById('packPrev');if(pv)pv.innerHTML=packPrev(S.cfg.pack)}SH.querySelectorAll('[data-act=pickPack]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'pickMode':S.cfg.mode=el.dataset.k;saveUI();applyTheme();SH.querySelectorAll('[data-act=pickMode]').forEach(b=>b.classList.toggle('on',b===el));break;
-    case 'saveSettings':{const A=+fv('sA'),B=+fv('sB');if(B-A<4)return toast('시간 범위가 너무 좁아요');S.cfg.dayStart=A;S.cfg.dayEnd=B;
+    case 'saveSettings':{const A=+fv('sA'),B=+fv('sB');if(B-A<4)return toast('시간 범위가 너무 좁아요');const dA=(A-S.cfg.dayStart)*60;S.cfg.dayStart=A;S.cfg.dayEnd=B;
+      if(dA){S.subjects.forEach(s=>{s.time+=dA;if(s.ov)for(const k in s.ov)s.ov[k]+=dA});(S.ones||[]).forEach(o=>{if(o.date>=TODAY)o.time+=dA});CH=null;setTimeout(()=>toast(`하루 시작이 ${durTxt(Math.abs(dA))} ${dA<0?'당겨져서':'늦춰져서'} 과목들도 같이 ${dA<0?'앞당겼어요':'늦췄어요'}`),300)}
       S.cfg.meals.forEach((m,i)=>{const v=fv('mT'+i);m.time=inMin(v);const n=Math.round(+fv('mM'+i));if(n>0)m.mins=clamp(n,5,240)});
       S.subjects.forEach(s=>{s.mins=Math.min(s.mins,(B-A)*60);if(s.time<A*60)s.time=A*60});PC.clear();save();closeModal();render();break}
     case 'export':exportBackup();break;
