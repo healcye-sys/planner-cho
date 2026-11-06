@@ -560,8 +560,19 @@ function setDay(s,d,kind,on){const o=s[kind]||(s[kind]={});if(on)o[d]=true;else 
 function itemsOn(date){
   const ord=new Map(listOrder().map((s,i)=>[s.id,i]));
   const it=S.subjects.map(s=>itemFor(s,date)).filter(Boolean).concat(onesOn(date)).sort((a,b)=>a.time-b.time||(ord.get(a.s.id)??1e9)-(ord.get(b.s.id)??1e9));
+  if(S.cfg.pack!==false)packDay(it,date);
   let cur=-1;it.forEach(x=>{if(x.time<cur){x.segs=spanSegs(cur,x.mins);x.time=x.segs[0][0];x.pushed=true}cur=x.end});
   return it}
+/* auto pull-up: subjects whose usual times run back-to-back form a chain; on a day when some of the chain is
+   missing (finished, not a study day, skipped), the rest close the gap from the chain's start time.
+   A real gap between usual times breaks the chain and is kept. Per-day moves (s.ov) stay where they are. */
+function chainHeads(){const bl=S.subjects.map(s=>{const sg=spanSegs(s.time,s.mins);return {id:s.id,t0:sg[0][0],t1:sg[sg.length-1][1]}}).sort((a,b)=>a.t0-b.t0);
+  const head={};let cs=null,ce=-1;
+  bl.forEach(b=>{const next=ce<0?-1:spanSegs(ce,1)[0][0];if(cs==null||b.t0>next+.5)cs=b.t0;head[b.id]=cs;ce=Math.max(ce,b.t1)});return head}
+function packDay(it,date){const head=chainHeads(),g={};
+  it.forEach(x=>{if(x.oo||(x.s.ov&&x.s.ov[date]!=null))return;const h=head[x.s.id];if(h==null)return;(g[h]||(g[h]=[])).push(x)});
+  for(const h in g){let cur=+h;g[h].sort((a,b)=>a.s.time-b.s.time).forEach(x=>{x.segs=spanSegs(cur,x.mins);x.time=x.segs[0][0];cur=x.end})}
+  it.sort((a,b)=>a.time-b.time)}
 function projEnd(s){
   const rem=s.total-doneAll(s); if(rem<=1e-9) return {done:true};
   const ch=S.checks[s.id]||{}; let st=s.start>TODAY?s.start:TODAY; if(st===TODAY&&ch[TODAY]) st=addD(TODAY,1);
@@ -1210,12 +1221,13 @@ function openSettings(){
    <div class="fld"><label>식사 시간 <span class="hint" style="font-weight:400">(비워 두면 표시 안 함)</span></label>
     ${S.cfg.meals.map((m,i)=>`<div class="inrow meal-row"><span class="mlab">${m.n}</span><input class="inp" type="time" step="600" id="mT${i}" value="${m.time==null?'':hmv(m.time)}">
      <input class="inp mmin" type="number" inputmode="numeric" min="5" max="240" step="5" id="mM${i}" value="${m.mins}"><span class="hint">분</span></div>`).join('')}</div>
+   <div class="fld"><label>빈 시간 자동으로 당기기 <span class="hint" style="font-weight:400">(앞 과목이 없는 날엔 뒤 과목이 앞으로)</span></label><div class="seg3 small">${[['on','켜기'],['off','끄기']].map(([k,v])=>`<button data-act="pickPack" data-k="${k}" class="${(S.cfg.pack!==false)===(k==='on')?'on':''}">${v}</button>`).join('')}</div></div>
    <div class="fld"><label>테마 색상</label><div class="hive">${honeycomb()}<div class="hivePrev" id="hivePrev"></div></div></div>
    <div class="fld"><label>화면 모드</label><div class="seg3 small">${[['system','기기 설정'],['light','밝게'],['dark','어둡게']].map(([k,v])=>`<button data-act="pickMode" data-k="${k}" class="${(S.cfg.mode||'system')===k?'on':''}">${v}</button>`).join('')}</div></div>
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v40 · © 2026 healcye-sys. All rights reserved.<br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v1.0 · © 2026 healcye-sys. All rights reserved.<br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
@@ -1422,6 +1434,7 @@ document.addEventListener('click',e=>{
     case 'restoreColors':{S.cfg.hiddenColors=[];saveUI();const box=document.getElementById('fColors');box.innerHTML=colorBtns();break}
     case 'pickColor':S.cfg.themeColor=el.dataset.c;saveUI();applyTheme();SH.querySelectorAll('.hive polygon').forEach(b=>b.classList.toggle('on',b===el));hivePreview();break;
     case 'pickTheme':S.cfg.theme=el.dataset.k;saveUI();applyTheme();SH.querySelectorAll('[data-act=pickTheme]').forEach(b=>b.classList.toggle('on',b===el));break;
+    case 'pickPack':S.cfg.pack=el.dataset.k==='on';save();render();SH.querySelectorAll('[data-act=pickPack]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'pickMode':S.cfg.mode=el.dataset.k;saveUI();applyTheme();SH.querySelectorAll('[data-act=pickMode]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'saveSettings':{const A=+fv('sA'),B=+fv('sB');if(B-A<4)return toast('시간 범위가 너무 좁아요');S.cfg.dayStart=A;S.cfg.dayEnd=B;
       S.cfg.meals.forEach((m,i)=>{const v=fv('mT'+i);m.time=inMin(v);const n=Math.round(+fv('mM'+i));if(n>0)m.mins=clamp(n,5,240)});
