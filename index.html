@@ -212,7 +212,7 @@ input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:tex
 .lmoon{display:inline-block;margin-left:3px;vertical-align:1px;font-size:10px;font-weight:800;color:#fff;background:#5b4bb7;border-radius:6px;padding:0 4px;line-height:15px;flex:0 0 auto}
 .ldim{position:fixed;inset:0;background:rgba(20,30,28,.45);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px}
 .lbox{background:var(--card);color:var(--ink);border-radius:20px;width:100%;max-width:400px;max-height:calc(100vh - 32px);overflow-y:auto;box-sizing:border-box;padding:20px 18px 14px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
-.lbox h4{margin:0;font-size:17px;font-weight:800}.lbox p{margin:6px 0 12px;font-size:14px;color:var(--sub);line-height:1.5}
+.lbox h4{margin:0 0 6px;font-size:17px;font-weight:800}.lbox p{margin:6px 0 12px;font-size:14px;color:var(--sub);line-height:1.5}
 .lbox .ld{display:grid;gap:5px;margin-bottom:12px}.lbox .ld div{display:flex;justify-content:space-between;font-size:13.5px;background:rgba(91,75,183,.1);border-radius:8px;padding:7px 10px}.lbox .ld b{color:#6a5acd}
 .lbox .lsec{font-size:12.5px;font-weight:800;margin:10px 0 5px}.lbox .lsec small{font-weight:600;color:var(--sub)}
 .lbox .ld div span{min-width:0}.lbox .ld div b{flex:0 1 auto;margin-left:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48%}
@@ -999,7 +999,7 @@ function renderWeek(){
     const meals=mealsOn().filter(m=>m.time<b*60&&m.time+m.mins>a*60).map(m=>{const t0=Math.max(m.time,a*60),t1=Math.min(m.time+m.mins,b*60);
       return `<div class="wmeal" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">🍚 ${m.n}</div>`}).join('');
     const nwl=d===TODAY?`<div class="wnow" style="top:${(nowMin()-a*60)/60*HP}px;${nowMin()<a*60||nowMin()>b*60?'display:none':''}"><span>${hm(nowMin())}</span></div>`:'';
-    cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H2}px;background-image:${bg}">`+meals+nwl+(ob?`<div class="lnight" style="top:${(b-a)*HP}px;height:${ob/60*HP}px"><span>🌙 +${Math.floor(ob/60)}:${pad(ob%60)}</span></div>`:'')+(MV[i]?MV[i].am.map((s,j)=>{const n=nextStudy(s,d);return `<div class="mvchip" data-act="gotoDay" data-date="${d}" style="top:${MV[i].top+j*36}px">${esc(s.name)}<br>쉼 · ${n?md(n):''}</div>`}).join(''):'')+it.map(x=>x.segs.map(([t0,t1],si)=>{
+    cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H2}px;background-image:${bg}">`+meals+nwl+(ob?`<div class="lnight" style="top:${(b-a)*HP}px;height:${ob/60*HP}px"><span>🌙 +${Math.floor(ob/60)}:${pad(ob%60)}</span></div>`:'')+(MV[i]?MV[i].am.map((s,j)=>{const n=nextStudy(s,d);return `<div class="mvchip" data-act="gotoDay" data-date="${d}" style="top:${MV[i].top+j*36}px">${esc(s.name)}<br>${n?md(n):''}</div>`}).join(''):'')+it.map(x=>x.segs.map(([t0,t1],si)=>{
       const first=si===0,last=si===x.segs.length-1;
       const top=(clamp(t0,a*60,(b+XH)*60)-a*60)/60*HP,ht=Math.max(22,Math.min(t1-t0,(b+XH)*60-t0)/60*HP-2);
       if(x.oo)return `<div class="wone ${x.mark==='o'?'done':''}" data-lp="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.30)};border-color:${x.s.color}"><div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${ht>34&&first?'<div class="rg">오늘만</div>':''}</div></div>`;
@@ -1360,16 +1360,15 @@ function lateGate(id,name,before,fin,onNo,verb){syncRounds();PC.clear();const id
   PC.clear();const ask=lateDays([...chk]).filter(isNew);
   if(!mv.length&&!ask.length)return fin();
   const lm=durTxt(lateMax()),day=x=>`${md(x.d)} (${DOW[dow(x.d)]}) ${lateTxt(x.end)}`;
-  const mvRows=mv.slice(0,300).map(x=>{const n=nextStudy(x.s,x.d);return `<div><span>${day(x)}</span><b>${esc(x.s.name)} → ${n?md(n):'다음'}</b></div>`}).join('');
+  const mvRows=mv.slice(0,300).map(x=>{const n=nextStudy(x.s,x.d);return `<div><span>${day(x)}</span><b>${n?md(n):'다음'}</b></div>`}).join('');
   const notes=[...new Set(mv.map(x=>x.s))].map(x=>{const e0=pe.get(x.id),e1=plan(x).end;
     return x.mode==='period'&&x.end?`'${esc(x.name)}' 끝나는 날은 그대로, 하루 분량이 조금 늘어요`:e0&&e1!==e0?`'${esc(x.name)}' 끝나는 날 <b>${md(e0)} → ${md(e1)}</b> (늦어져요)`:''}).filter(Boolean).slice(0,3).join('<br>');
   const askRows=ask.slice(0,300).map(x=>`<div><span>${day(x)}</span><b>+${durTxt(x.end-S.cfg.dayEnd*60)}</b></div>`).join('');
   const el=document.createElement('div');el.className='ldim';
-  el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4><p>${jo(name,'을','를')} ${verb||'넣으면'} 하루 끝을 넘기는 날이 생겨요.</p>
-   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 ${new Set(mv.map(x=>x.d)).size}일 <small>· 맨 뒤 과목은 다음 공부일로 넘겨요</small></div><div class="ld mv">${mvRows}</div>${notes?`<div class="lnote">${notes}</div>`:''}`:''}
+  el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4>   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 ${new Set(mv.map(x=>x.d)).size}일 <small>· 다음 공부일로 넘겨요</small></div><div class="ld mv">${mvRows}</div>${notes?`<div class="lnote">${notes}</div>`:''}`:''}
    ${ask.length?`<div class="lsec">${ask.every(x=>x.end<=M)?lm+' 안으로 넘치는 날':'넘치는 날'} ${ask.length}일 <small>· 그대로 해도 될까요?</small></div><div class="ld">${askRows}</div>`:''}
    <button class="lbtn pri" data-k="ok">${ask.length?'그래도 저장':'저장'}</button><button class="lbtn ghost" data-k="no">취소</button></div>`;
-  document.body.appendChild(el);fitLine(el.querySelectorAll('.lbox h4,.lbox p,.lbox .lsec'));
+  document.body.appendChild(el);fitLine(el.querySelectorAll('.lbox h4,.lbox .lsec'));
   el.addEventListener('click',e=>{const k=(e.target.closest('[data-k]')||{}).dataset?.k;if(!k&&e.target!==el)return;el.remove();
     if(k==='ok')fin();else{S.subjects=JSON.parse(before);PC.clear();if(onNo)onNo()}})}
 /* shrink a line's font until it fits on one line (min 10px) */
