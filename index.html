@@ -1939,7 +1939,7 @@ document.addEventListener('click',e=>{
     case 'pickMode':S.cfg.mode=el.dataset.k;saveUI();applyTheme();SH.querySelectorAll('[data-act=pickMode]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'saveSettings':{const A=+fv('sA'),B=+fv('sB');if(B-A<4)return toast('시간 범위가 너무 좁아요');S.cfg.dayStart=A;S.cfg.dayEnd=B;
       S.cfg.meals.forEach((m,i)=>{const v=fv('mT'+i);m.time=inMin(v);const n=Math.round(+fv('mM'+i));if(n>0)m.mins=clamp(n,5,240)});
-      S.subjects.forEach(s=>{s.mins=Math.min(s.mins,(B-A)*60);s.time=clamp(s.time,A*60,B*60-s.mins)});save();closeModal();render();break}
+      S.subjects.forEach(s=>{s.mins=Math.min(s.mins,(B-A)*60);if(s.time<A*60)s.time=A*60});PC.clear();save();closeModal();render();break}
     case 'export':exportBackup();break;
     case 'restoreMenu':restoreChoice();break;
     case 'restorePrev':ask('직전 클라우드 버전으로 되돌릴까요?','되돌리기',()=>{try{restoreData(JSON.parse(SY.prevJson))}catch(e){toast('되돌릴 수 없어요')}});break;
