@@ -211,9 +211,16 @@ input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:tex
 .pvn{font-size:12.5px;color:var(--sub);margin-top:6px}.pvn b{color:var(--ink)}
 .lmoon{display:inline-block;margin-left:3px;vertical-align:1px;font-size:10px;font-weight:800;color:#fff;background:#5b4bb7;border-radius:6px;padding:0 4px;line-height:15px;flex:0 0 auto}
 .ldim{position:fixed;inset:0;background:rgba(20,30,28,.45);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px}
-.lbox{background:var(--card);color:var(--ink);border-radius:20px;width:100%;max-width:400px;padding:20px 18px 14px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.lbox{background:var(--card);color:var(--ink);border-radius:20px;width:100%;max-width:400px;max-height:calc(100vh - 32px);overflow-y:auto;box-sizing:border-box;padding:20px 18px 14px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
 .lbox h4{margin:0;font-size:19px;font-weight:800}.lbox p{margin:6px 0 12px;font-size:14px;color:var(--sub);line-height:1.5}
 .lbox .ld{display:grid;gap:5px;margin-bottom:12px}.lbox .ld div{display:flex;justify-content:space-between;font-size:13.5px;background:rgba(91,75,183,.1);border-radius:8px;padding:7px 10px}.lbox .ld b{color:#6a5acd}
+.lbox .lsec{font-size:12.5px;font-weight:800;margin:10px 0 5px}.lbox .lsec small{font-weight:600;color:var(--sub)}
+.lbox .ld div span{min-width:0}.lbox .ld div b{flex:0 1 auto;margin-left:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48%}
+.lbox .ld.mv div{background:rgba(220,90,90,.09)}.lbox .ld.mv b{color:#c0504d}.lbox .ld.mv .more{background:none}
+.lbox .lnote{font-size:12.5px;color:var(--sub);margin:-4px 0 6px;line-height:1.5}
+.mvchip{position:absolute;left:2px;right:2px;z-index:5;border:1.5px dashed #6a5acd;border-radius:7px;background:rgba(91,75,183,.07);color:#6a5acd;font-size:10px;font-weight:800;text-align:center;padding:3px 1px;line-height:1.25;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer}
+.mvban{margin-top:10px;background:rgba(91,75,183,.12);color:#6a5acd;border-radius:12px;padding:11px 12px;font-size:13.5px;font-weight:600;line-height:1.5}
+.mvban .r{display:flex;margin-top:8px}.mvban button{flex:1;padding:8px;border-radius:9px;border:1.5px solid #6a5acd;background:var(--card);color:#6a5acd;font-weight:700;font-size:13px;font-family:inherit}
 .lbox .ld .more{justify-content:center;background:none;color:var(--sub)}
 .lbtn{display:block;width:100%;box-sizing:border-box;text-align:center;padding:12px;border-radius:12px;font-size:15px;font-weight:700;margin-top:8px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font-family:inherit}.lbtn.pri{background:var(--brand);color:#fff;border-color:var(--brand)}.lbtn.ghost{border:0;color:var(--sub);font-weight:600}
 .lnight{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,rgba(91,75,183,.16) 0 6px,rgba(91,75,183,.06) 6px 12px);border-top:2px solid #5b4bb7;pointer-events:none;z-index:4}
@@ -629,7 +636,7 @@ function onesOn(date){return (S.ones||[]).filter(o=>o.date===date).map(o=>{const
   return {s:{id:o.id,name:o.name,color:o.color,oneoff:true},date,k:0,from:0,to:0,label:'',time:o.time,mins:o.mins,oo:true,segs:sg,get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[o.id]||{})[date]||''}})}
 function rePeriod(s){if(s.mode!=='period'||!s.end)return;let n=0,x=s.start,g=0;while(x<=s.end&&g<4000){if(studyOn(s,x))n++;x=addD(x,1);g++}
   if(n>0)s.daily=Math.max(1e-6,(s.total-Math.min(s.pre||0,s.total))/n)}
-function setDay(s,d,kind,on){const o=s[kind]||(s[kind]={});if(on)o[d]=true;else delete o[d];
+function setDay(s,d,kind,on){const o=s[kind]||(s[kind]={});if(on)o[d]=true;else delete o[d];if(kind==='skip'&&!on&&s.askip)delete s.askip[d];
   const other=kind==='add'?'skip':'add';if(on&&s[other])delete s[other][d];rePeriod(s);PC.clear()}
 /* one day's items, never overlapping: a subject that would start before the previous one ends waits until it ends */
 function itemsOn(date){
@@ -975,7 +982,9 @@ window.addEventListener('pointercancel',e=>{if(hold&&e.pointerId===hold.pid)canc
 /* ---- week ---- */
 function renderWeek(){
   const ws=S.ui.week||monday(TODAY);const {dayStart:a,dayEnd:b}=S.cfg;const HP=56;const H=(b-a)*HP;
-  const ITS=[0,1,2,3,4,5,6].map(i=>itemsOn(addD(ws,i)));const XH=Math.ceil(Math.max(0,...ITS.map(overBy))/60),H2=(b-a+XH)*HP;
+  const ITS=[0,1,2,3,4,5,6].map(i=>itemsOn(addD(ws,i)));
+  const MV=[0,1,2,3,4,5,6].map(i=>{const d=addD(ws,i),am=askipOn(d);if(!am.length)return null;return {am,top:(Math.max(a*60,...ITS[i].map(x=>x.end))-a*60)/60*HP+3}});
+  const XH=Math.ceil(Math.max(0,...ITS.map(overBy))/60),H2=Math.max((b-a+XH)*HP,...MV.map(m=>m?m.top+m.am.length*36+6:0));
   let head='<div></div>',gut='',cols='';
   for(let h=a;h<b+XH;h++)gut+=`<span style="top:${(h-a)*HP+ (h===a?8:0)}px">${hh(h)}:00</span>`;
   const bg=`repeating-linear-gradient(to bottom,var(--line2) 0,var(--line2) 1px,transparent 1px,transparent ${HP}px)`;
@@ -988,7 +997,7 @@ function renderWeek(){
     const meals=mealsOn().filter(m=>m.time<b*60&&m.time+m.mins>a*60).map(m=>{const t0=Math.max(m.time,a*60),t1=Math.min(m.time+m.mins,b*60);
       return `<div class="wmeal" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">🍚 ${m.n}</div>`}).join('');
     const nwl=d===TODAY?`<div class="wnow" style="top:${(nowMin()-a*60)/60*HP}px;${nowMin()<a*60||nowMin()>b*60?'display:none':''}"><span>${hm(nowMin())}</span></div>`:'';
-    cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H2}px;background-image:${bg}">`+meals+nwl+(ob?`<div class="lnight" style="top:${(b-a)*HP}px;height:${ob/60*HP}px"><span>🌙 +${Math.floor(ob/60)}:${pad(ob%60)}</span></div>`:'')+it.map(x=>x.segs.map(([t0,t1],si)=>{
+    cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H2}px;background-image:${bg}">`+meals+nwl+(ob?`<div class="lnight" style="top:${(b-a)*HP}px;height:${ob/60*HP}px"><span>🌙 +${Math.floor(ob/60)}:${pad(ob%60)}</span></div>`:'')+(MV[i]?MV[i].am.map((s,j)=>{const n=nextStudy(s,d);return `<div class="mvchip" data-act="gotoDay" data-date="${d}" style="top:${MV[i].top+j*36}px">${esc(s.name)}<br>쉼 → ${n?DOW[dow(n)]:'다음'}</div>`}).join(''):'')+it.map(x=>x.segs.map(([t0,t1],si)=>{
       const first=si===0,last=si===x.segs.length-1;
       const top=(clamp(t0,a*60,(b+XH)*60)-a*60)/60*HP,ht=Math.max(22,Math.min(t1-t0,(b+XH)*60-t0)/60*HP-2);
       if(x.oo)return `<div class="wone ${x.mark==='o'?'done':''}" data-lp="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.30)};border-color:${x.s.color}"><div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${ht>34&&first?'<div class="rg">오늘만</div>':''}</div></div>`;
@@ -1048,6 +1057,7 @@ function renderDay(){
       <div class="ring"><svg width="54" height="54" viewBox="0 0 54 54"><circle cx="27" cy="27" r="22" fill="none" stroke="var(--line2)" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="var(--brand)" stroke-width="5" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 27 27)"/></svg><b>${dn}/${it.length}</b></div>
       ${d!==TODAY?'<button class="btn" data-act="dToday">오늘로</button>':''}</div>
     ${overBy(it)?`<div class="ovfbar">🌙 ${lateTxt(Math.max(...it.map(x=>x.end)))} 가요 · ${endH()}보다 <b>${durTxt(overBy(it))}</b> 넘어요<small>공부 시간을 줄이거나 과목을 다른 날로 옮겨 보세요</small></div>`:''}
+    ${askipOn(d).map(s=>{const n=nextStudy(s,d);return `<div class="mvban">🌙 하루 끝을 ${durTxt(lateMax())} 넘게 넘겨서 <b>${esc(jo(s.name,'은','는'))} 오늘 쉬어요</b>.${n?` ${DOW[dow(n)]}요일(${md(n)})에 이어서 해요.`:''}<div class="r"><button data-act="xKeep" data-id="${s.id}" data-date="${d}">오늘도 할래요</button></div></div>`}).join('')}
     <div style="margin-top:10px">${rows||'<div class="empty">이 날은 계획된 공부가 없어요.</div>'}</div>
     <div class="xadd" data-act="xAdd" data-date="${d}">＋ 오늘만 추가</div>
     ${skippedOn(d).length?`<div class="xskip">오늘만 쉬기 · ${skippedOn(d).map(s=>`<span>${esc(s.name)} <b data-act="xUnskip" data-id="${s.id}" data-date="${d}">되돌리기</b></span>`).join('')}</div>`:''}
@@ -1329,14 +1339,34 @@ function lateDays(ids){const set=new Set(ids);let last=TODAY;S.subjects.forEach(
   const out=[];let d=TODAY,g=0;while(d<=last&&g<400){const it=itemsOn(d);if(overBy(it)&&it.some(x=>set.has(x.s.id)))out.push({d,end:Math.max(...it.map(x=>x.end))});d=addD(d,1);g++}return out}
 const endH=()=>{const e=S.cfg.dayEnd;return e===24?'24:00':(e>24?'새벽 ':'')+hh(e)+':00'};
 const lateTxt=m=>m>=1440?`새벽 ${Math.floor((m-1440)/60)}:${pad(m%60)}까지`:`${hm(m)}까지`;
+/* more than cfg.lateMax past the day end: the day's last subject rests that day (s.skip + s.askip)
+   and simply continues on its next study day; up to lateMax the dialog asks */
+const lateMax=()=>S.cfg.lateMax??60;
+function nextStudy(s,d){const p=plan(s);let x=addD(d,1);for(let g=0;g<400&&x<=p.end;g++){if(p.idx[x]!==undefined)return x;x=addD(x,1)}return null}
+function autoMove(L,M){const mv=[];
+  for(const x of L){for(let g=0;g<8;g++){const it=itemsOn(x.d);if(!it.length||Math.max(...it.map(y=>y.end))<=M)break;
+    const c=it.filter(y=>!y.oo&&!(y.s.keep&&y.s.keep[x.d])).sort((p,q)=>q.end-p.end)[0];if(!c)break;
+    const so=c.s;(so.askip||(so.askip={}))[x.d]=true;setDay(so,x.d,'skip',true);PC.clear();mv.push({d:x.d,end:x.end,s:so})}}
+  return mv}
 function lateGate(id,name,before,fin){syncRounds();PC.clear();const ids=[id,...S.subjects.filter(x=>x.parent===id).map(x=>x.id)];const L=lateDays(ids);
   if(!L.length)return fin();
-  const cur=S.subjects;S.subjects=JSON.parse(before);PC.clear();const old=new Map(lateDays(ids).map(x=>[x.d,x.end]));S.subjects=cur;PC.clear();
-  const nw=L.filter(x=>!old.has(x.d)||x.end>old.get(x.d));if(!nw.length)return fin();
+  const cur=S.subjects;S.subjects=JSON.parse(before);PC.clear();const old=new Map(lateDays(S.subjects.map(x=>x.id).concat(ids)).map(x=>[x.d,x.end]));S.subjects=cur;PC.clear();
+  const isNew=x=>!old.has(x.d)||x.end>old.get(x.d);
+  const pe=new Map(S.subjects.map(x=>[x.id,plan(x).end]));const M=S.cfg.dayEnd*60+lateMax();const chk=new Set(ids);let mv=[];
+  for(let r=0;r<5;r++){const big=lateDays([...chk]).filter(x=>isNew(x)&&x.end>M&&!mv.some(m=>m.d===x.d));if(!big.length)break;
+    const m=autoMove(big,M);if(!m.length)break;mv=mv.concat(m);m.forEach(x=>chk.add(x.s.id))}
+  PC.clear();const ask=lateDays([...chk]).filter(isNew);
+  if(!mv.length&&!ask.length)return fin();
+  const lm=durTxt(lateMax()),day=x=>`${md(x.d)} (${DOW[dow(x.d)]}) ${lateTxt(x.end)}`;
+  const mvRows=mv.slice(0,3).map(x=>{const n=nextStudy(x.s,x.d);return `<div><span>${day(x)}</span><b>${esc(x.s.name)} → ${n?DOW[dow(n)]:'다음'}</b></div>`}).join('')+(mv.length>3?`<div class="more">외 ${mv.length-3}일</div>`:'');
+  const notes=[...new Set(mv.map(x=>x.s))].map(x=>{const e0=pe.get(x.id),e1=plan(x).end;
+    return x.mode==='period'&&x.end?`'${esc(x.name)}' 끝나는 날은 그대로, 하루 분량이 조금 늘어요`:e0&&e1!==e0?`'${esc(x.name)}' 끝나는 날 <b>${md(e0)} → ${md(e1)}</b> (늦어져요)`:''}).filter(Boolean).slice(0,3).join('<br>');
+  const askRows=ask.slice(0,3).map(x=>`<div><span>${day(x)}</span><b>+${durTxt(x.end-S.cfg.dayEnd*60)}</b></div>`).join('')+(ask.length>3?`<div class="more">외 ${ask.length-3}일</div>`:'');
   const el=document.createElement('div');el.className='ldim';
-  el.innerHTML=`<div class="lbox"><h4>🌙 ${nw.some(x=>x.end>=1440)?'새벽까지':'늦게까지'} 넘어가는 날이 있어요</h4><p>${jo(name,'을','를')} 넣으면 아래 날들이 하루 끝 시각(${endH()})을 넘겨요.</p>
-   <div class="ld">${nw.slice(0,3).map(x=>`<div>${md(x.d)} (${DOW[dow(x.d)]})<b>${lateTxt(x.end)}</b></div>`).join('')}${nw.length>3?`<div class="more">외 ${nw.length-3}일</div>`:''}</div>
-   <button class="lbtn pri" data-k="ok">그래도 저장</button><button class="lbtn ghost" data-k="no">취소</button></div>`;
+  el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4><p>${jo(name,'을','를')} 넣으면 하루 끝을 넘기는 날이 생겨요.</p>
+   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 <small>· 맨 뒤 과목은 쉬고 다음 공부하는 날로 넘겨요</small></div><div class="ld mv">${mvRows}</div>${notes?`<div class="lnote">${notes}</div>`:''}`:''}
+   ${ask.length?`<div class="lsec">${ask.every(x=>x.end<=M)?lm+' 안으로 넘치는 날':'넘치는 날'} <small>· 그대로 해도 될까요?</small></div><div class="ld">${askRows}</div>`:''}
+   <button class="lbtn pri" data-k="ok">${ask.length?'그래도 저장':'저장'}</button><button class="lbtn ghost" data-k="no">취소</button></div>`;
   document.body.appendChild(el);
   el.addEventListener('click',e=>{const k=(e.target.closest('[data-k]')||{}).dataset?.k;if(!k&&e.target!==el)return;el.remove();
     if(k==='ok')fin();else{S.subjects=JSON.parse(before);PC.clear()}})}
@@ -1372,7 +1402,8 @@ function askClash(so,want,oldT,cf,before,isNew){
     toast(k==='push'?`${c.name}부터 뒤로 밀었어요`:'자리를 바꿨어요')})});
 }
 /* ---- 오늘만 추가 / 오늘만 쉬기 ---- */
-const skippedOn=d=>S.subjects.filter(s=>s.skip&&s.skip[d]);
+const skippedOn=d=>S.subjects.filter(s=>s.skip&&s.skip[d]&&!(s.askip&&s.askip[d]));
+const askipOn=d=>S.subjects.filter(s=>s.askip&&s.askip[d]&&s.skip&&s.skip[d]);
 function dTitle(d){return `${pd(d).getMonth()+1}월 ${pd(d).getDate()}일 (${DOW[dow(d)]})`}
 function openAddDay(d,tm){
   const on=new Set(itemsOn(d).map(x=>x.s.id));
@@ -1430,6 +1461,8 @@ function openSettings(){
    <div class="fld"><label>폰·탭 동기화</label>${syncBox()}</div>
    <div class="g2"><div class="fld"><label>하루 시작 시각</label><select class="inp" id="sA">${opt(S.cfg.dayStart,0,12)}</select></div>
    <div class="fld"><label>하루 끝 시각</label><select class="inp" id="sB">${opt(S.cfg.dayEnd,14,28)}</select></div></div>
+   <div class="fld"><label>하루 끝 넘겨도 되는 시간</label><div class="seg3 small">${[30,60,90,120].map(m=>`<button data-act="pickLate" data-k="${m}" class="${lateMax()===m?'on':''}">${durTxt(m)}</button>`).join('')}</div>
+    <div class="hint" style="margin-top:6px;line-height:1.5">이만큼까지는 물어보고 넣어요. 더 넘치면 그 날은 맨 뒤 과목을 쉬고 다음 공부하는 날로 넘겨요.</div></div>
    <div class="fld"><label>식사 시간 <span class="hint" style="font-weight:400">(비워 두면 표시 안 함)</span></label>
     ${S.cfg.meals.map((m,i)=>`<div class="inrow meal-row"><span class="mlab">${m.n}</span><input class="inp" type="time" step="600" id="mT${i}" value="${m.time==null?'':hmv(m.time)}">
      <input class="inp mmin" type="number" inputmode="numeric" min="5" max="240" step="5" id="mM${i}" value="${m.mins}"><span class="hint">분</span></div>`).join('')}</div>
@@ -1439,7 +1472,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v1.3<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v1.4<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
@@ -1650,6 +1683,7 @@ document.addEventListener('click',e=>{
       save();closeModal();render();toast(`'${name}' 오늘만 추가했어요`);break}
     case 'xSkip':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'skip',true);save();closeModal();render();toast(`'${s.name}' 오늘만 쉬어요`);break}
     case 'xUnadd':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'add',false);if(s.ov)delete s.ov[d];save();closeModal();render();toast('오늘만 추가를 취소했어요');break}
+    case 'xKeep':{const s=sub(id),d=el.dataset.date;if(!s)break;(s.keep||(s.keep={}))[d]=true;setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 오늘도 해요`);break}
     case 'xUnskip':{const s=sub(id),d=el.dataset.date;setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 다시 공부하는 날이에요`);break}
     case 'xDelOne':{S.ones=(S.ones||[]).filter(o=>o.id!==id);delete S.checks[id];save();closeModal();render();toast('지웠어요');break}
     case 'saveSub':saveSubject();break;
@@ -1675,6 +1709,7 @@ document.addEventListener('click',e=>{
     case 'restoreColors':{S.cfg.hiddenColors=[];saveUI();const box=document.getElementById('fColors');box.innerHTML=colorBtns();break}
     case 'pickColor':S.cfg.themeColor=el.dataset.c;saveUI();applyTheme();SH.querySelectorAll('.hive polygon').forEach(b=>b.classList.toggle('on',b===el));hivePreview();break;
     case 'pickTheme':S.cfg.theme=el.dataset.k;saveUI();applyTheme();SH.querySelectorAll('[data-act=pickTheme]').forEach(b=>b.classList.toggle('on',b===el));break;
+    case 'pickLate':S.cfg.lateMax=+el.dataset.k;save();render();SH.querySelectorAll('[data-act=pickLate]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'pickPack':S.cfg.pack=el.dataset.k==='on';save();render();{const pv=document.getElementById('packPrev');if(pv)pv.innerHTML=packPrev(S.cfg.pack)}SH.querySelectorAll('[data-act=pickPack]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'pickMode':S.cfg.mode=el.dataset.k;saveUI();applyTheme();SH.querySelectorAll('[data-act=pickMode]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'saveSettings':{const A=+fv('sA'),B=+fv('sB');if(B-A<4)return toast('시간 범위가 너무 좁아요');S.cfg.dayStart=A;S.cfg.dayEnd=B;
