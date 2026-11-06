@@ -375,6 +375,7 @@ body.dragging .zfab{pointer-events:none}
 .clr{position:relative}.clr .inp{padding-right:30px;width:100%}.clr .tx{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--sub);font-size:14px;width:26px;height:26px;padding:0;cursor:pointer}
 .inp.auto{color:var(--brand);background:var(--other);font-weight:600}.atag{display:none;margin-left:6px;font-size:10px;font-weight:700;color:var(--brand);border:1px solid var(--brand);border-radius:6px;padding:0 4px;vertical-align:1px}.isauto .atag{display:inline-block}.isauto .tx{visibility:hidden}
 .fq{margin-bottom:8px}#sheet>.fq>.fld{flex:1 1 0;min-width:0}.fq input[type=date]{padding-left:8px;padding-right:28px;letter-spacing:-.3px}.fqh{margin:-2px 0 12px;font-size:12px}.preview.warn{background:#FFF4D6;background:color-mix(in srgb,var(--amber) 16%,var(--card));border-color:var(--amber);color:var(--ink)}
+.restln{margin-top:10px;display:flex;align-items:center;gap:8px;background:var(--segbg,#f1effb);background:color-mix(in srgb,#7a6fd6 12%,var(--card));border-radius:12px;padding:11px 12px;font-size:13.5px;color:#5a4fb3;font-weight:700;cursor:pointer}.restln span{flex:1;min-width:0}.restln i{font-style:normal;font-weight:500;opacity:.75;font-size:12.5px;flex:none}
 .drafts{margin-top:16px}.drow{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px dashed var(--line2);border-radius:12px;margin-top:8px;cursor:pointer}.drow i{width:10px;height:10px;border-radius:50%;flex:none}.drow b{flex:none;font-size:14px}.drow span{flex:1;min-width:0;color:var(--sub);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.drow em{font-style:normal;color:var(--brand);font-size:12px;font-weight:700;flex:none}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .inrow{display:flex;gap:6px;align-items:center}
@@ -1146,10 +1147,9 @@ function renderDay(){
       <div class="meta">${exs.length?`<span style="color:var(--red);font-weight:700">📌 ${exs.map(e=>esc(e.name)).join(', ')}</span>`:''}</div>
       ${d!==TODAY?'<button class="btn" data-act="dToday">오늘로</button>':''}</div>
     ${overBy(it)?`<div class="ovfbar">🌙 ${lateTxt(Math.max(...it.map(x=>x.end)))} 가요 · ${endH()}보다 <b>${durTxt(overBy(it))}</b> 넘어요<small>공부 시간을 줄이거나 과목을 다른 날로 옮겨 보세요</small></div>`:''}
-    ${askipOn(d).map(s=>{const n=nextStudy(s,d);return `<div class="mvban">🌙 하루 끝을 ${durTxt(lateMax())} 넘게 넘겨서 <b>${esc(jo(s.name,'은','는'))} 오늘 쉬어요</b>.${n?` ${DOW[dow(n)]}요일(${md(n)})에 이어서 해요.`:''}<div class="r"><button data-act="xKeep" data-id="${s.id}" data-date="${d}">오늘 할게요</button></div></div>`}).join('')}
-    ${asplitOn(d).map(s=>{const n=nextStudy(s,d);return `<div class="mvban">🌙 하루 끝을 넘기지 않게 <b>${esc(jo(s.name,'은','는'))} 오늘 ${durTxt(dayMins(s,d))}(${dayAmt(s,d)}${esc(s.unit||'')})만 해요</b>.${n?` 나머지는 ${DOW[dow(n)]}요일(${md(n)})에 이어서 해요.`:''}<div class="r"><button data-act="xKeep" data-id="${s.id}" data-date="${d}">오늘 다 할게요</button></div></div>`}).join('')}
     <div style="margin-top:10px">${rows||'<div class="empty">이 날은 계획된 공부가 없어요.</div>'}</div>
     <div class="xadd" data-act="xAdd" data-date="${d}">＋ 오늘만 추가</div>
+    ${(()=>{const a=askipOn(d).length,b=asplitOn(d).length;return a+b?`<div class="restln" data-act="xAdd" data-date="${d}">🌙<span>하루 끝을 넘어서 ${[a?a+'과목은 쉬어요':'',b?b+'과목은 일부만 해요':''].filter(Boolean).join(' · ')}</span><i>보기 ›</i></div>`:''})()}
     ${skippedOn(d).length?`<div class="xskip">오늘만 쉬기 · ${skippedOn(d).map(s=>`<span>${esc(s.name)} <b data-act="xUnskip" data-id="${s.id}" data-date="${d}">되돌리기</b></span>`).join('')}</div>`:''}
     <div class="foot"><span>${dn} / ${it.length} 완료</span><span>공부 ${hrs(mins)}</span></div>
    </div>
@@ -1602,8 +1602,8 @@ function openAddDay(d,tm){
   const cand=S.subjects.filter(s=>!on.has(s.id)&&!projEnd(s).done&&!(s.mode==='period'&&s.end&&d>s.end));
   const dn=['일','월','화','수','목','금','토'];
   openModal(`<h3>${dTitle(d)} 오늘만 추가</h3><p class="xsub">이날 하루만 더해요. 다음 주부터는 원래대로예요.</p>
-   <div id="xpick">${(()=>{const it=s=>`<button class="xit" data-act="xPick" data-id="${s.id}"><i style="background:${s.color}"></i><span class="xnm">${esc(s.name)}</span><small>${(()=>{const p=plan(s),n=p.dates.find(x=>x>d);return p.end<d?md(p.end):s.askip&&s.askip[d]?'':n?md(n):''})()}</small></button>`;
-     const g1=cand.filter(s=>s.askip&&s.askip[d]||plan(s).end<d),g2=cand.filter(s=>!g1.includes(s)).sort((a,b)=>(plan(a).dates.find(x=>x>d)||a.start).localeCompare(plan(b).dates.find(x=>x>d)||b.start)||a.time-b.time),g3=[];
+   <div id="xpick">${(()=>{const it=s=>`<button class="xit" data-act="${s.askip&&s.askip[d]||s.asplit&&s.asplit[d]?'xKeep':'xPick'}" data-id="${s.id}" data-date="${d}"><i style="background:${s.color}"></i><span class="xnm">${esc(s.name)}</span><small>${(()=>{const p=plan(s),n=p.dates.find(x=>x>d);return s.asplit&&s.asplit[d]?'일부만':p.end<d?md(p.end):s.askip&&s.askip[d]?'':n?md(n):''})()}</small></button>`;
+     const g1=[...asplitOn(d).filter(s=>!cand.includes(s)),...cand.filter(s=>s.askip&&s.askip[d]||plan(s).end<d)],g2=cand.filter(s=>!g1.includes(s)).sort((a,b)=>(plan(a).dates.find(x=>x>d)||a.start).localeCompare(plan(b).dates.find(x=>x>d)||b.start)||a.time-b.time),g3=[];
      const sec=(t,h,a)=>a.length?`<div class="xlab">${t} <small>${h}</small></div><div class="xlist ${a.length>5?'long':''}">${a.map(it).join('')}</div>`:'';
      return sec('밀린 과목','다시 넣기',g1)+sec('앞으로 당겨오기','먼저 하면 종료일도 당겨져요',g2)+sec('그 밖의 과목',g3.length+'개',g3)})()}
    <button class="xit xnewb" data-act="xNew">＋ 새로 적기 <small>과목 없이 이날 하루만</small></button></div>
@@ -1896,7 +1896,7 @@ document.addEventListener('click',e=>{
       // nothing left for that day (its last day was earlier and not checked): move that last day here
       let moved=null;for(let k=0;k<10&&plan(s).idx[d]===undefined;k++){const ck=S.checks[s.id]||{};const L=plan(s).dates.filter(x=>x<d&&!ck[x]).pop();if(!L)break;setDay(s,L,'skip',true);setDay(s,d,'add',true);PC.clear();moved=moved||L}
       if(plan(s).idx[d]===undefined){Object.assign(s,JSON.parse(b0));PC.clear();closeModal();render();toast(`'${s.name}'은 이날 할 분량이 남아 있지 않아요`);break}
-      if(tm){s.ov=s.ov||{};s.ov[d]=+tm}save();closeModal();render();toast(moved?`'${s.name}' ${md(moved)} 분량을 ${md(d)}로 옮겼어요`:`'${s.name}' 오늘만 추가했어요`);break}
+      (s.keep||(s.keep={}))[d]=true;if(tm){s.ov=s.ov||{};s.ov[d]=+tm}save();closeModal();render();toast(moved?`'${s.name}' ${md(moved)} 분량을 ${md(d)}로 옮겼어요`:`'${s.name}' 오늘만 추가했어요`);break}
     case 'xNew':{document.getElementById('xpick').hidden=true;document.getElementById('xnew').hidden=false;document.getElementById('xOk').hidden=false;document.getElementById('xName').focus();break}
     case 'xBack':{document.getElementById('xpick').hidden=false;document.getElementById('xnew').hidden=true;document.getElementById('xOk').hidden=true;break}
     case 'xSaveNew':{const name=fv('xName');if(!name)return toast('이름을 적어 주세요');const tv=fv('xTime');let mins=Math.round(num(fv('xH'))*60+num(fv('xM')));if(mins<10)mins=10;
@@ -1905,7 +1905,7 @@ document.addEventListener('click',e=>{
       save();closeModal();render();toast(`'${name}' 오늘만 추가했어요`);break}
     case 'xSkip':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'skip',true);save();closeModal();render();toast(`'${s.name}' 오늘만 쉬어요`);break}
     case 'xUnadd':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'add',false);if(s.ov)delete s.ov[d];save();closeModal();render();toast('오늘만 추가를 취소했어요');break}
-    case 'xKeep':{const s=sub(id),d=el.dataset.date;if(!s)break;(s.keep||(s.keep={}))[d]=true;if(s.asplit&&s.asplit[d]){delete s.asplit[d];if(s.ovm)delete s.ovm[d]}setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 오늘 해요`);break}
+    case 'xKeep':{const s=sub(id),d=el.dataset.date;if(!s)break;(s.keep||(s.keep={}))[d]=true;if(s.asplit&&s.asplit[d]){delete s.asplit[d];if(s.ovm)delete s.ovm[d]}setDay(s,d,'skip',false);save();closeModal();render();toast(`'${s.name}' 오늘 해요`);break}
     case 'mealTap':{const now=Date.now(),n=el.dataset.n;if(MTAP&&MTAP.n===n&&now-MTAP.t<450){MTAP=null;openMeal(n)}else MTAP={n,t:now};break}
     case 'mealSave':{const m=(S.cfg.meals||[]).find(x=>x.n===el.dataset.n);if(!m)break;const t=SH.querySelector('#mlT').value,mm=+SH.querySelector('#mlM').value;
       if(t){const [h,mi]=t.split(':').map(Number);m.time=h*60+mi}if(mm>=5)m.mins=Math.min(240,mm);PC.clear();save();closeModal();render();toast(`${m.n} ${hm(m.time)}부터 ${durTxt(m.mins)}`);break}
