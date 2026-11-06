@@ -704,14 +704,21 @@ function packDay(it,date){const head=chainHeads(),g={};
   it.forEach(x=>{if(x.oo||(x.s.ov&&x.s.ov[date]!=null))return;const h=head[x.s.id];if(h==null)return;(g[h]||(g[h]=[])).push(x)});
   for(const h in g){let cur=+h;g[h].sort((a,b)=>a.s.time-b.s.time).forEach(x=>{x.segs=spanSegs(cur,x.mins);x.time=x.segs[0][0];cur=x.end})}
   it.sort((a,b)=>a.time-b.time)}
+/* projected end: the plan's end, pushed later only by days marked △ or × (unmarked days are not "late") */
 function projEnd(s){
   const rem=s.total-doneAll(s); if(rem<=1e-9) return {done:true};
-  const ch=S.checks[s.id]||{}; let st=s.start>TODAY?s.start:TODAY; if(st===TODAY&&ch[TODAY]) st=addD(TODAY,1);
-  let d=st,c=0,g=0,last=st;
-  const pp=s.mode==='period'&&s.end?plan(s):null;
-  while(c<rem-1e-9&&g<3000){if(studyOn(s,d)){const k=pp?pp.idx[d]:undefined;c+=k!==undefined?pp.amt[k]:Math.max(pp?1:1e-6,dayAmt(s,d));last=d}d=addD(d,1);g++}
+  const p=plan(s),ch=S.checks[s.id]||{};let short=0;
+  for(const d in ch){const k=p.idx[d];if(k===undefined||d<s.start||(ch[d]!=='t'&&ch[d]!=='x'))continue;
+    const a=s.mode==='period'&&s.end?p.amt[k]:dayAmt(s,d);short+=a-markAmt(ch[d],a)}
+  if(short<=1e-9)return {date:p.end,rem};
+  let d=addD(p.end,1),c=0,g=0,last=p.end;const per=s.mode==='period'&&s.end?Math.max(1,Math.round(s.daily)):0;
+  while(c<short-1e-9&&g<3000){if(studyOn(s,d)){c+=per||Math.max(1e-6,dayAmt(s,d));last=d}d=addD(d,1);g++}
   return {date:last,rem};
 }
+const isBehind=s=>{const p=projEnd(s);return !p.done&&p.date>plan(s).end};
+/* restart the remaining amount from today (tomorrow if today is already marked); period subjects keep their end day, so the daily amount goes up */
+function reschedOne(s){const st=(S.checks[s.id]||{})[TODAY]?addD(TODAY,1):TODAY;s.start=st;if(s.parent)s.autoStart=false;
+  if(s.mode==='period'&&s.end&&s.end<st)s.end=st;rePeriod(s);PC.delete(s.id)}
 /* overlap: other bands that collide with subject s (placed at start/time) on any shared day */
 function colliders(s,start,time){
   let dates=null;const out=[];
@@ -1157,7 +1164,7 @@ function setLSort(v){S.ui.lsort=v;saveUI();render()}
 function renderList(){
   const LS=S.ui.lsort||'my',ko=(a,b)=>a.name.localeCompare(b.name,'ko');
   const arr=listOrder();if(LS==='name')arr.sort(ko);else if(LS==='name_d')arr.sort((a,b)=>ko(b,a));else if(LS==='start')arr.sort((a,b)=>plan(a).dates[0].localeCompare(plan(b).dates[0])||a.time-b.time);
-  const lateN=arr.filter(s=>{const p=projEnd(s);return !p.done&&p.date>plan(s).end}).length;
+  const lateN=arr.filter(isBehind).length;
   const fx=[...S.exams].filter(e=>e.date>=TODAY).sort((a,b)=>a.date.localeCompare(b.date))[0];
   const exLate=s=>{if(!fx)return false;const pe=projEnd(s);if(pe.done)return false;const e=pe.date>plan(s).end?pe.date:plan(s).end;return e>fx.date};
   const exN=arr.filter(exLate).length;
@@ -1392,7 +1399,8 @@ function nextStudy(s,d){const p=plan(s);let x=addD(d,1);for(let g=0;g<400&&x<=p.
 function autoMove(L,M){const mv=[];
   for(const x of L){for(let g=0;g<8;g++){const it=itemsOn(x.d);if(!it.length||Math.max(...it.map(y=>y.end))<=M)break;
     const c=it.filter(y=>!y.oo&&!(y.s.keep&&y.s.keep[x.d])).sort((p,q)=>q.end-p.end)[0];if(!c)break;
-    const so=c.s;(so.askip||(so.askip={}))[x.d]=true;setDay(so,x.d,'skip',true);PC.clear();mv.push({d:x.d,end:x.end,s:so})}}
+    const so=c.s;(so.askip||(so.askip={}))[x.d]=true;(so.skip||(so.skip={}))[x.d]=true;if(so.add)delete so.add[x.d];rePeriod(so);
+    const rid=so.parent||so.id;if(S.subjects.some(y=>y.parent===rid))syncRounds();else PC.delete(so.id);mv.push({d:x.d,end:x.end,s:so})}}
   return mv}
 function lateGate(id,name,before,fin,onNo,verb){syncRounds();PC.clear();const ids=[id,...S.subjects.filter(x=>x.parent===id).map(x=>x.id)];const L=lateDays(ids);
   const bigOld=()=>lateDays(S.subjects.map(x=>x.id)).some(x=>x.end>S.cfg.dayEnd*60+lateMax()&&!itemsOn(x.d).some(y=>y.s.keep&&y.s.keep[x.d]));
@@ -1797,8 +1805,10 @@ document.addEventListener('click',e=>{
     case 'dToday':go(()=>S.ui.day=TODAY);break;
     case 'mark':{const c=chk(id);const n=nextMark(c[el.dataset.date]);if(n)c[el.dataset.date]=n;else delete c[el.dataset.date];
       const y=scrollY;save();render();scrollTo({top:y});break}
-    case 'resched':{const s=sub(id);s.start=TODAY;if(s.parent)s.autoStart=false;save();render();toast(`'${s.name}' 남은 분량을 오늘부터 다시 배치했어요`);break}
-    case 'reschedAll':{let n=0;S.subjects.forEach(s=>{const p=projEnd(s);if(!p.done&&p.date>plan(s).end){s.start=TODAY;if(s.parent)s.autoStart=false;PC.delete(s.id);n++}});save();render();toast(`${n}과목을 오늘부터 다시 배치했어요`);break}
+    case 'resched':{const s=sub(id),before=JSON.stringify(S.subjects);reschedOne(s);PC.clear();
+      lateGate(s.id,s.name,before,()=>{save();render();toast(`'${s.name}' 남은 분량을 오늘부터 다시 배치했어요`)},()=>{save();render()},'다시 배치하면');break}
+    case 'reschedAll':{const L=S.subjects.filter(isBehind);if(!L.length)break;const before=JSON.stringify(S.subjects);L.forEach(reschedOne);PC.clear();
+      lateGate(L[0].id,L[0].name,before,()=>{save();render();toast(`${L.length}과목을 오늘부터 다시 배치했어요`)},()=>{save();render()},'다시 배치하면');break}
   }
 });
 document.getElementById('importFile').addEventListener('change',e=>{
