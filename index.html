@@ -239,6 +239,8 @@ input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:tex
 .row.meal.one{padding:4px 0}.row.meal.one .nm{font-size:12.5px!important}
 @media (max-width:360px){.row.one{gap:8px}.row.one .tm{width:76px;font-size:11px}.row.one .nm{font-size:14.5px}.row.one .rg{font-size:12px}}
 @media (min-width:700px){.row.one{padding:10px 0}.row.one .tm{width:100px;font-size:13.5px}.row.one .nm{font-size:17px}.row.one .rg{font-size:13.5px}.row.one .hr{font-size:13px}.row.one .mk{width:36px;height:36px;font-size:18px}}
+.zbox{overflow:hidden;overflow:clip}.zin{transform-origin:0 0}
+.zreset{position:fixed;left:16px;bottom:calc(24px + env(safe-area-inset-bottom));z-index:40;background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:999px;padding:9px 14px;font-size:13.5px;font-weight:700;box-shadow:0 3px 12px rgba(0,0,0,.15);font-family:inherit}
 .wnow{position:absolute;left:0;right:0;height:0;border-top:2px solid #e5534b;z-index:5;pointer-events:none}
 .wnow:before{content:"";position:absolute;left:-4px;top:-6px;width:10px;height:10px;border-radius:50%;background:#e5534b}
 .wnow span{position:absolute;right:2px;top:-17px;background:#e5534b;color:#fff;font-size:10px;font-weight:800;border-radius:5px;padding:0 4px;line-height:15px}
@@ -702,6 +704,7 @@ function render(){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===S.ui.view));
   renderHeader();
   ({month:renderMonth,week:renderWeek,day:renderDay,list:renderList})[S.ui.view]();
+  if(S.ui.view==='month'||S.ui.view==='week')applyZoom();
 }
 
 /* ---- month ---- */
@@ -783,7 +786,7 @@ function locateWeek(x,y){
   const cols=[...document.querySelectorAll('.wcol')];if(!cols.length)return null;
   let col=0;cols.forEach((c,i)=>{if(x>=c.getBoundingClientRect().left)col=i});
   const top=cols[0].getBoundingClientRect().top;const {dayStart:a,dayEnd:b}=S.cfg;
-  return {date:addD(S.ui.week||monday(TODAY),col),min:a*60+clamp((y-top)/56*60,0,(b-a)*60)};
+  return {date:addD(S.ui.week||monday(TODAY),col),min:a*60+clamp((y-top)/ZM()/56*60,0,(b-a)*60)};
 }
 function locate(x,y){
   if(S.ui.view==='week')return locateWeek(x,y);
@@ -856,16 +859,16 @@ function wGhost(day,t,m){const a=S.cfg.dayStart*60,b=S.cfg.dayEnd*60;
     col.insertAdjacentHTML('beforeend',`<div class="wblk ghost" style="top:${top}px;height:${ht}px;left:2px;right:2px"></div>`)})}
 function durFrame(s){
   const dy=drag.y-drag.y0+(scrollY-drag.sy0);const {dayEnd:b}=S.cfg;const t0=drag.time0;
-  const nm=clamp(Math.round((drag.mins0+dy/56*60)/10)*10,10,Math.max(10,b*60-t0));
+  const nm=clamp(Math.round((drag.mins0+dy/ZM()/56*60)/10)*10,10,Math.max(10,b*60-t0));
   if(nm!==drag.key){drag.key=nm;drag.target={start:s.start,time:t0,mins:nm};
     drag.els.forEach(el=>el.style.opacity='.35');wGhost(drag.day,t0,nm)}
   const tip=document.getElementById('tip');tip.classList.remove('hidden');tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
   const sg=spanSegs(t0,nm);showTip(drag.x,drag.y,s.name,`${hm(t0)}~${hm(sg[sg.length-1][1])}`,`${mdw(drag.day)} 이날만 · ${durTxt(nm)}`);
 }
 function dayFrame(s){
-  const dy=drag.y-drag.y0+(scrollY-drag.sy0);drag.els.forEach(el=>el.style.transform=`translate3d(0,${dy}px,0)`);
+  const dy=drag.y-drag.y0+(scrollY-drag.sy0);drag.els.forEach(el=>el.style.transform=`translate3d(0,${dy/ZM()}px,0)`);
   const {dayStart:a,dayEnd:b}=S.cfg;
-  const nt=clamp(Math.round((drag.time0+dy/56*60)/10)*10,a*60,Math.max(a*60,b*60-Math.min(s.mins,(b-a)*60)));
+  const nt=clamp(Math.round((drag.time0+dy/ZM()/56*60)/10)*10,a*60,Math.max(a*60,b*60-Math.min(s.mins,(b-a)*60)));
   if(nt!==drag.key){drag.key=nt;drag.target={start:s.start,time:nt};
     document.querySelectorAll('.wblk.ghost').forEach(e=>e.remove());
     const col=document.querySelector(`.wcol[data-date="${drag.day}"]`);
@@ -879,7 +882,7 @@ function dragFrame(){
   if(drag.rs)return resizeFrame(s);
   if(drag.wk)return drag.wrs?durFrame(s):dayFrame(s);
   const dx=drag.x-drag.x0,dy=drag.y-drag.y0+(scrollY-drag.sy0);
-  drag.els.forEach(el=>el.style.transform=`translate3d(${dx}px,${dy}px,0)`);
+  drag.els.forEach(el=>el.style.transform=`translate3d(${dx/ZM()}px,${dy/ZM()}px,0)`);
   const L=locate(drag.x,drag.y);if(!L)return;
   const {dayStart:a,dayEnd:b}=S.cfg;
   const ns=addD(drag.start0,diffD(drag.d0,L.date));
@@ -1385,7 +1388,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v1.1.5<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v1.2<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
@@ -1550,6 +1553,31 @@ V.addEventListener('touchend',e=>{
   const el=V.querySelector(S.ui.view==='month'?'.mwrap':S.ui.view==='week'?'.wwrap':'.card');if(el)el.classList.add(next?'slide-l':'slide-r');
 },{passive:true});
 
+/* whole-view pinch zoom (month/week): two fingers shrink/enlarge the calendar like a photo; cells keep their size */
+const ZK=()=>S.ui.view==='week'?'zw':'zm';
+const ZM=()=>S.ui.view==='month'||S.ui.view==='week'?(S.ui[ZK()]||1):1;
+let ZRO=null;
+function applyZoom(){const el=V.querySelector('.mwrap,.wwrap');if(!el)return;
+  if(!(el.parentElement&&el.parentElement.classList.contains('zin'))){const box=document.createElement('div');box.className='zbox';const zin=document.createElement('div');zin.className='zin';el.replaceWith(box);box.appendChild(zin);zin.appendChild(el)}
+  setZoom(ZM())}
+function setZoom(z){const box=V.querySelector('.zbox');if(!box)return;const zin=box.firstChild;
+  zin.style.width=z===1?'':(100/z)+'%';zin.style.transform=z===1?'':`scale(${z})`;
+  const fit=()=>{box.style.height=z===1?'':(zin.offsetHeight*z)+'px'};fit();
+  if(ZRO){ZRO.disconnect();ZRO=null}if(z!==1&&window.ResizeObserver){ZRO=new ResizeObserver(fit);ZRO.observe(zin)}
+  const r=V.querySelector('.zreset');if(z!==1){if(!r)V.insertAdjacentHTML('beforeend','<button class="zreset" data-act="zReset">원래 크기</button>')}else if(r)r.remove()}
+{let pz=null;const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+ const midY=t=>(t[0].clientY+t[1].clientY)/2;
+ document.addEventListener('touchstart',e=>{if(e.touches.length!==2||drag||!M.classList.contains('hidden'))return;
+   const box=V.querySelector('.zbox');if(!box)return;cancelHold();
+   const top=box.getBoundingClientRect().top+scrollY,z0=ZM();pz={d0:dist(e.touches)||1,z0,z:z0,top,ly:(midY(e.touches)+scrollY-top)/z0}},{passive:true,capture:true});
+ document.addEventListener('touchmove',e=>{if(!pz||e.touches.length<2)return;e.preventDefault();
+   const zin=V.querySelector('.zin');if(!zin){pz=null;return}
+   const minZ=Math.min(.5,clamp((innerHeight-120)/Math.max(1,zin.offsetHeight),.15,1));
+   let z=clamp(pz.z0*dist(e.touches)/pz.d0,minZ,2);if(Math.abs(z-1)<.05)z=1;z=Math.round(z*1000)/1000;
+   if(z!==pz.z){pz.z=z;setZoom(z)}scrollTo(0,pz.top+pz.ly*z-midY(e.touches))},{passive:false,capture:true});
+ const end=e=>{if(!pz||e.touches.length>=2)return;S.ui[ZK()]=pz.z;pz=null;saveUI()};
+ document.addEventListener('touchend',end,{capture:true});document.addEventListener('touchcancel',end,{capture:true});
+ ['gesturestart','gesturechange'].forEach(k=>document.addEventListener(k,e=>{if(S.ui.view==='month'||S.ui.view==='week')e.preventDefault()}));}
 /* ========== events ========== */
 document.querySelector('.tabs').addEventListener('click',e=>{const t=e.target.closest('.tab');if(!t)return;S.ui.view=t.dataset.view;saveUI();render();scrollTo({top:0})});
 document.addEventListener('click',e=>{
@@ -1611,6 +1639,7 @@ document.addEventListener('click',e=>{
     case 'reset':ask('모든 과목·D-day·체크 기록을 지울까요? 로그인한 다른 기기에서도 지워지고 되돌릴 수 없어요.','전체 삭제',()=>{S=defState();save();closeModal();render()});break;
     case 'mPrev':case 'mNext':go(()=>{const {y,mo}=monthWeeks();const d=new Date(y,mo-1+(a==='mNext'?1:-1),1,12);S.ui.month=ds(d).slice(0,7)});break;
     case 'mToday':go(()=>S.ui.month=TODAY.slice(0,7));break;
+    case 'zReset':S.ui[ZK()]=1;saveUI();setZoom(1);break;
     case 'zoomIn':go(()=>S.cfg.rowH=Math.min(700,S.cfg.rowH+50));break;
     case 'zoomOut':go(()=>S.cfg.rowH=Math.max(150,S.cfg.rowH-50));break;
     case 'wPrev':case 'wNext':go(()=>S.ui.week=addD(S.ui.week||monday(TODAY),a==='wNext'?7:-7));break;
