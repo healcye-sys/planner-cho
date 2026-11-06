@@ -218,6 +218,8 @@ input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:tex
 .lbox .ld{display:grid;gap:5px;margin-bottom:12px}.lbox .ld div{display:flex;justify-content:space-between;font-size:13.5px;background:rgba(91,75,183,.1);border-radius:8px;padding:7px 10px}.lbox .ld b{color:#6a5acd}
 .lbox .lsec{font-size:12.5px;font-weight:800;margin:10px 0 5px}.lbox .lsec small{font-weight:600;color:var(--sub)}
 .lbox .ld div span{min-width:0}.lbox .ld div b{flex:0 1 auto;margin-left:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48%}
+.tclr{position:relative}.tclr .inp{padding-right:40px}.tclr .tx{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;border:0;background:var(--line2);color:var(--sub);font-size:13px;font-weight:700;padding:0;cursor:pointer;font-family:inherit;display:grid;place-items:center}
+.lbox .ld.gr div{background:rgba(47,143,91,.09)}.lbox .ld.gr b{color:#2f8f5b}
 .lbox .ld.mv div{background:rgba(220,90,90,.09)}.lbox .ld.mv b{color:#c0504d}.lbox .ld{max-height:156px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}.lbox .ld div{flex:0 0 auto}.lbox h4,.lbox p,.lbox .lsec{overflow:hidden}.lbox .ld.mv .more{background:none}
 .lbox .lnote{font-size:12.5px;color:var(--sub);margin:-4px 0 6px;line-height:1.5}
 .mvchip{position:absolute;left:2px;right:2px;z-index:5;border:1.5px dashed #6a5acd;border-radius:7px;background:rgba(91,75,183,.07);color:#6a5acd;font-size:10px;font-weight:800;text-align:center;padding:3px 1px;line-height:1.25;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer}
@@ -615,13 +617,16 @@ const PAL=[[45,62],[55,71],[65,80],[70,88]].map(([sa,l])=>[0,24,36,48,80,130,165
 const PAL_N=[hslHex(30,25,74),hslHex(30,35,85),hslHex(210,10,68),hslHex(210,12,82)];
 let palOpen=false;
 const palVis=()=>PAL[0];
-const PC=new Map();
+const PC=new Map();let CH=null,ORDC=null;
+/* list order depends on plans: drop it whenever a plan is dropped */
+let DEC=null,ITC=new Map(); /* day-end / day-items caches, only while the overflow gate runs */
+{const c=PC.clear.bind(PC),dl=PC.delete.bind(PC);PC.clear=()=>{ORDC=null;if(DEC){DEC.clear();ITC.clear()}c()};PC.delete=k=>{ORDC=null;if(DEC){DEC.clear();ITC.clear()}return dl(k)}}
 // everything except S.ui (view/month/etc.) is synced; S.at = time of the last real change
 const bodyJ=()=>{const {ui,at,...r}=S;return JSON.stringify(r)};
 let LASTJ=bodyJ();
 function stamp(){const j=bodyJ();if(j!==LASTJ){LASTJ=j;S.at=Date.now();schedulePush()}}
 const ubody=()=>{const {ui,at,...r}=S;return JSON.stringify(r)};let UNDO=null,UNDOING=0,UJ=ubody();
-function save(){syncRounds();const uj=ubody();if(uj!==UJ&&!UNDOING)UNDO={j:UJ,t:Date.now()};UJ=uj;PC.clear();stamp();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('저장에 실패했어요 (저장공간 확인)')}}
+function save(){CH=null;syncRounds();const uj=ubody();if(uj!==UJ&&!UNDOING)UNDO={j:UJ,t:Date.now()};UJ=uj;PC.clear();stamp();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('저장에 실패했어요 (저장공간 확인)')}}
 function saveUI(){stamp();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const sub=id=>S.subjects.find(x=>x.id===id);
 const chk=id=>S.checks[id]||(S.checks[id]={});
@@ -642,7 +647,7 @@ function planRaw(s){let p;
   const rem=Math.max(0,s.total-before);
   const dates=[],idx={},cum=[],amt=[]; let d=s.start,g=0,acc=0;let part=null;
   if(s.mode==='period'&&s.end){let N=0,x=s.start,g2=0;while(x<=s.end&&g2<4000){if(studyOn(s,x))N++;x=addD(x,1);g2++}
-    const r=Math.round(rem);part=N>0&&r>=N?k=>Math.round((k+1)*r/N)-Math.round(k*r/N):()=>1}
+    const r=Math.round(rem);part=N===0?()=>Math.max(1,r):r>=N?k=>Math.round((k+1)*r/N)-Math.round(k*r/N):()=>1}
   while((dates.length===0||acc<rem-1e-9)&&g<3000){if(studyOn(s,d)){const a=part?part(dates.length):Math.max(1e-6,dayAmt(s,d));idx[d]=dates.length;dates.push(d);cum.push(acc);amt.push(a);acc+=a}d=addD(d,1);g++}
   p={before,dates,idx,cum,amt,end:dates[dates.length-1]};return p;
 }
@@ -680,8 +685,9 @@ function rePeriod(s){if(s.mode!=='period'||!s.end)return;let n=0,x=s.start,g=0;w
 function setDay(s,d,kind,on){const o=s[kind]||(s[kind]={});if(on)o[d]=true;else delete o[d];if(kind==='skip'&&!on&&s.askip)delete s.askip[d];
   const other=kind==='add'?'skip':'add';if(on&&s[other])delete s[other][d];rePeriod(s);PC.clear()}
 /* one day's items, never overlapping: a subject that would start before the previous one ends waits until it ends */
-function itemsOn(date){
-  const ord=new Map(listOrder().map((s,i)=>[s.id,i]));
+function itemsOn(date){if(DEC){const c=ITC.get(date);if(c)return c;const r=itemsOn0(date);ITC.set(date,r);return r}return itemsOn0(date)}
+function itemsOn0(date){
+  const ord=ORDC||(ORDC=new Map(listOrder().map((s,i)=>[s.id,i])));
   const it=S.subjects.map(s=>itemFor(s,date)).filter(Boolean).concat(onesOn(date)).sort((a,b)=>a.time-b.time||(ord.get(a.s.id)??1e9)-(ord.get(b.s.id)??1e9));
   if(S.cfg.pack!==false)packDay(it,date);
   let cur=-1;it.forEach(x=>{if(x.time<cur){x.segs=spanSegs(cur,x.mins);x.time=x.segs[0][0];x.pushed=true}cur=x.end});
@@ -700,7 +706,7 @@ function packPrev(on){
 function chainHeads(){const bl=S.subjects.map(s=>{const sg=spanSegs(s.time,s.mins);return {id:s.id,t0:sg[0][0],t1:sg[sg.length-1][1]}}).sort((a,b)=>a.t0-b.t0);
   const head={};let cs=null,ce=-1;
   bl.forEach(b=>{const next=ce<0?-1:spanSegs(ce,1)[0][0];if(cs==null||b.t0>next+.5)cs=b.t0;head[b.id]=cs;ce=Math.max(ce,b.t1)});return head}
-function packDay(it,date){const head=chainHeads(),g={};
+function packDay(it,date){const head=CH||(CH=chainHeads()),g={};
   it.forEach(x=>{if(x.oo||(x.s.ov&&x.s.ov[date]!=null))return;const h=head[x.s.id];if(h==null)return;(g[h]||(g[h]=[])).push(x)});
   for(const h in g){let cur=+h;g[h].sort((a,b)=>a.s.time-b.s.time).forEach(x=>{x.segs=spanSegs(cur,x.mins);x.time=x.segs[0][0];cur=x.end})}
   it.sort((a,b)=>a.time-b.time)}
@@ -780,7 +786,7 @@ const examsOn=d=>S.exams.filter(e=>e.date===d);
 
 /* ========== views ========== */
 const V=document.getElementById('view');
-function render(){
+function render(){CH=null;
   TODAY=ds(new Date());if(typeof applyTheme==='function')applyTheme();
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===S.ui.view));
   renderHeader();
@@ -1011,7 +1017,7 @@ function endDrag(cancel){
   document.body.classList.remove('dragging');document.getElementById('tip').classList.add('hidden');
   const s=sub(d.id);const before0=JSON.stringify(S.subjects);
   document.querySelectorAll('.seg.rs').forEach(x=>x.classList.remove('rs'));
-  if(d.wk&&d.wrs){if(!cancel&&s&&d.target.mins!==dayMins(s,d.day)){s.ovm=s.ovm||{};if(d.target.mins===s.mins)delete s.ovm[d.day];else s.ovm[d.day]=d.target.mins;save();
+  if(d.wk&&d.wrs){if(!cancel&&s&&d.target.mins!==dayMins(s,d.day)){s.ovm=s.ovm||{};if(d.target.mins===s.mins)delete s.ovm[d.day];else s.ovm[d.day]=d.target.mins;if(s.asplit)delete s.asplit[d.day];save();
       toast(`${mdw(d.day)} 하루만 ${Math.floor(d.target.mins/60)?Math.floor(d.target.mins/60)+'시간 ':''}${d.target.mins%60?d.target.mins%60+'분':''}`)}}
   else if(d.wk){if(!cancel&&s&&d.target.time!==dayTime(s,d.day)){s.ov=s.ov||{};if(d.target.time===s.time)delete s.ov[d.day];else s.ov[d.day]=d.target.time;save();
       toast(d.target.time===s.time?'원래 시간으로 돌아왔어요':`${mdw(d.day)} 하루만 ${hm(d.target.time)}로 옮겼어요`)}}
@@ -1109,6 +1115,7 @@ function renderDay(){
       ${d!==TODAY?'<button class="btn" data-act="dToday">오늘로</button>':''}</div>
     ${overBy(it)?`<div class="ovfbar">🌙 ${lateTxt(Math.max(...it.map(x=>x.end)))} 가요 · ${endH()}보다 <b>${durTxt(overBy(it))}</b> 넘어요<small>공부 시간을 줄이거나 과목을 다른 날로 옮겨 보세요</small></div>`:''}
     ${askipOn(d).map(s=>{const n=nextStudy(s,d);return `<div class="mvban">🌙 하루 끝을 ${durTxt(lateMax())} 넘게 넘겨서 <b>${esc(jo(s.name,'은','는'))} 오늘 쉬어요</b>.${n?` ${DOW[dow(n)]}요일(${md(n)})에 이어서 해요.`:''}<div class="r"><button data-act="xKeep" data-id="${s.id}" data-date="${d}">오늘도 할래요</button></div></div>`}).join('')}
+    ${asplitOn(d).map(s=>{const n=nextStudy(s,d);return `<div class="mvban">🌙 하루 끝을 넘기지 않게 <b>${esc(jo(s.name,'은','는'))} 오늘 ${durTxt(dayMins(s,d))}(${dayAmt(s,d)}${esc(s.unit||'')})만 해요</b>.${n?` 나머지는 ${DOW[dow(n)]}요일(${md(n)})에 이어서 해요.`:''}<div class="r"><button data-act="xKeep" data-id="${s.id}" data-date="${d}">오늘도 다 할래요</button></div></div>`}).join('')}
     <div style="margin-top:10px">${rows||'<div class="empty">이 날은 계획된 공부가 없어요.</div>'}</div>
     <div class="xadd" data-act="xAdd" data-date="${d}">＋ 오늘만 추가</div>
     ${skippedOn(d).length?`<div class="xskip">오늘만 쉬기 · ${skippedOn(d).map(s=>`<span>${esc(s.name)} <b data-act="xUnskip" data-id="${s.id}" data-date="${d}">되돌리기</b></span>`).join('')}</div>`:''}
@@ -1129,32 +1136,42 @@ function listOrder(){
   const def=(a,b)=>plan(a).dates[0].localeCompare(plan(b).dates[0])||a.time-b.time;
   const k=s=>s.ord!=null?s.ord:1e9;return [...S.subjects].sort(def).sort((a,b)=>k(a)-k(b));
 }
-/* new order -> study back-to-back in that order (meals skipped), from the earliest current start */
+/* new order -> study back-to-back in that order (meals skipped), from the earliest current start.
+   A subject only waits for earlier ones it actually shares study days with (subjects on different dates don't stack up) */
+function rechain(ids){
+  const act=ids.map(sub).filter(s=>s&&!projEnd(s).done&&plan(s).end>=TODAY);if(!act.length)return 0;
+  const ds=new Map(act.map(s=>[s.id,new Set(plan(s).dates.filter(d=>d>=TODAY))]));
+  const base=Math.min(...act.map(s=>s.time)),done=[];
+  act.forEach(s=>{const mine=ds.get(s.id);let t=base;
+    done.forEach(q=>{const o=ds.get(q.s.id);for(const d of mine)if(o.has(d)){t=Math.max(t,q.end);break}});
+    const sg=spanSegs(t,s.mins);s.time=sg[0][0];if(s.ov)s.ov={};done.push({s,end:sg[sg.length-1][1]})});
+  PC.clear();return act.length}
 function applyOrder(ids){
   ids.forEach((id,i)=>{const s=sub(id);if(s)s.ord=i});
-  const act=ids.map(sub).filter(s=>s&&!projEnd(s).done&&plan(s).end>=TODAY);
-  if(!act.length)return;
-  let t=Math.min(...act.map(s=>s.time));
-  act.forEach(s=>{const sg=spanSegs(t,s.mins);s.time=sg[0][0];if(s.ov)s.ov={};t=sg[sg.length-1][1]});
-  PC.clear();save();render();
-  toast('순서대로 시작 시간을 다시 맞췄어요');
+  const before=JSON.stringify(S.subjects);if(!rechain(ids)){save();render();return}
+  lateGate(ids[0],'',before,()=>{save();render();toast('순서대로 시작 시간을 다시 맞췄어요')},()=>{save();render()},'바꾸면');
 }
+/* older versions chained every subject one after another regardless of dates (start times up to 80h): redo the chain once */
+function fixWildTimes(){if(!S.subjects.some(s=>s.time>28*60))return false;rechain(listOrder().map(s=>s.id));
+  S.subjects.forEach(s=>{if(s.time>28*60)s.time=28*60-Math.min(s.mins,120)});PC.clear();return true}
 let LD=null;
 document.addEventListener('pointerdown',e=>{
   const h=e.target.closest&&e.target.closest('.hdl');if(!h)return;
   const tr=h.closest('tr');const tb=tr&&tr.parentElement;if(!tb)return;
   e.preventDefault();e.stopPropagation();
   const rows=[...tb.children];
-  LD={tr,tb,rows,y0:e.clientY,pid:e.pointerId,mids:rows.map(r=>{const b=r.getBoundingClientRect();return b.top+b.height/2}),idx:rows.indexOf(tr),to:rows.indexOf(tr),h:tr.getBoundingClientRect().height};
+  LD={tr,tb,rows,y0:e.clientY,sy0:scrollY,cy:e.clientY,pid:e.pointerId,mids:rows.map(r=>{const b=r.getBoundingClientRect();return b.top+b.height/2}),idx:rows.indexOf(tr),to:rows.indexOf(tr),h:tr.getBoundingClientRect().height};
   tr.classList.add('lrow');try{h.setPointerCapture(e.pointerId)}catch(_){}
 },true);
-document.addEventListener('pointermove',e=>{if(!LD||e.pointerId!==LD.pid)return;e.preventDefault();
-  const dy=e.clientY-LD.y0;LD.tr.style.transform=`translateY(${dy}px)`;
+function ldMove(){const dy=LD.cy-LD.y0+scrollY-LD.sy0;LD.tr.style.transform=`translateY(${dy}px)`;
   const cy=LD.mids[LD.idx]+dy;let to=0;LD.mids.forEach((m,i)=>{if(i!==LD.idx&&cy>m)to++});
   if(to!==LD.to){LD.to=to;LD.rows.forEach((r,i)=>{if(i===LD.idx)return;
-    const sh=(LD.idx<to&&i>LD.idx&&i<=to)?-LD.h:(LD.idx>to&&i<LD.idx&&i>=to)?LD.h:0;r.style.transform=sh?`translateY(${sh}px)`:''})}
-},{passive:false});
-function endList(e){if(!LD||e.pointerId!==LD.pid)return;const d=LD;LD=null;
+    const sh=(LD.idx<to&&i>LD.idx&&i<=to)?-LD.h:(LD.idx>to&&i<LD.idx&&i>=to)?LD.h:0;r.style.transform=sh?`translateY(${sh}px)`:''})}}
+/* holding a row near the top/bottom edge keeps scrolling the page (faster closer to the edge) */
+function ldAuto(){if(!LD)return;const E=80,y=LD.cy,H=innerHeight;let v=0;if(y<E)v=-Math.ceil((E-y)/5);else if(y>H-E)v=Math.ceil((y-(H-E))/5);
+  if(v){const s0=scrollY;scrollBy(0,v);if(scrollY!==s0)ldMove()}LD.raf=requestAnimationFrame(ldAuto)}
+document.addEventListener('pointermove',e=>{if(!LD||e.pointerId!==LD.pid)return;e.preventDefault();LD.cy=e.clientY;ldMove();if(!LD.raf)LD.raf=requestAnimationFrame(ldAuto)},{passive:false});
+function endList(e){if(!LD||e.pointerId!==LD.pid)return;const d=LD;LD=null;if(d.raf)cancelAnimationFrame(d.raf);
   d.rows.forEach(r=>{r.style.transform='';r.classList.remove('lrow')});
   if(e.type==='pointercancel'||d.to===d.idx)return;
   const ids=d.rows.map(r=>r.dataset.id);const [m]=ids.splice(d.idx,1);ids.splice(d.to,0,m);applyOrder(ids);
@@ -1227,7 +1244,7 @@ function openSubject(id){
    </div>
    <div class="trow">
     <div class="fld"><label>하루 소요시간<i class="req">*</i></label><div class="inrow hm"><input class="inp" id="fH" type="number" inputmode="numeric" min="0" max="18" value="${h}"><span>시간</span><input class="inp" id="fM" type="number" inputmode="numeric" min="0" max="59" step="5" value="${m}"><span>분</span></div></div>
-    <div class="fld"><label>시작 시각 (선택)</label><input class="inp" id="fTime" type="time" step="600" value="${F.time==null?'':hmv(F.time)}"></div>
+    <div class="fld"><label>시작 시각 (선택)</label><div class="tclr"><input class="inp" id="fTime" type="time" step="600" value="${F.time==null?'':hmv(F.time)}"><button type="button" class="tx" title="시작 시각 지우기" onclick="const i=this.previousElementSibling;i.value='';i.dataset.cleared='1';i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}))">✕</button></div></div>
    </div>
    <div class="fld"><label>공부하는 요일<i class="req">*</i></label><div class="dayts" id="fDays">${[1,2,3,4,5,6,0].map(x=>`<button data-d="${x}" class="${F.days.includes(x)?'on':''} ${x===6?'sat':x===0?'sun':''}">${DOW[x]}</button>`).join('')}</div>
     <div class="presets" id="fPresets"><button data-p="daily">매일</button><button data-p="weekday">평일</button><button data-p="weekend">주말</button></div></div>
@@ -1365,7 +1382,7 @@ function saveSubject(){
   const {dayStart:a,dayEnd:b}=S.cfg;mins=Math.min(mins,(b-a)*60);
   const start=fv('fStart')||TODAY;const tv=fv('fTime');
   const isNew=!F.id;const id=F.id||uid();
-  let time=tv?inMin(tv):(isNew?null:F.time);
+  const clr=(document.getElementById('fTime')||{dataset:{}}).dataset.cleared;let time=tv?inMin(tv):(isNew||clr?null:F.time);
   roundChain();
   for(let i=0;i<FR.length;i++){const r=FR[i],n=i+2;
     if(!r.days.length)return toast(`${n}회독: 공부할 요일을 하나 이상 골라 주세요`);
@@ -1389,36 +1406,92 @@ function saveSubject(){
 }
 /* late-night overflow: days (from today) where this subject's day runs past the day-end time */
 function lateDays(ids){const set=new Set(ids);let last=TODAY;S.subjects.forEach(s=>{if(set.has(s.id)){const e=plan(s).end;if(e>last)last=e}});
-  const out=[];let d=TODAY,g=0;while(d<=last&&g<400){const it=itemsOn(d);if(overBy(it)&&it.some(x=>set.has(x.s.id)))out.push({d,end:Math.max(...it.map(x=>x.end))});d=addD(d,1);g++}return out}
+  const out=[];let d=TODAY,g=0;while(d<=last&&g<400){const it=itemsOn(d).filter(x=>!lateOn(x,d));if(overBy(it)&&it.some(x=>set.has(x.s.id)))out.push({d,end:Math.max(...it.map(x=>x.end))});d=addD(d,1);g++}return out}
 const endH=()=>{const e=S.cfg.dayEnd;return e===24?'24:00':(e>24?'새벽 ':'')+hh(e)+':00'};
 const lateTxt=m=>m>=1440?`새벽 ${Math.floor((m-1440)/60)}:${pad(m%60)}까지`:`${hm(m)}까지`;
 /* more than cfg.lateMax past the day end: the day's last subject rests that day (s.skip + s.askip)
    and simply continues on its next study day; up to lateMax the dialog asks */
 const lateMax=()=>S.cfg.lateMax??60;
 function nextStudy(s,d){const p=plan(s);let x=addD(d,1);for(let g=0;g<400&&x<=p.end;g++){if(p.idx[x]!==undefined)return x;x=addD(x,1)}return null}
-function autoMove(L,M){const mv=[];
-  for(const x of L){for(let g=0;g<8;g++){const it=itemsOn(x.d);if(!it.length||Math.max(...it.map(y=>y.end))<=M)break;
-    const c=it.filter(y=>!y.oo&&!(y.s.keep&&y.s.keep[x.d])).sort((p,q)=>q.end-p.end)[0];if(!c)break;
-    const so=c.s;(so.askip||(so.askip={}))[x.d]=true;(so.skip||(so.skip={}))[x.d]=true;if(so.add)delete so.add[x.d];rePeriod(so);
-    const rid=so.parent||so.id;if(S.subjects.some(y=>y.parent===rid))syncRounds();else PC.delete(so.id);mv.push({d:x.d,end:x.end,s:so})}}
+/* cache: only this subject (and its rounds) changed */
+function touch(so){rePeriod(so);PC.delete(so.id);const rid=so.parent||so.id;if(!S.subjects.some(y=>y.parent===rid))return;
+  let prev=sub(rid);roundsOf(rid).forEach(r=>{if(r.autoStart!==false&&prev){const st=addD(plan(prev).end,1);if(st!==r.start){if(r.mode==='period'&&r.end)r.end=addD(r.end,diffD(r.start,st));r.start=st;rePeriod(r);PC.delete(r.id)}}prev=r})}
+/* a subject the user scheduled to start at/after the day end is on purpose: never pushed, and not counted as overflow */
+/* chain heads only change with start times/durations: cache, dropped on save/render/gate start */
+const headOf=id=>{if(!CH)CH=chainHeads();return CH[id]};
+const lateOn=(x,d)=>!x.oo&&dayTime(x.s,d)>=S.cfg.dayEnd*60&&x.segs[0][0]>=S.cfg.dayEnd*60&&!(headOf(x.s.id)<spanSegs(x.s.time,1)[0][0]);
+const dayEndOf=d=>{if(DEC&&DEC.has(d))return DEC.get(d);const it=itemsOn(d).filter(y=>!lateOn(y,d));const e=it.length?Math.max(...it.map(y=>y.end)):0;if(DEC)DEC.set(d,e);return e};
+/* undo auto-skips/splits that were put on such on-purpose late days by older versions */
+function fixLateSkips(){if(S.cfg.lateFix===2)return 0;S.cfg.lateFix=2;let n=0;S.subjects.forEach(so=>{let ch=false;
+  for(const d in so.askip||{}){delete so.askip[d];if(so.skip)delete so.skip[d];ch=true;n++}
+  for(const d in so.asplit||{}){delete so.asplit[d];if(so.ovm)delete so.ovm[d];ch=true;n++}
+  if(ch)rePeriod(so)});if(n){syncRounds();PC.clear()}return n}
+/* how much of an amount-type subject fits in `room` minutes: whole units only, at least 30 min, less than the full day */
+function splitFit(so,room){if(so.mode==='period'&&so.end)return null;const dl=so.daily,mn=so.mins;if(!(dl>=2)||!(mn>0))return null;
+  const amt=Math.floor(dl*room/mn+1e-9);if(amt<1||amt>=dl)return null;const nm=Math.ceil(amt*mn/dl);return nm>=30&&nm<mn?{nm,amt}:null}
+/* other study days a period subject still has (from today) besides d: never skip its last one */
+function periodLeft(so,d){let n=0,x=so.start>TODAY?so.start:TODAY;for(let g=0;x<=so.end&&g<800;g++,x=addD(x,1))if(x!==d&&studyOn(so,x))n++;return n}
+function autoMove(L,M){const mv=[],DE=S.cfg.dayEnd*60;
+  for(const x of L){for(let g=0;g<8;g++){const it=itemsOn(x.d).filter(y=>!lateOn(y,x.d));if(!it.length||Math.max(...it.map(y=>y.end))<=M)break;
+    const c=it.filter(y=>!y.oo&&!(y.s.mode==='period'&&y.s.end&&!periodLeft(y.s,x.d))&&!(y.s.keep&&y.s.keep[x.d])&&!(y.s.asplit&&y.s.asplit[x.d])).sort((p,q)=>q.end-p.end)[0];if(!c)break;
+    const so=c.s,d=x.d,userOv=so.ovm&&so.ovm[d]!=null;
+    const f=!userOv&&splitFit(so,c.mins-(c.end-DE));
+    if(f){(so.ovm||(so.ovm={}))[d]=f.nm;(so.asplit||(so.asplit={}))[d]=true;touch(so);
+      if(dayEndOf(d)<=M){mv.push({d,end:x.end,s:so,split:f});continue}
+      delete so.ovm[d];delete so.asplit[d];touch(so)}
+    (so.askip||(so.askip={}))[d]=true;(so.skip||(so.skip={}))[d]=true;if(so.add)delete so.add[d];touch(so);mv.push({d,end:x.end,s:so})}}
   return mv}
-function lateGate(id,name,before,fin,onNo,verb){syncRounds();PC.clear();const ids=[id,...S.subjects.filter(x=>x.parent===id).map(x=>x.id)];const L=lateDays(ids);
+/* room opened up earlier: bring auto-skipped / auto-split days back (whole if it fits before the day end, else the part that fits),
+   only when no day gets later than it was (or goes past the day end) */
+function pullBack(){const DE=S.cfg.dayEnd*60,out=[];const cand=[];
+  S.subjects.forEach(so=>{for(const d in so.askip||{})if(d>=TODAY&&so.skip&&so.skip[d])cand.push([d,so,'skip']);for(const d in so.asplit||{})if(d>=TODAY)cand.push([d,so,'split'])});
+  cand.sort((a,b)=>a[0].localeCompare(b[0]));
+  for(const [d,so,kind] of cand){if(so.keep&&so.keep[d])continue;
+    if(kind==='skip'&&d>(so.mode==='period'&&so.end?so.end:plan(so).end)&&!S.subjects.some(y=>y.parent===(so.parent||so.id))){delete so.skip[d];delete so.askip[d];touch(so);continue}
+    const fam=S.subjects.filter(y=>y.id===so.id||y.parent===(so.parent||so.id)||y.id===so.parent);
+    let last=d;fam.forEach(y=>{const e=plan(y).end;if(e>last)last=e});
+    const win=[];for(let x=d,g=0;x<=last&&g<500;x=addD(x,1),g++)win.push(x);const e0=win.map(dayEndOf);
+    const snap=JSON.stringify({skip:so.skip||{},askip:so.askip||{},ovm:so.ovm||{},asplit:so.asplit||{}}),prevNm=kind==='split'?so.ovm[d]:0;
+    const back=()=>{Object.assign(so,JSON.parse(snap));touch(so)};
+    const ok=()=>win.every((x,i)=>{const e=dayEndOf(x);return e<=Math.max(e0[i],DE)});
+    if(kind==='skip'){delete so.skip[d];delete so.askip[d]}else{delete so.ovm[d];delete so.asplit[d]}touch(so);
+    const it=itemFor(so,d);
+    if(it&&dayEndOf(d)<=DE&&ok()){out.push({d,s:so,full:true});continue}
+    // whole day doesn't fit: try the part that fits
+    let f=null;if(it&&!(so.ovm&&so.ovm[d]!=null)){const over=dayEndOf(d)-DE;f=splitFit(so,it.mins-over)}
+    if(f&&f.nm>prevNm){(so.ovm||(so.ovm={}))[d]=f.nm;(so.asplit||(so.asplit={}))[d]=true;touch(so);
+      if(dayEndOf(d)<=DE&&ok()){out.push({d,s:so,split:f});continue}}
+    back()}
+  PC.clear();return out}
+function lateGate(id,name,before,fin,onNo,verb){DEC=new Map();ITC.clear();try{return lateGate0(id,name,before,fin,onNo,verb)}finally{DEC=null;ITC.clear()}}
+function lateGate0(id,name,before,fin,onNo,verb){CH=null;syncRounds();fixLateSkips();PC.clear();const pl=pullBack();const ids=[id,...S.subjects.filter(x=>x.parent===id).map(x=>x.id)];const L=lateDays(ids);
   const bigOld=()=>lateDays(S.subjects.map(x=>x.id)).some(x=>x.end>S.cfg.dayEnd*60+lateMax()&&!itemsOn(x.d).some(y=>y.s.keep&&y.s.keep[x.d]));
-  if(!L.length&&!bigOld())return fin();
-  const cur=S.subjects;S.subjects=JSON.parse(before);PC.clear();const old=new Map(lateDays(S.subjects.map(x=>x.id).concat(ids)).map(x=>[x.d,x.end]));S.subjects=cur;PC.clear();
+  const pullToast=()=>{if(pl.length)setTimeout(()=>toast(`앞에 자리가 생겨서 ${new Set(pl.map(x=>x.d)).size}일 당겨왔어요`),400)};
+  if(!L.length&&!bigOld()){pullToast();return fin()}
+  const cur=S.subjects;S.subjects=JSON.parse(before);PC.clear();const pe=new Map(S.subjects.map(x=>[x.id,plan(x).end]));const old=new Map(lateDays(S.subjects.map(x=>x.id).concat(ids)).map(x=>[x.d,x.end]));S.subjects=cur;PC.clear();
   const isNew=x=>!old.has(x.d)||x.end>old.get(x.d);
-  const pe=new Map(S.subjects.map(x=>[x.id,plan(x).end]));const M=S.cfg.dayEnd*60+lateMax();const chk=new Set(ids);let mv=[];
+  const M=S.cfg.dayEnd*60+lateMax();const chk=new Set(ids);let mv=[];
+  // push until no day is past the limit, then pull back what the pushes made room for; repeat until nothing moves
+  for(let k=0;k<8;k++){
   for(let r=0;r<80;r++){const big=lateDays(S.subjects.map(x=>x.id)).filter(x=>x.end>M&&(isNew(x)||!itemsOn(x.d).some(y=>y.s.keep&&y.s.keep[x.d])));if(!big.length)break;
     const m=autoMove(big,M);if(!m.length)break;mv=mv.concat(m);m.forEach(x=>chk.add(x.s.id))}
+  const p2=pullBack();if(!p2.length)break;const key=x=>x.s.id+'|'+x.d;const k2=new Set(p2.map(key));
+    mv=mv.filter(x=>!(k2.has(key(x))&&!(x.s.askip&&x.s.askip[x.d])&&!(x.s.asplit&&x.s.asplit[x.d])));
+    const km=new Set(mv.map(key));p2.forEach(x=>{if(!km.has(key(x)))pl.push(x)})}
   PC.clear();const ask=lateDays([...chk]).filter(isNew);
-  if(!mv.length&&!ask.length)return fin();
+  if(!mv.length&&!ask.length){pullToast();return fin()}
   const lm=durTxt(lateMax()),day=x=>`${md(x.d)} (${DOW[dow(x.d)]}) ${lateTxt(x.end)}`;
-  const mvRows=mv.slice(0,300).map(x=>{const n=nextStudy(x.s,x.d);return `<div><span>${day(x)}</span><b>${esc(x.s.name)} → ${n?md(n):'다음'}</b></div>`}).join('');
-  const notes=[...new Set(mv.map(x=>x.s))].map(x=>{const e0=pe.get(x.id),e1=plan(x).end;
+  const unit=x=>x.split.amt+(x.s.unit||''),part=x=>`${esc(x.s.name)} ${durTxt(x.split.nm)}만 · ${unit(x)}`;
+  const mvRows=mv.slice(0,300).map(x=>{const n=nextStudy(x.s,x.d);return `<div><span>${day(x)}</span><b>${x.split?part(x):x.s.mode==='period'&&x.s.end?`${esc(x.s.name)} 쉼 · 남은 날에 나눠 해요`:`${esc(x.s.name)} → ${n?md(n):'다음'}`}</b></div>`}).join('');
+  const plRows=pl.slice(0,300).map(x=>`<div><span>${md(x.d)} (${DOW[dow(x.d)]})</span><b>${x.split?part(x):`${esc(x.s.name)} 다시 해요`}</b></div>`).join('');
+  const notes=[...new Set(mv.concat(pl).map(x=>x.s))].map(x=>{const e0=pe.get(x.id),e1=plan(x).end;
     return x.mode==='period'&&x.end?`'${esc(x.name)}' 끝나는 날은 그대로, 하루 분량이 조금 늘어요`:e0&&e1!==e0?`'${esc(x.name)}' 끝나는 날 <b>${md(e0)} → ${md(e1)}</b>`:''}).filter(Boolean).slice(0,3).join('<br>');
   const askRows=ask.slice(0,300).map(x=>`<div><span>${day(x)}</span><b>+${durTxt(x.end-S.cfg.dayEnd*60)}</b></div>`).join('');
   const el=document.createElement('div');el.className='ldim';
-  el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4>   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 ${new Set(mv.map(x=>x.d)).size}일 <small>· 뒤로 밀려요</small></div><div class="ld mv">${mvRows}</div>${notes?`<div class="lnote">${notes}</div>`:''}`:''}
+  el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4>   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 ${new Set(mv.map(x=>x.d)).size}일 <small>· 뒤로 밀려요</small></div><div class="ld mv">${mvRows}</div>`:''}
+   ${pl.length?`<div class="lsec">앞에 자리가 생긴 날 ${new Set(pl.map(x=>x.d)).size}일 <small>· 앞으로 당겨와요</small></div><div class="ld gr">${plRows}</div>`:''}
+   ${mv.some(x=>!isNew(x))?`<div class="lnote">이번에 바꾼 것과 상관없이 원래 넘치던 날도 같이 정리했어요</div>`:''}
+   ${notes?`<div class="lnote">${notes}</div>`:''}
    ${ask.length?`<div class="lsec">${ask.every(x=>x.end<=M)?lm+' 안으로 넘치는 날':'넘치는 날'} ${ask.length}일 <small>· 그대로 해도 될까요?</small></div><div class="ld">${askRows}</div>`:''}
    <button class="lbtn pri" data-k="ok">${ask.length?'그래도 저장':'저장'}</button><button class="lbtn ghost" data-k="no">취소</button></div>`;
   document.body.appendChild(el);fitLine(el.querySelectorAll('.lbox h4,.lbox .lsec'));
@@ -1466,6 +1539,7 @@ function openMeal(n){const m=(S.cfg.meals||[]).find(x=>x.n===n);if(!m)return;
    <div class="sheet-acts"><div class="spacer"></div><button class="btn" data-act="close">취소</button><button class="btn pri" data-act="mealSave" data-n="${esc(m.n)}">저장</button></div>`)}
 /* ---- 오늘만 추가 / 오늘만 쉬기 ---- */
 const skippedOn=d=>S.subjects.filter(s=>s.skip&&s.skip[d]&&!(s.askip&&s.askip[d]));
+const asplitOn=d=>S.subjects.filter(s=>s.asplit&&s.asplit[d]&&s.ovm&&s.ovm[d]!=null&&studyOn(s,d));
 const askipOn=d=>S.subjects.filter(s=>s.askip&&s.askip[d]&&s.skip&&s.skip[d]);
 function dTitle(d){return `${pd(d).getMonth()+1}월 ${pd(d).getDate()}일 (${DOW[dow(d)]})`}
 function openAddDay(d,tm){
@@ -1507,7 +1581,8 @@ function openDayMenu(id,d){
 function delSubject(id){
   const s=sub(id);if(!s)return;
   const rs=s.parent?[]:roundsOf(id);
-  ask(`'${s.name}' 띠를 삭제할까요? ${rs.length?`${rs.length+1}회독까지 모두, `:''}체크 기록도 함께 지워져요.`,'삭제',()=>{S.subjects=S.subjects.filter(x=>x.id!==id&&x.parent!==id);delete S.checks[id];rs.forEach(r=>delete S.checks[r.id]);save();closeModal();render();toast('삭제했어요');});
+  ask(`'${s.name}' 띠를 삭제할까요? ${rs.length?`${rs.length+1}회독까지 모두, `:''}체크 기록도 함께 지워져요.`,'삭제',()=>{S.subjects=S.subjects.filter(x=>x.id!==id&&x.parent!==id);delete S.checks[id];rs.forEach(r=>delete S.checks[r.id]);syncRounds();PC.clear();closeModal();if(!S.subjects.length){save();render();toast('삭제했어요');return}const b1=JSON.stringify(S.subjects);
+    lateGate(S.subjects[0].id,'',b1,()=>{save();render();toast('삭제했어요')},()=>{save();render();toast('삭제했어요')},'삭제하면');});
 }
 function openExam(id){
   const e=id?S.exams.find(x=>x.id===id):null;
@@ -1627,7 +1702,7 @@ function onRemote(snap){
   else if(d.at<la)pushNow();
   if(!snap.metadata.hasPendingWrites&&!SY.writing)setSync('☁ 동기화됨');
 }
-function adopt(d){try{const x=JSON.parse(d.json);const b=defState();const ui=S.ui;S={...b,...x,cfg:{...b.cfg,...x.cfg},ui,at:d.at};
+function adopt(d){try{const x=JSON.parse(d.json);const b=defState();const ui=S.ui;S={...b,...x,cfg:{...b.cfg,...x.cfg},ui,at:d.at};fixWildTimes();
   S.subjects.forEach(v=>{v.days=normDays(v.days);if(!(v.pre>0))v.pre=0});
   if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
   PC.clear();LASTJ=bodyJ();UJ=ubody();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
@@ -1700,6 +1775,8 @@ V.addEventListener('touchend',e=>{
   const el=V.querySelector(S.ui.view==='month'?'.mwrap':S.ui.view==='week'?'.wwrap':'.card');if(el)el.classList.add(next?'slide-l':'slide-r');
 },{passive:true});
 
+/* re-rendering the week alone (after a drag) must keep the zoom wrapper, or pinch stops working */
+{const rw=renderWeek;renderWeek=function(){const r=rw.apply(this,arguments);if(S.ui.view==='week')applyZoom();return r}}
 /* whole-view pinch zoom (month/week): two fingers shrink/enlarge the calendar like a photo; cells keep their size */
 const ZK=()=>S.ui.view==='week'?'zw':S.ui.view==='day'?'zdy':'zm';
 const ZM=()=>S.ui.view==='month'||S.ui.view==='week'||S.ui.view==='day'?Math.min(1,S.ui[ZK()]||1):1;
@@ -1746,7 +1823,7 @@ document.addEventListener('click',e=>{
       save();closeModal();render();toast(`'${name}' 오늘만 추가했어요`);break}
     case 'xSkip':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'skip',true);save();closeModal();render();toast(`'${s.name}' 오늘만 쉬어요`);break}
     case 'xUnadd':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'add',false);if(s.ov)delete s.ov[d];save();closeModal();render();toast('오늘만 추가를 취소했어요');break}
-    case 'xKeep':{const s=sub(id),d=el.dataset.date;if(!s)break;(s.keep||(s.keep={}))[d]=true;setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 오늘도 해요`);break}
+    case 'xKeep':{const s=sub(id),d=el.dataset.date;if(!s)break;(s.keep||(s.keep={}))[d]=true;if(s.asplit&&s.asplit[d]){delete s.asplit[d];if(s.ovm)delete s.ovm[d]}setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 오늘도 해요`);break}
     case 'mealTap':{const now=Date.now(),n=el.dataset.n;if(MTAP&&MTAP.n===n&&now-MTAP.t<450){MTAP=null;openMeal(n)}else MTAP={n,t:now};break}
     case 'mealSave':{const m=(S.cfg.meals||[]).find(x=>x.n===el.dataset.n);if(!m)break;const t=SH.querySelector('#mlT').value,mm=+SH.querySelector('#mlM').value;
       if(t){const [h,mi]=t.split(':').map(Number);m.time=h*60+mi}if(mm>=5)m.mins=Math.min(240,mm);PC.clear();save();closeModal();render();toast(`${m.n} ${hm(m.time)}부터 ${durTxt(m.mins)}`);break}
@@ -1782,7 +1859,7 @@ document.addEventListener('click',e=>{
       S.cfg.meals.forEach((m,i)=>{const v=fv('mT'+i);m.time=inMin(v);const n=Math.round(+fv('mM'+i));if(n>0)m.mins=clamp(n,5,240)});
       S.subjects.forEach(s=>{s.mins=Math.min(s.mins,(B-A)*60);s.time=clamp(s.time,A*60,B*60-s.mins)});save();closeModal();render();break}
     case 'export':exportBackup();break;
-    case 'resetOv':{const so=sub(id);if(so&&(so.ov||so.ovm)){if(so.ov)delete so.ov[el.dataset.date];if(so.ovm)delete so.ovm[el.dataset.date];save();render();toast('원래 시간으로 돌렸어요')}break}
+    case 'resetOv':{const so=sub(id);if(so&&(so.ov||so.ovm)){if(so.ov)delete so.ov[el.dataset.date];if(so.ovm)delete so.ovm[el.dataset.date];if(so.asplit)delete so.asplit[el.dataset.date];save();render();toast('원래 시간으로 돌렸어요')}break}
     case 'fbConnect':{const c=parseCfg(document.getElementById('fbCfg').value);if(!c||!c.apiKey||!c.projectId)return toast('firebaseConfig 내용을 그대로 붙여넣어 주세요');
       try{localStorage.setItem(CFGKEY,JSON.stringify(c))}catch(e){}closeModal();toast('연결했어요. 이제 Google로 로그인해 주세요');startSync().then(openSettings);break}
     case 'fbLogin':login();break;
@@ -1828,6 +1905,7 @@ function undo(){if(!UNDO)return;let o;try{o=JSON.parse(UNDO.j)}catch(e){return}U
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ds(new Date())!==TODAY)render()});
 S.ui.view='day';S.ui.day=TODAY; // always open on today's daily schedule
 S.ui.seen=1;
+if(fixWildTimes()){save();setTimeout(()=>toast('겹치지 않는 날끼리 쌓였던 시작 시간을 다시 맞췄어요'),600)}
 render();
 startSync();
 // "앱 설치" button: Chrome hands us the install prompt only when the page is installable and not installed yet
