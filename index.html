@@ -509,6 +509,35 @@ label{white-space:normal;overflow:visible;line-height:1.3}
 .trow .inrow.hm .inp{width:100%!important;min-width:0!important;max-width:none!important;text-align:center}
 #sheet{overflow-x:hidden}
 #sheet *{max-width:100%}
+/* ---- type scale: 5 text levels + 2 button sizes (one source of truth) ---- */
+:root{--t1:18px;--t2:14px;--t3:12px;--t4:10.5px;--t5:10px;--bh:36px;--bhs:30px;--bhl:46px}
+@media (max-width:700px){:root{--t1:17px;--t2:14px;--t3:12px;--t4:10.5px;--t5:10px;--bh:36px;--bhs:30px;--bhl:46px}}
+/* T1 screen / dialog titles */
+.toolbar .ttl,.dhd h2,.sheet h3,.ckh{font-size:var(--t1)!important;font-weight:800!important;letter-spacing:-.2px}
+.lbox h4{font-size:var(--t1);font-weight:800}
+/* T2 categories: section titles and field names */
+.sec-title,.fld>label,.rd h5{font-size:var(--t2)!important;font-weight:800!important;color:var(--ink)}
+.lbox .lsec{font-size:var(--t3);font-weight:800}
+/* T3 body + all normal buttons */
+.btn,.tab,.mtabs button,.seg3 button,.rad,.bpr,.empty,.xadd,.cks,.ckno,table,td.nmc,.lbox .ld div,.inrow span,.mlab,.preview,#toast{font-size:var(--t3)!important}
+.btn{height:var(--bh)!important;padding:0 12px;font-weight:600}
+.btn.sm{height:var(--bhs)!important;font-size:11.5px!important;padding:0 10px}
+.btn.sq{width:var(--bh);height:var(--bh)!important;padding:0}
+.lbtn,.sheet-acts .btn{height:var(--bhl)!important;font-size:14px!important;font-weight:700}
+.lbtn{padding:0!important;display:flex!important;align-items:center;justify-content:center}
+/* T4 guide text: always grey, small */
+.hint,.center-hint,.fld .note,.pvn,.lbox p,.lbox .lnote,.exw,.bpick h6,.ovfbar small,.xskip,.foot,.rd label,.rd .sum,.dhd .meta,th,.bpr small,.tip small{font-size:var(--t4)!important;color:var(--sub)!important;font-weight:500!important}
+th{font-weight:700!important}
+/* T5 tags, chips, badges */
+.chips button,.etag,.ovft,.tdy,.nowtag,.req,.xtag,.ckt em,.lmoon,.mvchip{font-size:var(--t5)!important}
+/* notice strips: one look everywhere */
+.lban,.ovfbar,.mvban,.rban,.exbadge{font-size:12px!important;font-weight:700!important;padding:7px 11px!important;border-radius:10px!important;line-height:1.4!important}
+.mvban button{font-size:12px!important;height:var(--bhs);padding:0!important}
+#sheet>.fld,#sheet>.g2{background:var(--other);border:1px solid var(--line2);border-radius:14px;padding:12px 14px;margin:0 0 10px}
+#sheet>.g2{display:flex;gap:12px}#sheet>.g2>.fld{margin:0}
+#sheet .fld>label{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.lttl{display:flex;align-items:center;gap:9px;min-width:0}.lic{width:30px;height:30px;border-radius:9px;background:var(--brandSoft);color:var(--brand);display:grid;place-items:center;flex:0 0 auto}
+.lcnt{font-size:var(--t5);font-weight:700;color:var(--brand);background:var(--brandSoft);border-radius:999px;padding:2px 8px;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -745,7 +774,7 @@ function render(){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===S.ui.view));
   renderHeader();
   ({month:renderMonth,week:renderWeek,day:renderDay,list:renderList})[S.ui.view]();
-  if(S.ui.view==='month'||S.ui.view==='week')applyZoom();
+  if(S.ui.view==='month'||S.ui.view==='week'||S.ui.view==='day')applyZoom();
 }
 
 /* ---- month ---- */
@@ -1139,7 +1168,7 @@ function renderList(){
       <td class="ac"><div class="acts">${late?`<button class="btn sm" data-act="resched" data-id="${s.id}">오늘부터 재배치</button>`:''}
         <button class="btn sm" data-act="editSub" data-id="${s.id}">수정</button><button class="btn sm danger" data-act="delSub" data-id="${s.id}">삭제</button><span class="hdl" title="끌어서 순서 바꾸기"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M1.5 1.5h13M1.5 6h13M1.5 10.5h13"/></svg></span></div></td></tr>`}).join('');
   V.innerHTML=`<div class="card">
-    <div class="toolbar lhead" style="margin:0 0 6px"><div class="sec-title" style="margin:0;white-space:nowrap">과목 리스트</div><div class="spacer"></div>
+    <div class="toolbar lhead" style="margin:0 0 6px"><div class="lttl"><span class="lic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16M4 12h16M4 18.5h10"/></svg></span><div class="sec-title" style="margin:0;white-space:nowrap">과목 리스트</div>${arr.length?`<span class="lcnt">${arr.length}과목</span>`:''}</div><div class="spacer"></div>
       ${(()=>{const O=[['my','내 순서'],['name','이름 ㄱ→ㅎ'],['name_d','이름 ㅎ→ㄱ'],['start','시작일순']];return `<label class="btn lsortb" title="정렬"><span>${(O.find(o=>o[0]===LS)||O[0])[1]}</span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 3.5l3.5 3.5 3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><select class="lsort" onchange="setLSort(this.value)">${O.map(([k,v])=>`<option value="${k}" ${LS===k?'selected':''}>${v}</option>`).join('')}</select></label>`})()}</div>
     ${exN||lateN?`<div class="lsub">${exN?`<span class="exbadge">⚠ 첫 시험 전에 못 끝나는 과목 ${exN}개</span>`:''}${lateN?`<div class="rban" data-act="reschedAll">⏰ 밀린 과목 ${lateN}개<b>전부 오늘부터 다시 시작 ›</b></div>`:''}</div>`:''}
     ${arr.length?`<div class="tblwrap"><table><thead><tr><th>과목</th><th>남은 양</th><th>시작</th><th>끝나는 날</th><th>설정</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
@@ -1659,10 +1688,10 @@ V.addEventListener('touchend',e=>{
 },{passive:true});
 
 /* whole-view pinch zoom (month/week): two fingers shrink/enlarge the calendar like a photo; cells keep their size */
-const ZK=()=>S.ui.view==='week'?'zw':'zm';
-const ZM=()=>S.ui.view==='month'||S.ui.view==='week'?Math.min(1,S.ui[ZK()]||1):1;
+const ZK=()=>S.ui.view==='week'?'zw':S.ui.view==='day'?'zdy':'zm';
+const ZM=()=>S.ui.view==='month'||S.ui.view==='week'||S.ui.view==='day'?Math.min(1,S.ui[ZK()]||1):1;
 let ZRO=null;
-function applyZoom(){const el=V.querySelector('.mwrap,.wwrap');if(!el)return;
+function applyZoom(){const el=V.querySelector('.mwrap,.wwrap,.dwrap');if(!el)return;
   if(!(el.parentElement&&el.parentElement.classList.contains('zin'))){const box=document.createElement('div');box.className='zbox';const zin=document.createElement('div');zin.className='zin';el.replaceWith(box);box.appendChild(zin);zin.appendChild(el)}
   setZoom(ZM())}
 function setZoom(z){const box=V.querySelector('.zbox');if(!box)return;const zin=box.firstChild;
@@ -1682,7 +1711,7 @@ function setZoom(z){const box=V.querySelector('.zbox');if(!box)return;const zin=
    if(z!==pz.z){pz.z=z;setZoom(z)}scrollTo(0,pz.top+pz.ly*z-midY(e.touches))},{passive:false,capture:true});
  const end=e=>{if(!pz||e.touches.length>=2)return;S.ui[ZK()]=pz.z;pz=null;saveUI()};
  document.addEventListener('touchend',end,{capture:true});document.addEventListener('touchcancel',end,{capture:true});
- ['gesturestart','gesturechange'].forEach(k=>document.addEventListener(k,e=>{if(S.ui.view==='month'||S.ui.view==='week')e.preventDefault()}));}
+ ['gesturestart','gesturechange'].forEach(k=>document.addEventListener(k,e=>{if(S.ui.view==='month'||S.ui.view==='week'||S.ui.view==='day')e.preventDefault()}));}
 /* ========== events ========== */
 document.querySelector('.tabs').addEventListener('click',e=>{const t=e.target.closest('.tab');if(!t)return;S.ui.view=t.dataset.view;saveUI();render();scrollTo({top:0})});
 document.addEventListener('click',e=>{
