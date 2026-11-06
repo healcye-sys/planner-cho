@@ -1608,7 +1608,7 @@ function openSettings(){
    <div class="fld"><label>테마 색상</label><div class="hive">${honeycomb()}<div class="hivePrev" id="hivePrev"></div></div></div>
    <div class="fld"><label>화면 모드</label><div class="seg3 small">${[['system','기기 설정'],['light','밝게'],['dark','어둡게']].map(([k,v])=>`<button data-act="pickMode" data-k="${k}" class="${(S.cfg.mode||'system')===k?'on':''}">${v}</button>`).join('')}</div></div>
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
-    <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button></div></div>
+    <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button><button class="btn" data-act="restoreMenu">↺ 이전 내용 되살리기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
    <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v1.7<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
@@ -1687,7 +1687,7 @@ async function startSync(){
   firebase.auth().onAuthStateChanged(u=>{
     SY.user=u;if(SY.unsub){SY.unsub();SY.unsub=null}
     if(!u){SY.on=false;setSync('로그인하면 폰·탭 연동');return}
-    SY.ref=firebase.firestore().collection('planners').doc(u.uid);SY.on=true;setSync('동기화 중…');
+    SY.ref=firebase.firestore().collection('planners').doc(u.uid);SY.on=true;SY.live=false;setSync('동기화 중…');
     SY.unsub=SY.ref.onSnapshot(onRemote,e=>setSync('동기화 오류 ('+e.code+')',1));
     if(!M.classList.contains('hidden')&&SH.querySelector('#syncBox'))openSettings();
   });
@@ -1695,11 +1695,27 @@ async function startSync(){
 function login(){const pr=new firebase.auth.GoogleAuthProvider();pr.setCustomParameters({prompt:'select_account'});
   firebase.auth().signInWithPopup(pr).then(()=>{closeModal();toast('로그인했어요. 이제 자동으로 동기화돼요')})
   .catch(e=>{if(/popup-blocked|operation-not-supported|web-storage/.test(e.code))firebase.auth().signInWithRedirect(pr);else if(!/popup-closed|cancelled-popup/.test(e.code))toast('로그인 실패: '+e.code)})}
+/* sync safety: a device never writes to the cloud until it has heard from the server once,
+   and a device that has never synced with this account always takes the cloud copy first
+   (its own local data is kept aside in this browser, never pushed over the cloud) */
+const SYNCK=KEY+'-synced';
+const syncedUid=()=>{try{return localStorage.getItem(SYNCK)}catch(e){return null}};
+const markSynced=()=>{try{if(SY.user)localStorage.setItem(SYNCK,SY.user.uid)}catch(e){}};
+function keepLocalCopy(){try{const {ui,...rest}=S;localStorage.setItem(KEY+'-local-'+TODAY,JSON.stringify(rest))}catch(e){}}
 function onRemote(snap){
-  if(!snap.exists){if(S.subjects.length||S.exams.length)pushNow();else setSync('☁ 동기화됨');return}
-  const d=snap.data(),la=S.at||0;
+  const live=!snap.metadata.fromCache;
+  if(!live&&!SY.live){if(snap.exists){const d=snap.data();if(d.at>(S.at||0)&&syncedUid()===SY.user.uid)adopt(d)}return}
+  const first=!SY.live;SY.live=true;
+  if(!snap.exists){if(S.subjects.length||S.exams.length)pushNow();else setSync('☁ 동기화됨');markSynced();return}
+  const d=snap.data(),la=S.at||0;SY.lastJson=d.json;SY.lastAt=d.at;if(d.prev){SY.prevJson=d.prev;SY.prevAt=d.prevAt}
+  let cloudN=0;try{cloudN=(JSON.parse(d.json).subjects||[]).length}catch(e){}
+  if(first&&syncedUid()!==SY.user.uid){ // first sync of this device with this account: cloud wins
+    const {ui,...rest}=S;if((S.subjects.length||S.exams.length)&&JSON.stringify(rest)!==d.json){keepLocalCopy();setTimeout(()=>toast('클라우드 내용을 불러왔어요 · 이 기기에 있던 내용은 따로 보관했어요'),500)}
+    adopt(d);markSynced();return}
+  if(!S.subjects.length&&cloudN){adopt(d);markSynced();return} // never push an empty planner over a filled one
   if(d.at>la){if(drag||hold||!M.classList.contains('hidden')){SY.pending=d;return}adopt(d)}
   else if(d.at<la)pushNow();
+  markSynced();
   if(!snap.metadata.hasPendingWrites&&!SY.writing)setSync('☁ 동기화됨');
 }
 function adopt(d){try{const x=JSON.parse(d.json);const b=defState();const ui=S.ui;S={...b,...x,cfg:{...b.cfg,...x.cfg},ui,at:d.at};fixWildTimes();
@@ -1709,9 +1725,11 @@ function adopt(d){try{const x=JSON.parse(d.json);const b=defState();const ui=S.u
   if(typeof applyTheme==='function')applyTheme();const y=scrollY;render();scrollTo({top:y});setSync('☁ 동기화됨')}catch(e){}}
 function applyPending(){if(SY.pending&&!drag&&!hold&&M.classList.contains('hidden')){const d=SY.pending;SY.pending=null;if(d.at>(S.at||0))adopt(d)}}
 async function pushNow(){
-  if(!SY.on)return;if(SY.writing){SY.again=true;return}
+  if(!SY.on||!SY.live)return;if(SY.writing){SY.again=true;return}
+  {let n=0;try{n=(JSON.parse(SY.lastJson||'{}').subjects||[]).length}catch(e){}if(!S.subjects.length&&n)return}
   SY.writing=true;setSync(navigator.onLine?'저장 중…':'오프라인 · 연결되면 올라가요');
-  try{const {ui,...rest}=S;await SY.ref.set({json:JSON.stringify(rest),at:S.at||Date.now(),dev:DEV});setSync('☁ 동기화됨')}
+  try{const {ui,...rest}=S;const json=JSON.stringify(rest),doc={json,at:S.at||Date.now(),dev:DEV};if(SY.lastJson&&SY.lastJson!==json){doc.prev=SY.lastJson;doc.prevAt=SY.lastAt||0}
+    await SY.ref.set(doc);SY.lastJson=json;SY.lastAt=doc.at;markSynced();setSync('☁ 동기화됨')}
   catch(e){setSync('동기화 오류 · 이 기기엔 저장됨',1)}
   SY.writing=false;if(SY.again){SY.again=false;pushNow()}
 }
@@ -1859,6 +1877,9 @@ document.addEventListener('click',e=>{
       S.cfg.meals.forEach((m,i)=>{const v=fv('mT'+i);m.time=inMin(v);const n=Math.round(+fv('mM'+i));if(n>0)m.mins=clamp(n,5,240)});
       S.subjects.forEach(s=>{s.mins=Math.min(s.mins,(B-A)*60);s.time=clamp(s.time,A*60,B*60-s.mins)});save();closeModal();render();break}
     case 'export':exportBackup();break;
+    case 'restoreMenu':restoreChoice();break;
+    case 'restorePrev':ask('직전 클라우드 버전으로 되돌릴까요?','되돌리기',()=>{try{restoreData(JSON.parse(SY.prevJson))}catch(e){toast('되돌릴 수 없어요')}});break;
+    case 'restoreLocal':{const k=el.dataset.k;ask('따로 보관한 내용으로 바꿀까요?','바꾸기',()=>{try{restoreData(JSON.parse(localStorage.getItem(k)))}catch(e){toast('불러올 수 없어요')}});break}
     case 'resetOv':{const so=sub(id);if(so&&(so.ov||so.ovm)){if(so.ov)delete so.ov[el.dataset.date];if(so.ovm)delete so.ovm[el.dataset.date];if(so.asplit)delete so.asplit[el.dataset.date];save();render();toast('원래 시간으로 돌렸어요')}break}
     case 'fbConnect':{const c=parseCfg(document.getElementById('fbCfg').value);if(!c||!c.apiKey||!c.projectId)return toast('firebaseConfig 내용을 그대로 붙여넣어 주세요');
       try{localStorage.setItem(CFGKEY,JSON.stringify(c))}catch(e){}closeModal();toast('연결했어요. 이제 Google로 로그인해 주세요');startSync().then(openSettings);break}
@@ -1888,10 +1909,16 @@ document.addEventListener('click',e=>{
       lateGate(L[0].id,L[0].name,before,()=>{save();render();toast(`${L.length}과목을 오늘부터 다시 배치했어요`)},()=>{save();render()},'다시 배치하면');break}
   }
 });
+function restoreData(d){const b=defState();S={...b,...d,cfg:{...b.cfg,...d.cfg},ui:{...b.ui,...(d.ui||S.ui)}};S.subjects.forEach(x=>{x.days=normDays(x.days);if(!(x.pre>0))x.pre=0});fixWildTimes();PC.clear();save();closeModal();render();toast('불러왔어요')}
+const localCopies=()=>{const o=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(KEY+'-local-'))o.push(k)}}catch(e){}return o.sort().reverse()};
+function restoreChoice(){const L=localCopies();let prevN=0;try{prevN=SY.prevJson?(JSON.parse(SY.prevJson).subjects||[]).length:0}catch(e){}
+  const rows=[];if(SY.prevJson)rows.push(`<button class="lbtn" data-act="restorePrev">☁ 직전 클라우드 버전 (${SY.prevAt?md(new Date(SY.prevAt).toISOString().slice(0,10))+' '+new Date(SY.prevAt).toTimeString().slice(0,5):''} · 과목 ${prevN}개)</button>`);
+  L.forEach(k=>{let n=0;try{n=(JSON.parse(localStorage.getItem(k)).subjects||[]).length}catch(e){}rows.push(`<button class="lbtn" data-act="restoreLocal" data-k="${esc(k)}">📱 이 기기에 따로 보관한 내용 (${md(k.slice(-10))} · 과목 ${n}개)</button>`)});
+  openModal(`<h3>이전 내용 되살리기</h3><div class="hint" style="margin-bottom:10px">고른 내용으로 바뀌고, 다른 기기에도 같이 반영돼요</div>${rows.join('')||'<div class="empty">되살릴 이전 내용이 없어요</div>'}<div class="sheet-acts"><div class="spacer"></div><button class="btn" data-act="close">닫기</button></div>`)}
 document.getElementById('importFile').addEventListener('change',e=>{
   const f=e.target.files[0];if(!f)return;const r=new FileReader();
   r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.subjects))throw 0;
-    ask('지금 데이터를 백업 파일 내용으로 바꿀까요?','바꾸기',()=>{const b=defState();S={...b,...d,cfg:{...b.cfg,...d.cfg},ui:{...b.ui,...d.ui}};S.subjects.forEach(x=>{x.days=normDays(x.days);if(!(x.pre>0))x.pre=0});save();closeModal();render();toast('불러왔어요')})}
+    ask('지금 데이터를 백업 파일 내용으로 바꿀까요?','바꾸기',()=>restoreData(d))}
     catch(err){toast('백업 파일을 읽을 수 없어요')}};
   r.readAsText(f);e.target.value='';
 });
