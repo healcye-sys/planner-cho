@@ -1444,9 +1444,15 @@ function splitFit(so,room){if(so.mode==='period'&&so.end)return null;const dl=so
   const amt=Math.floor(dl*room/mn+1e-9);if(amt<1||amt>=dl)return null;const nm=Math.ceil(amt*mn/dl);return nm>=30&&nm<mn?{nm,amt}:null}
 /* other study days a period subject still has (from today) besides d: never skip its last one */
 function periodLeft(so,d){let n=0,x=so.start>TODAY?so.start:TODAY;for(let g=0;x<=so.end&&g<800;g++,x=addD(x,1))if(x!==d&&studyOn(so,x))n++;return n}
+/* last resort for a day nothing can leave (e.g. period subjects on their last day): close the gaps, earliest first */
+function slideDay(d){const it=itemsOn(d).slice().sort((p,q)=>p.segs[0][0]-q.segs[0][0]);let cur=S.cfg.dayStart*60,n=0;
+  for(const y of it){const st=y.segs[0][0],so=y.s,fixed=y.oo||lateOn(y,d)||(so.ov&&so.ov[d]!=null&&!(so.aslide&&so.aslide[d]));
+    if(!fixed&&st>cur+1){const t=spanSegs(cur,1)[0][0];if(t<st){(so.ov||(so.ov={}))[d]=t;(so.aslide||(so.aslide={}))[d]=true;n++;cur=spanSegs(t,y.mins).pop()[1];continue}}
+    cur=Math.max(cur,y.end)}
+  if(n){PC.clear();ITC.clear();if(DEC)DEC.clear()}return n}
 function autoMove(L,M){const mv=[],DE=S.cfg.dayEnd*60;
   for(const x of L){for(let g=0;g<8;g++){const it=itemsOn(x.d).filter(y=>!lateOn(y,x.d));if(!it.length||Math.max(...it.map(y=>y.end))<=M)break;
-    const c=it.filter(y=>!y.oo&&!(y.s.mode==='period'&&y.s.end&&!periodLeft(y.s,x.d))&&!(y.s.keep&&y.s.keep[x.d])&&!(y.s.asplit&&y.s.asplit[x.d])).sort((p,q)=>q.end-p.end)[0];if(!c)break;
+    const c=it.filter(y=>!y.oo&&!(y.s.mode==='period'&&y.s.end&&!periodLeft(y.s,x.d))&&!(y.s.keep&&y.s.keep[x.d])&&!(y.s.asplit&&y.s.asplit[x.d])).sort((p,q)=>q.end-p.end)[0];if(!c){if(g<7&&slideDay(x.d))continue;break}
     const so=c.s,d=x.d,userOv=so.ovm&&so.ovm[d]!=null;
     const f=!userOv&&splitFit(so,c.mins-(c.end-DE));
     if(f){(so.ovm||(so.ovm={}))[d]=f.nm;(so.asplit||(so.asplit={}))[d]=true;touch(so);
