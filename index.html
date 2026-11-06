@@ -1466,7 +1466,7 @@ function pullBack(){const DE=S.cfg.dayEnd*60,out=[];const cand=[];
 function lateGate(id,name,before,fin,onNo,verb){DEC=new Map();ITC.clear();try{return lateGate0(id,name,before,fin,onNo,verb)}finally{DEC=null;ITC.clear()}}
 function lateGate0(id,name,before,fin,onNo,verb){CH=null;syncRounds();fixLateSkips();PC.clear();const pl=pullBack();const ids=[id,...S.subjects.filter(x=>x.parent===id).map(x=>x.id)];const L=lateDays(ids);
   const bigOld=()=>lateDays(S.subjects.map(x=>x.id)).some(x=>x.end>S.cfg.dayEnd*60+lateMax()&&!itemsOn(x.d).some(y=>y.s.keep&&y.s.keep[x.d]));
-  const pullToast=()=>{if(pl.length)setTimeout(()=>toast(`앞에 자리가 생겨서 ${new Set(pl.map(x=>x.d)).size}일 당겨왔어요`),400)};
+  const pullToast=()=>{};
   if(!L.length&&!bigOld()){pullToast();return fin()}
   const cur=S.subjects;S.subjects=JSON.parse(before);PC.clear();const pe=new Map(S.subjects.map(x=>[x.id,plan(x).end]));const old=new Map(lateDays(S.subjects.map(x=>x.id).concat(ids)).map(x=>[x.d,x.end]));S.subjects=cur;PC.clear();
   const isNew=x=>!old.has(x.d)||x.end>old.get(x.d);
@@ -1484,12 +1484,11 @@ function lateGate0(id,name,before,fin,onNo,verb){CH=null;syncRounds();fixLateSki
   const unit=x=>x.split.amt+(x.s.unit||''),part=x=>`${esc(x.s.name)} ${durTxt(x.split.nm)}만 · ${unit(x)}`;
   const mvRows=mv.slice(0,300).map(x=>{const n=nextStudy(x.s,x.d);return `<div><span>${day(x)}</span><b>${x.split?part(x):x.s.mode==='period'&&x.s.end?`${esc(x.s.name)} 쉼 · 남은 날에 나눠 해요`:`${esc(x.s.name)} → ${n?md(n):'다음'}`}</b></div>`}).join('');
   const plRows=pl.slice(0,300).map(x=>`<div><span>${md(x.d)} (${DOW[dow(x.d)]})</span><b>${x.split?part(x):`${esc(x.s.name)} 다시 해요`}</b></div>`).join('');
-  const notes=[...new Set(mv.concat(pl).map(x=>x.s))].map(x=>{const e0=pe.get(x.id),e1=plan(x).end;
+  const notes=[...new Set(mv.map(x=>x.s))].map(x=>{const e0=pe.get(x.id),e1=plan(x).end;
     return x.mode==='period'&&x.end?`'${esc(x.name)}' 끝나는 날은 그대로, 하루 분량이 조금 늘어요`:e0&&e1!==e0?`'${esc(x.name)}' 끝나는 날 <b>${md(e0)} → ${md(e1)}</b>`:''}).filter(Boolean).slice(0,3).join('<br>');
   const askRows=ask.slice(0,300).map(x=>`<div><span>${day(x)}</span><b>+${durTxt(x.end-S.cfg.dayEnd*60)}</b></div>`).join('');
   const el=document.createElement('div');el.className='ldim';
   el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4>   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 ${new Set(mv.map(x=>x.d)).size}일 <small>· 뒤로 밀려요</small></div><div class="ld mv">${mvRows}</div>`:''}
-   ${pl.length?`<div class="lsec">앞에 자리가 생긴 날 ${new Set(pl.map(x=>x.d)).size}일 <small>· 앞으로 당겨와요</small></div><div class="ld gr">${plRows}</div>`:''}
    ${mv.some(x=>!isNew(x))?`<div class="lnote">이번에 바꾼 것과 상관없이 원래 넘치던 날도 같이 정리했어요</div>`:''}
    ${notes?`<div class="lnote">${notes}</div>`:''}
    ${ask.length?`<div class="lsec">${ask.every(x=>x.end<=M)?lm+' 안으로 넘치는 날':'넘치는 날'} ${ask.length}일 <small>· 그대로 해도 될까요?</small></div><div class="ld">${askRows}</div>`:''}
