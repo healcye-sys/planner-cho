@@ -1602,7 +1602,7 @@ function openAddDay(d,tm){
   const cand=S.subjects.filter(s=>!on.has(s.id)&&!projEnd(s).done&&!(s.mode==='period'&&s.end&&d>s.end));
   const dn=['일','월','화','수','목','금','토'];
   openModal(`<h3>${dTitle(d)} 오늘만 추가</h3><p class="xsub">이날 하루만 더해요. 다음 주부터는 원래대로예요.</p>
-   <div id="xpick">${(()=>{const it=s=>`<button class="xit" data-act="xPick" data-id="${s.id}"><i style="background:${s.color}"></i><span class="xnm">${esc(s.name)}</span><small>${durTxt(s.mins)} · ${s.askip&&s.askip[d]?'밀려서 빠졌어요':plan(s).dates.find(x=>x>d)?`다음 ${md(plan(s).dates.find(x=>x>d))}`:s.skip&&s.skip[d]?'이날 쉬는 중':plan(s).end<d?`${md(plan(s).end)} 분량 옮겨오기`:`원래 ${s.days.length===7?'매일':s.days.map(x=>dn[x]).join('·')}`}</small></button>`;
+   <div id="xpick">${(()=>{const it=s=>`<button class="xit" data-act="xPick" data-id="${s.id}"><i style="background:${s.color}"></i><span class="xnm">${esc(s.name)}</span><small>${durTxt(s.mins)} · ${s.askip&&s.askip[d]?'밀려서 빠졌어요':plan(s).dates.find(x=>x>d)?`원래 ${md(plan(s).dates.find(x=>x>d))}`:s.skip&&s.skip[d]?'이날 쉬는 중':plan(s).end<d?`${md(plan(s).end)} 분량 옮겨오기`:`원래 ${s.days.length===7?'매일':s.days.map(x=>dn[x]).join('·')}`}</small></button>`;
      const g1=cand.filter(s=>s.askip&&s.askip[d]||plan(s).end<d),g2=cand.filter(s=>!g1.includes(s)).sort((a,b)=>(plan(a).dates.find(x=>x>d)||a.start).localeCompare(plan(b).dates.find(x=>x>d)||b.start)||a.time-b.time),g3=[];
      const sec=(t,h,a)=>a.length?`<div class="xlab">${t} <small>${h}</small></div><div class="xlist ${a.length>5?'long':''}">${a.map(it).join('')}</div>`:'';
      return sec('밀린 과목','다시 넣기',g1)+sec('앞으로 당겨오기','먼저 하면 종료일도 당겨져요',g2)+sec('그 밖의 과목',g3.length+'개',g3)})()}
