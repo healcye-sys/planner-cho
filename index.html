@@ -1097,7 +1097,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B · © 2026 healcye-sys. All rights reserved.<br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v34 · © 2026 healcye-sys. All rights reserved.<br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
@@ -1245,11 +1245,13 @@ V.addEventListener('touchstart',e=>{
   const t=e.touches[0];sw={x:t.clientX,y:t.clientY,t:Date.now()};
   // week columns may scroll sideways first: only flip the week from the scroll edge
   const sc=S.ui.view==='week'&&e.target.closest('.wscroll');
-  if(sc&&sc.scrollWidth>sc.clientWidth+2){sw.atL=sc.scrollLeft<=2;sw.atR=sc.scrollLeft>=sc.scrollWidth-sc.clientWidth-2}else{sw.atL=sw.atR=true}
+  const mx=sc?sc.scrollWidth-sc.clientWidth:0;if(sc&&mx>24){sw.atL=sc.scrollLeft<=8;sw.atR=sc.scrollLeft>=mx-8}else{sw.atL=sw.atR=true}
 },{passive:true});
+V.addEventListener('touchmove',e=>{if(sw&&e.touches[0])sw.last={clientX:e.touches[0].clientX,clientY:e.touches[0].clientY}},{passive:true});
+V.addEventListener('touchcancel',e=>{if(sw&&sw.last)V.dispatchEvent(Object.assign(new Event('touchend'),{changedTouches:[sw.last]}))},{passive:true});
 V.addEventListener('touchend',e=>{
   if(!sw||drag||hold){sw=null;return}
-  const t=e.changedTouches[0];const sw0=sw;const dx=t.clientX-sw.x,dy=t.clientY-sw.y,dt=Date.now()-sw.t;sw=null;
+  const t=e.changedTouches[0]||sw.last;if(!t){sw=null;return}const sw0=sw;const dx=t.clientX-sw.x,dy=t.clientY-sw.y,dt=Date.now()-sw.t;sw=null;
   if(Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*1.6||dt>700)return;
   const next=dx<0;
   if(S.ui.view==='week'){if(next?!sw0.atR:!sw0.atL)return;S.ui.week=addD(S.ui.week||monday(TODAY),next?7:-7)}
