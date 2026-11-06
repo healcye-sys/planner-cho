@@ -1616,6 +1616,7 @@ document.addEventListener('click',e=>{
       F.color=c;document.getElementById('fColors').innerHTML=colorBtns();document.getElementById('fHive').classList.add('hidden');break}
     case 'delColor':{const c=el.dataset.c;
       if(PALETTE.includes(c)){if(!S.cfg.hiddenColors.includes(c))S.cfg.hiddenColors.push(c)}else S.cfg.customColors=S.cfg.customColors.filter(x=>x!==c);saveUI();
+      if(F&&String(F.color).toLowerCase()===c.toLowerCase())F.color=PALETTE.filter(x=>!S.cfg.hiddenColors.includes(x))[0]||S.cfg.customColors[0]||'#A3D5E6';
       const box=document.getElementById('fColors');box.innerHTML=colorBtns();if(!box.querySelector('.cust'))box.classList.remove('editing');break}
     case 'restoreColors':{S.cfg.hiddenColors=[];saveUI();const box=document.getElementById('fColors');box.innerHTML=colorBtns();break}
     case 'pickColor':S.cfg.themeColor=el.dataset.c;saveUI();applyTheme();SH.querySelectorAll('.hive polygon').forEach(b=>b.classList.toggle('on',b===el));hivePreview();break;
