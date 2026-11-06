@@ -1535,7 +1535,7 @@ function lateGate0(id,name,before,fin,onNo,verb){CH=null;syncRounds();fixLateSki
     const km=new Set(mv.map(key));p2.forEach(x=>{if(!km.has(key(x)))pl.push(x)})}
   PC.clear();const ask=lateDays([...chk]).filter(isNew);
   if(!mv.length&&!ask.length){pullToast();return fin()}
-  if(SILENT){const n=new Set(mv.map(x=>x.d)).size;if(n)setTimeout(()=>toast(`하루 끝을 ${durTxt(lateMax())} 넘게 넘는 날 ${n}일을 뒤로 정리했어요`),500);return fin()}
+  if(SILENT){const n=new Set(mv.map(x=>x.d)).size;if(n)setTimeout(()=>toast(`하루 끝을 ${durTxt(lateMax())} 넘게 넘는 ${n}일에서 과목을 다른 날로 옮겼어요`),500);return fin()}
   const lm=durTxt(lateMax()),day=x=>`${md(x.d)} (${DOW[dow(x.d)]}) ${lateTxt(x.end)}`;
   const unit=x=>x.split.amt+(x.s.unit||''),part=x=>`${esc(x.s.name)} ${durTxt(x.split.nm)}만 · ${unit(x)}`;
   const mvRows=mv.slice(0,300).map(x=>{const n=nextStudy(x.s,x.d);return `<div><span>${day(x)}</span><b>${x.split?part(x):x.s.mode==='period'&&x.s.end?`${esc(x.s.name)} 쉼 · 남은 날에 나눠 해요`:`${esc(x.s.name)} → ${n?md(n):'다음'}`}</b></div>`}).join('');
@@ -1544,7 +1544,7 @@ function lateGate0(id,name,before,fin,onNo,verb){CH=null;syncRounds();fixLateSki
     return x.mode==='period'&&x.end?`'${esc(x.name)}' 종료일은 그대로, 하루 분량이 조금 늘어요`:e0&&e1!==e0?`'${esc(x.name)}' 종료일 <b>${md(e0)} → ${md(e1)}</b>`:''}).filter(Boolean).slice(0,3).join('<br>');
   const askRows=ask.slice(0,300).map(x=>`<div><span>${day(x)}</span><b>+${durTxt(x.end-S.cfg.dayEnd*60)}</b></div>`).join('');
   const el=document.createElement('div');el.className='ldim';
-  el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4>   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 ${new Set(mv.map(x=>x.d)).size}일 <small>· 뒤로 밀려요</small></div><div class="ld mv">${mvRows}</div>`:''}
+  el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4>   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 ${new Set(mv.map(x=>x.d)).size}일 <small>· 다른 날로 옮겨요</small></div><div class="ld mv">${mvRows}</div>`:''}
    ${mv.some(x=>!isNew(x))?`<div class="lnote">이번에 바꾼 것과 상관없이 원래 넘치던 날도 같이 정리했어요</div>`:''}
    ${notes?`<div class="lnote">${notes}</div>`:''}
    ${ask.length?`<div class="lsec">${ask.every(x=>x.end<=M)?lm+' 안으로 넘치는 날':'넘치는 날'} ${ask.length}일 <small>· 그대로 해도 될까요?</small></div><div class="ld">${askRows}</div>`:''}
