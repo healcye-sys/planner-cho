@@ -173,6 +173,15 @@ main{padding:0 14px}
 .ovfbar{margin-top:10px;background:rgba(229,83,75,.1);color:var(--red);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:600}
 .ovfbar small{display:block;font-weight:400;color:var(--sub);font-size:12px;margin-top:2px}
 .ovft{display:block;margin:2px auto 0;width:max-content;background:var(--red);color:#fff;border-radius:6px;font-size:10px;font-weight:800;padding:0 5px;line-height:16px}
+.ckdim{position:fixed;inset:0;z-index:3000;background:rgba(20,30,28,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.ckbox{background:var(--card);color:var(--ink);border-radius:20px;width:100%;max-width:400px;max-height:calc(100vh - 32px);overflow:auto;padding:22px 18px 12px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.ckh{font-size:19px;font-weight:800;letter-spacing:-.3px}.cks{font-size:14px;color:var(--sub);margin-top:6px;line-height:1.5}
+.ckopt{all:unset;box-sizing:border-box;display:block;width:100%;margin-top:12px;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;cursor:pointer}
+.ckopt.pri{border:2px solid var(--brand);background:var(--brandSoft)}.ckopt:active{transform:scale(.98)}
+.ckt{display:flex;align-items:center;justify-content:space-between}.ckt b{font-size:16px}.ckt em{font-style:normal;font-size:11px;font-weight:800;color:#fff;background:var(--brand);border-radius:6px;padding:2px 7px}
+.ckd{font-size:12.5px;color:var(--sub);margin-top:3px}.ckl{margin-top:9px;display:grid;gap:4px;font-size:12.5px}
+.ckr{display:flex;gap:8px;align-items:center;min-width:0}.ckr code{width:44px;flex:0 0 auto;color:var(--sub)}.ckr i{width:4px;height:16px;border-radius:2px;flex:0 0 auto}.ckr span{color:var(--brand);white-space:nowrap}.ckr.more{color:var(--sub);padding-left:56px}
+.ckno{all:unset;display:block;width:100%;text-align:center;padding:12px 0 4px;font-size:14px;color:var(--sub);font-weight:600;cursor:pointer}
 .wnow{position:absolute;left:0;right:0;height:0;border-top:2px solid #e5534b;z-index:5;pointer-events:none}
 .wnow:before{content:"";position:absolute;left:-4px;top:-6px;width:10px;height:10px;border-radius:50%;background:#e5534b}
 .wnow span{position:absolute;right:2px;top:-17px;background:#e5534b;color:#fff;font-size:10px;font-weight:800;border-radius:5px;padding:0 4px;line-height:15px}
@@ -1068,16 +1077,50 @@ function saveSubject(){
   const start=fv('fStart')||TODAY;const tv=fv('fTime');
   const isNew=!F.id;const id=F.id||uid();
   let time=tv?inMin(tv):(isNew?null:F.time);
+  const before=JSON.stringify(S.subjects),oldT=isNew?null:sub(id).time;
   const o={id,name,color:F.color,total,daily,pre,unit:fv('fUnit'),mins,days:[...F.days].sort(),start,time:time??a*60,mode:period?'period':'amount',end:period?fv('fEnd'):''};
   if(isNew)S.subjects.push(o);else Object.assign(sub(id),o);
   const so=sub(id);PC.clear();let moved=false;
   if(time==null){so.time=freeTime(so)}
-  else{const want=clamp(Math.round(so.time/10)*10,a*60,b*60-mins);const r=resolveTime(so,so.start,want,1);so.time=r==null?want:r;moved=r!=null&&r!==want}
+  else{const want=clamp(Math.round(so.time/10)*10,a*60,b*60-mins);
+    if(oldT!==want){const cf=clashOf(so,want);if(cf){so.time=want;PC.clear();return askClash(so,want,oldT,cf,before,isNew)}}
+    const r=resolveTime(so,so.start,want,1);so.time=r==null?want:r;moved=r!=null&&r!==want}
   PC.clear();
   save();closeModal();
   if(isNew&&S.ui.view==='month'){S.ui.month=plan(so).dates[0].slice(0,7)}
   render();if(S.ui.view==='month')renderBands(id);
   toast(moved?`다른 과목과 겹쳐서 ${hm(so.time)}로 옮겼어요`:isNew?`'${name}' 띠가 생겼어요. 끌어서 옮겨 보세요`:'수정했어요');
+}
+/* time edit collides with another subject: ask push-back / swap */
+function clashDay(so){const ds=plan(so).dates;return ds.find(d=>d>=TODAY)||ds[0]}
+function clashOf(so,want){PC.clear();const d=clashDay(so);if(!d)return null;
+  const sg=spanSegs(want,so.mins),a0=sg[0][0],a1=sg[sg.length-1][1];let best=null;
+  S.subjects.forEach(x=>{if(x.id===so.id)return;const it=itemFor(x,d);if(!it)return;const b0=it.segs[0][0],b1=it.end;
+    if(a0<b1&&b0<a1&&(!best||b0<best.t))best={s:x,t:b0}});return best&&{s:best.s,d}}
+function pushPlan(so,want,d){const out=[[so,spanSegs(want,so.mins)[0][0]]];let t=spanSegs(want,so.mins).pop()[1];
+  const rest=S.subjects.filter(x=>x.id!==so.id).map(x=>itemFor(x,d)).filter(Boolean).filter(it=>it.end>out[0][1]).sort((x,y)=>x.segs[0][0]-y.segs[0][0]);
+  for(const it of rest){if(it.segs[0][0]>=t)break;const sg=spanSegs(t,it.mins);out.push([it.s,sg[0][0]]);t=sg[sg.length-1][1]}return out}
+const jo=(w,a,b)=>{const c=w.charCodeAt(w.length-1)-44032;return esc(w)+(c>=0&&c<11172&&c%28?a:b)};
+function askClash(so,want,oldT,cf,before,isNew){
+  const d=cf.d,c=cf.s,push=pushPlan(so,want,d);
+  const row=(s,t,tag)=>`<div class="ckr"><code>${hm(t)}</code><i style="background:${s.color}"></i>${s.id===so.id?`<b>${esc(s.name)}</b>`:esc(s.name)}${tag?` <span>${tag}</span>`:''}</div>`;
+  const pr=push.slice(0,4).map(([s,t],i)=>row(s,t,i?'↓ 밀림':'')).join('')+(push.length>4?`<div class="ckr more">외 ${push.length-4}개도 밀려요</div>`:'');
+  const canSwap=!isNew&&oldT!=null;
+  const sw=canSwap?[[c,oldT],[so,want]].sort((x,y)=>x[1]-y[1]).map(([s,t])=>row(s,t,s.id===c.id?'⇄':'')).join(''):'';
+  const el=document.createElement('div');el.className='ckdim';
+  el.innerHTML=`<div class="ckbox"><div class="ckh">${hm(itemFor(c,d).segs[0][0])}에 ${jo(c.name,'이','가')} 있어요</div>
+   <div class="cks">${jo(so.name,'을','를')} ${hm(want)}로 옮기면 겹쳐요.<br>${jo(c.name,'은','는')} 어떻게 할까요?</div>
+   <button class="ckopt pri" data-k="push"><div class="ckt"><b>뒤로 밀기</b><em>기본</em></div><div class="ckd">${esc(c.name)}부터 뒤 과목들이 한 칸씩 밀려요</div><div class="ckl">${pr}</div></button>
+   ${canSwap?`<button class="ckopt" data-k="swap"><div class="ckt"><b>자리 바꾸기</b></div><div class="ckd">${jo(c.name,'이','가')} ${esc(so.name)} 자리(${hm(oldT)})로 가요</div><div class="ckl">${sw}</div></button>`:''}
+   <button class="ckno" data-k="no">취소</button></div>`;
+  document.body.appendChild(el);
+  el.addEventListener('click',e=>{const k=(e.target.closest('[data-k]')||{}).dataset?.k;if(!k&&e.target!==el)return;el.remove();
+    if(!k||k==='no'){S.subjects=JSON.parse(before);PC.clear();return}
+    if(k==='push'){push.forEach(([s,t])=>{s.time=t;if(s.ov&&s.ov[d]!=null)delete s.ov[d]});
+      const ids=listOrder().map(x=>x.id).filter(x=>x!==so.id);const ci=ids.indexOf(c.id);ids.splice(ci<0?ids.length:ci,0,so.id);ids.forEach((x,i)=>{const t=sub(x);if(t)t.ord=i})}
+    else{c.time=oldT;so.time=want;if(c.ord!=null&&so.ord!=null)[c.ord,so.ord]=[so.ord,c.ord];if(c.ov&&c.ov[d]!=null)delete c.ov[d]}
+    PC.clear();save();closeModal();render();if(S.ui.view==='month')renderBands(so.id);
+    toast(k==='push'?`${c.name}부터 뒤로 밀었어요`:'자리를 바꿨어요')});
 }
 function delSubject(id){
   const s=sub(id);if(!s)return;
@@ -1106,7 +1149,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v36 · © 2026 healcye-sys. All rights reserved.<br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v37 · © 2026 healcye-sys. All rights reserved.<br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
@@ -1355,7 +1398,11 @@ startSync();
 let INST=null;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();INST=e;document.getElementById('instBtn').classList.remove('hidden')});
 addEventListener('appinstalled',()=>{INST=null;document.getElementById('instBtn').classList.add('hidden');toast('설치했어요. 홈 화면의 클로버 아이콘으로 열어 주세요')});
-if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&/^https?:/.test(location.protocol)){navigator.serviceWorker.register('sw.js').catch(()=>{});
+  let had=!!navigator.serviceWorker.controller,upd=false;
+  const tryReload=()=>{if(upd&&M.classList.contains('hidden')&&!document.querySelector('.ckdim'))location.reload()};
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had){had=true;return}upd=true;tryReload()});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')return;tryReload();navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})})}
 // keep the daily "지금" highlight current
 setInterval(()=>{if(S.ui.view==='day'&&M.classList.contains('hidden')&&!drag&&!hold){const y=scrollY;render();scrollTo({top:y})}},60000);
 </script>
