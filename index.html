@@ -655,7 +655,8 @@ function syncRounds(){if(!S.subjects.some(s=>s.parent))return;
   roots.forEach(p=>{let prev=p;roundsOf(p.id).forEach((r,i)=>{r.round=i+2;r.name=p.name+' · '+r.round+'회독';r.color=p.color;r.total=p.total;r.unit=p.unit;r.pre=0;
     if(r.autoStart!==false){const st=addD(plan(prev).end,1);if(st!==r.start){if(r.mode==='period'&&r.end)r.end=addD(r.end,diffD(r.start,st));r.start=st;rePeriod(r);PC.delete(r.id)}}
     prev=r})});PC.clear()}
-function doneAll(s){const ch=S.checks[s.id]||{};let t=s.pre||0;for(const d in ch)t+=markAmt(ch[d],dayAmt(s,d));return Math.min(t,s.total)}
+function doneAll(s){const ch=S.checks[s.id]||{};let t=s.pre||0;const pp=s.mode==='period'&&s.end?plan(s):null;
+  for(const d in ch){const k=pp&&d>=s.start?pp.idx[d]:undefined;t+=markAmt(ch[d],k!==undefined?pp.amt[k]:dayAmt(s,d))}return Math.min(t,s.total)}
 function rangeTxt(s,from,to){
   const a=Math.floor(from)+1,b=Math.ceil(to);const r=a>=b?String(b):a+'~'+b;const u=(s.unit||'').trim();
   if(/^p\.?$/i.test(u))return 'p.'+r; return r+u;
@@ -707,7 +708,8 @@ function projEnd(s){
   const rem=s.total-doneAll(s); if(rem<=1e-9) return {done:true};
   const ch=S.checks[s.id]||{}; let st=s.start>TODAY?s.start:TODAY; if(st===TODAY&&ch[TODAY]) st=addD(TODAY,1);
   let d=st,c=0,g=0,last=st;
-  while(c<rem-1e-9&&g<3000){if(studyOn(s,d)){c+=Math.max(1e-6,dayAmt(s,d));last=d}d=addD(d,1);g++}
+  const pp=s.mode==='period'&&s.end?plan(s):null;
+  while(c<rem-1e-9&&g<3000){if(studyOn(s,d)){const k=pp?pp.idx[d]:undefined;c+=k!==undefined?pp.amt[k]:Math.max(pp?1:1e-6,dayAmt(s,d));last=d}d=addD(d,1);g++}
   return {date:last,rem};
 }
 /* overlap: other bands that collide with subject s (placed at start/time) on any shared day */
@@ -1393,11 +1395,12 @@ function autoMove(L,M){const mv=[];
     const so=c.s;(so.askip||(so.askip={}))[x.d]=true;setDay(so,x.d,'skip',true);PC.clear();mv.push({d:x.d,end:x.end,s:so})}}
   return mv}
 function lateGate(id,name,before,fin,onNo,verb){syncRounds();PC.clear();const ids=[id,...S.subjects.filter(x=>x.parent===id).map(x=>x.id)];const L=lateDays(ids);
-  if(!L.length)return fin();
+  const bigOld=()=>lateDays(S.subjects.map(x=>x.id)).some(x=>x.end>S.cfg.dayEnd*60+lateMax()&&!itemsOn(x.d).some(y=>y.s.keep&&y.s.keep[x.d]));
+  if(!L.length&&!bigOld())return fin();
   const cur=S.subjects;S.subjects=JSON.parse(before);PC.clear();const old=new Map(lateDays(S.subjects.map(x=>x.id).concat(ids)).map(x=>[x.d,x.end]));S.subjects=cur;PC.clear();
   const isNew=x=>!old.has(x.d)||x.end>old.get(x.d);
   const pe=new Map(S.subjects.map(x=>[x.id,plan(x).end]));const M=S.cfg.dayEnd*60+lateMax();const chk=new Set(ids);let mv=[];
-  for(let r=0;r<80;r++){const big=lateDays([...chk]).filter(x=>isNew(x)&&x.end>M&&!mv.some(m=>m.d===x.d));if(!big.length)break;
+  for(let r=0;r<80;r++){const big=lateDays(S.subjects.map(x=>x.id)).filter(x=>x.end>M&&(isNew(x)||!itemsOn(x.d).some(y=>y.s.keep&&y.s.keep[x.d])));if(!big.length)break;
     const m=autoMove(big,M);if(!m.length)break;mv=mv.concat(m);m.forEach(x=>chk.add(x.s.id))}
   PC.clear();const ask=lateDays([...chk]).filter(isNew);
   if(!mv.length&&!ask.length)return fin();
