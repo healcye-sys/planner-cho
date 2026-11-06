@@ -197,7 +197,9 @@ main{padding:0 14px}
 .xback{all:unset;cursor:pointer;font-size:13.5px;font-weight:700;color:var(--brand);margin:2px 0 8px;display:inline-block}
 .xacts{margin-top:14px}.xacts [hidden],#xpick[hidden],#xnew[hidden]{display:none!important}
 .xit{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;padding:13px 4px;border-top:1px solid var(--line2);font-size:15.5px;font-weight:600;cursor:pointer}
-.xit i{width:14px;height:14px;border-radius:4px;flex:0 0 auto}.xit small{margin-left:auto;font-size:12px;color:var(--sub);font-weight:500}.xnewb{color:var(--brand)}
+.xit i{width:14px;height:14px;border-radius:4px;flex:0 0 auto}.xit small{margin-left:auto;font-size:12px;color:var(--sub);font-weight:500}
+.xsel{border-radius:10px;padding-left:10px;padding-right:10px;transition:background .12s}.xsel .xck{order:9;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line2);color:transparent;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;margin-left:8px}.xsel small{order:8}
+.xsel.on{background:color-mix(in srgb,var(--brand) 14%,var(--card))}.xsel.on .xck{background:var(--brand);border-color:var(--brand);color:#fff}.xnewb{color:var(--brand)}
 .xrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.xhm{display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:center}.xhm span{font-size:13px;color:var(--sub)}
 .wone{position:absolute;border-radius:7px;padding:3px 5px;overflow:hidden;font-size:11px;line-height:1.25;border:1.5px dashed;border-left:4px solid;display:flex}
 .wone .tx{flex:1;min-width:0}.wone .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wone .rg{color:var(--brand);font-weight:700}.wone.done{opacity:.55}
@@ -1597,19 +1599,25 @@ const skippedOn=d=>S.subjects.filter(s=>s.skip&&s.skip[d]&&!(s.askip&&s.askip[d]
 const asplitOn=d=>S.subjects.filter(s=>s.asplit&&s.asplit[d]&&s.ovm&&s.ovm[d]!=null&&studyOn(s,d));
 const askipOn=d=>S.subjects.filter(s=>s.askip&&s.askip[d]&&s.skip&&s.skip[d]);
 function dTitle(d){return `${pd(d).getMonth()+1}월 ${pd(d).getDate()}일 (${DOW[dow(d)]})`}
+function keepDay(s,d){(s.keep||(s.keep={}))[d]=true;if(s.asplit&&s.asplit[d]){delete s.asplit[d];if(s.ovm)delete s.ovm[d]}setDay(s,d,'skip',false)}
+function pickDay(s,d,tm){const b0=JSON.stringify(s);setDay(s,d,'add',true);PC.clear();let moved=null;
+  // nothing left for that day (its last day was earlier and not checked): move that last day here
+  for(let k=0;k<10&&plan(s).idx[d]===undefined;k++){const ck=S.checks[s.id]||{};const L=plan(s).dates.filter(x=>x<d&&!ck[x]).pop();if(!L)break;setDay(s,L,'skip',true);setDay(s,d,'add',true);PC.clear();moved=moved||L}
+  if(plan(s).idx[d]===undefined){Object.assign(s,JSON.parse(b0));PC.clear();return {ok:false}}
+  (s.keep||(s.keep={}))[d]=true;if(tm){s.ov=s.ov||{};s.ov[d]=+tm}return {ok:true,moved}}
 function openAddDay(d,tm){
   const on=new Set(itemsOn(d).map(x=>x.s.id));
   const cand=S.subjects.filter(s=>!on.has(s.id)&&!projEnd(s).done&&!(s.mode==='period'&&s.end&&d>s.end));
   const dn=['일','월','화','수','목','금','토'];
-  openModal(`<h3>${dTitle(d)} 오늘만 추가</h3><p class="xsub">이날 하루만 더해요. 다음 주부터는 원래대로예요.</p>
-   <div id="xpick">${(()=>{const it=s=>`<button class="xit" data-act="${s.askip&&s.askip[d]||s.asplit&&s.asplit[d]?'xKeep':'xPick'}" data-id="${s.id}" data-date="${d}"><i style="background:${s.color}"></i><span class="xnm">${esc(s.name)}</span><small>${(()=>{const p=plan(s),n=p.dates.find(x=>x>d);return s.asplit&&s.asplit[d]?'':p.end<d?md(p.end):s.askip&&s.askip[d]?'':n?md(n):''})()}</small></button>`;
+  openModal(`<h3>${dTitle(d)} 오늘만 추가</h3>
+   <div id="xpick">${(()=>{const it=s=>`<button class="xit xsel" data-act="xTog" data-id="${s.id}" data-date="${d}"><i style="background:${s.color}"></i><span class="xnm">${esc(s.name)}</span><b class="xck">✓</b><small>${(()=>{const p=plan(s),n=p.dates.find(x=>x>d);return s.asplit&&s.asplit[d]?'':p.end<d?md(p.end):s.askip&&s.askip[d]?'':n?md(n):''})()}</small></button>`;
      const g1=[...asplitOn(d).filter(s=>!cand.includes(s)),...cand.filter(s=>s.askip&&s.askip[d])],g2=cand.filter(s=>!g1.includes(s)).sort((a,b)=>(plan(a).dates.find(x=>x>d)||a.start).localeCompare(plan(b).dates.find(x=>x>d)||b.start)||a.time-b.time),g3=[];
      const sec=(t,h,a)=>a.length?`<div class="xlab">${t} <small>${h}</small></div><div class="xlist ${a.length>5?'long':''}">${a.map(it).join('')}</div>`:'';
-     return sec('이날에서 옮긴 과목','누르면 다시 넣어요',g1)+sec('다른 과목 당겨오기','',g2)+sec('그 밖의 과목',g3.length+'개',g3)})()}
-   <button class="xit xnewb" data-act="xNew">＋ 새로 적기 <small>과목 없이 이날 하루만</small></button></div>
+     return sec('이날에서 옮긴 과목','',g1)+sec('다른 과목 당겨오기','',g2)+sec('그 밖의 과목',g3.length+'개',g3)})()}
+   <button class="xit xnewb" data-act="xNew">＋ 새로 적기</button></div>
    <div id="xnew" hidden>${cand.length?'<button class="xback" data-act="xBack">‹ 과목에서 고르기</button>':''}<div class="fld"><label>이름</label><input class="inp" id="xName" placeholder="예) 스터디 모임"></div>
     <div class="fld"><label>시작 시각 · 소요시간</label><div class="xrow"><input class="inp" id="xTime" type="time" value="${tm!=null?(hm(tm).replace('+','')):''}"><div class="xhm"><input class="inp" id="xH" type="number" min="0" value="1"><span>시간</span><input class="inp" id="xM" type="number" min="0" step="10" value="0"><span>분</span></div></div></div></div>
-   <div class="sheet-acts xacts"><div class="spacer"></div><button class="btn" data-act="close">닫기</button><button class="btn pri" id="xOk" data-act="xSaveNew" hidden>추가</button></div>`);
+   <div class="sheet-acts xacts"><div class="spacer"></div><button class="btn" data-act="close">닫기</button><button class="btn pri" id="xOk" data-act="xSaveNew" hidden>추가</button><button class="btn pri" id="xSel" data-act="xAddSel" hidden>추가</button></div>`);
   SH.dataset.xd=d;SH.dataset.xt=tm!=null?tm:'';
 }
 function openDayMenu(id,d){
@@ -1892,11 +1900,10 @@ document.addEventListener('click',e=>{
     case 'focusSub':S.ui.focus=id&&S.ui.focus!==id?id:null;saveUI();applyFocus();break;
     case 'pickFocus':{closePick();S.ui.focus=id;saveUI();applyFocus();const s=sub(id);if(s)toast(`'${s.name}'만 보여요 · 꾹 눌러 끌 수 있어요 · 다시 보려면 "전체"`);break}
     case 'xAdd':openAddDay(el.dataset.date,null);break;
-    case 'xPick':{const s=sub(id),d=SH.dataset.xd,tm=SH.dataset.xt;const b0=JSON.stringify(s);setDay(s,d,'add',true);PC.clear();
-      // nothing left for that day (its last day was earlier and not checked): move that last day here
-      let moved=null;for(let k=0;k<10&&plan(s).idx[d]===undefined;k++){const ck=S.checks[s.id]||{};const L=plan(s).dates.filter(x=>x<d&&!ck[x]).pop();if(!L)break;setDay(s,L,'skip',true);setDay(s,d,'add',true);PC.clear();moved=moved||L}
-      if(plan(s).idx[d]===undefined){Object.assign(s,JSON.parse(b0));PC.clear();closeModal();render();toast(`'${s.name}'은 이날 할 분량이 남아 있지 않아요`);break}
-      (s.keep||(s.keep={}))[d]=true;if(tm){s.ov=s.ov||{};s.ov[d]=+tm}save();closeModal();render();toast(moved?`'${s.name}' ${md(moved)} 분량을 ${md(d)}로 옮겼어요`:`'${s.name}' 오늘만 추가했어요`);break}
+    case 'xTog':{el.classList.toggle('on');const n=SH.querySelectorAll('.xsel.on').length,b=document.getElementById('xSel');b.hidden=!n;b.textContent=`${n}과목 추가`;break}
+    case 'xAddSel':{const d=SH.dataset.xd,tm=SH.dataset.xt,sel=[...SH.querySelectorAll('.xsel.on')].map(e=>sub(e.dataset.id)).filter(Boolean);if(!sel.length)break;
+      const msgs=[];let fail=0;sel.forEach(s=>{if(s.askip&&s.askip[d]||s.asplit&&s.asplit[d]){keepDay(s,d);msgs.push(s.name)}else{const r=pickDay(s,d,tm);if(r.ok)msgs.push(r.moved?`${s.name}(${md(r.moved)} 분량)`:s.name);else fail++}});
+      save();closeModal();render();toast(msgs.length?(msgs.length===1?`'${msgs[0]}' 오늘만 추가했어요`:`${msgs.length}과목 오늘만 추가했어요`)+(fail?` · ${fail}과목은 남은 분량이 없어요`:''):'남은 분량이 없어요');break}
     case 'xNew':{document.getElementById('xpick').hidden=true;document.getElementById('xnew').hidden=false;document.getElementById('xOk').hidden=false;document.getElementById('xName').focus();break}
     case 'xBack':{document.getElementById('xpick').hidden=false;document.getElementById('xnew').hidden=true;document.getElementById('xOk').hidden=true;break}
     case 'xSaveNew':{const name=fv('xName');if(!name)return toast('이름을 적어 주세요');const tv=fv('xTime');let mins=Math.round(num(fv('xH'))*60+num(fv('xM')));if(mins<10)mins=10;
