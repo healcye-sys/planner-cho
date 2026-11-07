@@ -156,6 +156,9 @@ main{padding:0 14px}
 .wcol:last-child{border-right:0}
 .wcol.today{background:var(--todayW)}
 .mlab{flex:0 0 74px;font-size:14px;font-weight:600}
+.inrow.bkrow{flex-wrap:wrap!important;gap:8px}.inrow.bkrow .btn{flex:1 1 auto;white-space:nowrap;margin:0;min-width:max-content;justify-content:center;text-align:center}
+#restFld .inp.mmin{flex:0 0 52px}
+.meal-row .mdel{flex:0 0 30px;height:30px;border:0;background:none;color:var(--sub);font-size:16px;cursor:pointer;font-family:inherit;padding:0}#restFld .mlab{flex:0 0 44px!important;white-space:nowrap}.meal-row .mdel{flex:0 0 22px!important}
 .meal-row{margin-bottom:6px;align-items:center}.meal-row .inp{flex:1}.meal-row .inp.mmin{flex:0 0 76px;text-align:center;padding:0 6px}.mlab{flex:0 0 44px!important}
 .wmeal{position:absolute;left:0;right:0;z-index:0;background:repeating-linear-gradient(135deg,var(--line2) 0 6px,transparent 6px 12px);border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);font-size:11px;color:var(--sub);padding:2px 4px;overflow:hidden;white-space:nowrap;pointer-events:auto;cursor:pointer}
 .row.meal{background:repeating-linear-gradient(135deg,var(--line2) 0 6px,transparent 6px 12px);border-radius:0;opacity:1;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);padding:7px 0}
@@ -631,6 +634,8 @@ function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.is
 let S=load();
 S.subjects.forEach(x=>{x.days=normDays(x.days);if(!(x.pre>0))x.pre=0});if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
 if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
+function ensureRest(){if(!S.cfg.meals.some(m=>m.rest))S.cfg.meals.push({n:'휴식',time:null,mins:15,rest:true})}ensureRest();
+const mIco=m=>m.rest?'☕':'🍚',mName=m=>m.rest?m.n:m.n+' 식사';
 const mealsOn=()=>(S.cfg.meals||[]).filter(m=>m.time!=null).sort((a,b)=>a.time-b.time);
 /* subject colours: 12 clearly different hues; row 1 = deepest, "+" opens lighter rows below */
 const hslHex=(h,s,l)=>{s/=100;l/=100;const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return '#'+[f(0),f(8),f(4)].map(x=>Math.round(x*255).toString(16).padStart(2,'0')).join('').toUpperCase()};
@@ -1121,7 +1126,7 @@ function renderWeek(){
     const lanes=[];it.forEach(x=>{let l=lanes.findIndex(e=>e<=x.time);if(l<0){l=lanes.length;lanes.push(0)}lanes[l]=x.end;x.lane=l});
     const L=Math.max(1,lanes.length);
     const meals=mealsOn().filter(m=>m.time<b*60&&m.time+m.mins>a*60).map(m=>{const t0=Math.max(m.time,a*60),t1=Math.min(m.time+m.mins,b*60);
-      return `<div class="wmeal" data-act="mealTap" data-n="${esc(m.n)}" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">🍚 ${m.n}</div>`}).join('');
+      return `<div class="wmeal" data-act="mealTap" data-n="${esc(m.n)}" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">${mIco(m)} ${esc(m.n)}</div>`}).join('');
     const nwl=d===TODAY?`<div class="wnow" style="top:${(nowMin()-a*60)/60*HP}px;${nowMin()<a*60||nowMin()>b*60?'display:none':''}"><span>${hm(nowMin())}</span></div>`:'';
     cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H2}px;background-image:${bg}">`+meals+nwl+(ob?`<div class="lnight" style="top:${(b-a)*HP}px;height:${ob/60*HP}px"><span>🌙 +${Math.floor(ob/60)}:${pad(ob%60)}</span></div>`:'')+(MV[i]?MV[i].am.map((s,j)=>{const n=nextStudy(s,d);return `<div class="mvchip" data-act="gotoDay" data-date="${d}" style="top:${MV[i].top+j*36}px">${esc(s.name)}<br>${n?md(n)+'로':''}</div>`}).join(''):'')+it.map(x=>x.segs.map(([t0,t1],si)=>{
       const first=si===0,last=si===x.segs.length-1;
@@ -1167,7 +1172,7 @@ function renderDay(){
       <div class="tm">${hm(t0)}~${hm(t1)}</div><div class="cb" style="background:${x.s.color}"></div>
       <div class="tx"><div class="nm">${esc(x.s.name)} <span class="ctn">이어서</span></div><div class="rg">${esc(x.label)}</div></div>
       <div class="hr"></div><span class="mk" style="visibility:hidden"></span></div>`])));
-  if(it.length)mealsOn().forEach(m=>rowsA.push([m.time-.5,`<div class="row meal one"><div class="tm">${hm(m.time)}</div><div class="cb">🍚</div><div class="tx"><div class="nm" style="font-size:15px">${m.n} 식사</div></div></div>`]));
+  if(it.length)mealsOn().forEach(m=>rowsA.push([m.time-.5,`<div class="row meal one"><div class="tm">${hm(m.time)}</div><div class="cb">${mIco(m)}</div><div class="tx"><div class="nm" style="font-size:15px">${esc(mName(m))}</div></div></div>`]));
   const rows=rowsA.sort((p,q)=>p[0]-q[0]).map(r=>r[1]).join('');
   // overdue
   const od=[];for(let i=1;i<=21;i++){const x=addD(TODAY,-i);itemsOn(x).forEach(t=>{if((t.mark==='t'||t.mark==='x')&&!t.oo)od.push(t)})}
@@ -1641,7 +1646,7 @@ function askClash(so,want,oldT,cf,before,isNew){
 }
 let MTAP=null;
 function openMeal(n){const m=(S.cfg.meals||[]).find(x=>x.n===n);if(!m)return;
-  openModal(`<h3>🍚 ${esc(m.n)} 시간</h3><div class="g2"><div class="fld"><label>시작</label><input class="inp" type="time" step="600" id="mlT" value="${hmv(m.time)}"></div>
+  openModal(`<h3>${mIco(m)} ${esc(m.n)} 시간</h3><div class="g2"><div class="fld"><label>시작</label><input class="inp" type="time" step="600" id="mlT" value="${hmv(m.time)}"></div>
    <div class="fld"><label>소요시간 (분)</label><input class="inp" type="number" inputmode="numeric" min="5" max="240" step="5" id="mlM" value="${m.mins}"></div></div>
    <div class="hint" style="margin:-2px 0 12px">매일 같은 시간으로 바뀌어요</div>
    <div class="sheet-acts"><div class="spacer"></div><button class="btn" data-act="close">취소</button><button class="btn pri" data-act="mealSave" data-n="${esc(m.n)}">저장</button></div>`)}
@@ -1710,6 +1715,12 @@ function openExam(id){
    <button class="btn" data-act="close">취소</button><button class="btn pri" data-act="saveExam" data-id="${e?e.id:''}">확인</button></div>`);
   if(!e)setTimeout(()=>document.getElementById('eName').focus(),50);
 }
+function mealRow(m,i){return `<div class="inrow meal-row"><span class="mlab">${esc(m.n)}</span><input class="inp" type="time" step="600" id="mT${i}" value="${m.time==null?'':hmv(m.time)}">
+     <input class="inp mmin" type="number" inputmode="numeric" min="5" max="240" step="5" id="mM${i}" value="${m.mins}"><span class="hint">분</span>${m.rest&&S.cfg.meals.filter(x=>x.rest).length>1?`<button class="mdel" data-act="delRest" data-i="${i}" title="이 휴식 지우기">✕</button>`:''}</div>`}
+/* break rows are added/removed inside the open settings sheet: keep what was typed, then redraw that one field */
+function restInner(){return `<label>휴식 시간 <span class="hint" style="font-weight:400">(비워 두면 표시 안 함)</span></label>`+S.cfg.meals.map((m,i)=>m.rest?mealRow(m,i):'').join('')+(S.cfg.meals.filter(m=>m.rest).length<4?'<button class="rdbtn" data-act="addRest">＋ 휴식 추가</button>':'')}
+function readMeals(){S.cfg.meals.forEach((m,i)=>{const e=document.getElementById('mT'+i);if(!e)return;m.time=inMin(e.value);const n=Math.round(+fv('mM'+i));if(n>0)m.mins=clamp(n,5,240)})}
+function redrawRest(){const f=document.getElementById('restFld');if(f)f.innerHTML=restInner()}
 function openSettings(){
   const opt=(v,lo,hi)=>{let o='';for(let i=lo;i<=hi;i++)o+=`<option value="${i}" ${i===v?'selected':''}>${i>24?'새벽 '+hh(i):pad(i)}:00</option>`;return o};
   openModal(`<h3>설정</h3>
@@ -1719,13 +1730,13 @@ function openSettings(){
    <div class="fld"><label>하루 끝 넘겨도 되는 시간</label><div class="seg3 small">${[30,60,90,120].map(m=>`<button data-act="pickLate" data-k="${m}" class="${lateMax()===m?'on':''}">${durTxt(m)}</button>`).join('')}</div>
     <div class="hint" style="margin-top:6px;line-height:1.5">이만큼까지는 물어보고 넣어요. 더 넘치면 그 날은 맨 뒤 과목을 쉬고 다음 공부하는 날로 넘겨요.</div></div>
    <div class="fld"><label>식사 시간 <span class="hint" style="font-weight:400">(비워 두면 표시 안 함)</span></label>
-    ${S.cfg.meals.map((m,i)=>`<div class="inrow meal-row"><span class="mlab">${m.n}</span><input class="inp" type="time" step="600" id="mT${i}" value="${m.time==null?'':hmv(m.time)}">
-     <input class="inp mmin" type="number" inputmode="numeric" min="5" max="240" step="5" id="mM${i}" value="${m.mins}"><span class="hint">분</span></div>`).join('')}</div>
+    ${S.cfg.meals.map((m,i)=>m.rest?'':mealRow(m,i)).join('')}</div>
+   <div class="fld" id="restFld">${restInner()}</div>
    <div class="fld"><label>빈 시간 자동으로 당기기</label><div class="seg3 small">${[['on','켜기'],['off','끄기']].map(([k,v])=>`<button data-act="pickPack" data-k="${k}" class="${(S.cfg.pack!==false)===(k==='on')?'on':''}">${v}</button>`).join('')}</div><div id="packPrev">${packPrev(S.cfg.pack!==false)}</div></div>
    <div class="fld"><label>테마 색상</label><div class="hive">${honeycomb()}<div class="hivePrev" id="hivePrev"></div></div></div>
    <div class="fld"><label>화면 모드</label><div class="seg3 small">${[['system','기기 설정'],['light','밝게'],['dark','어둡게']].map(([k,v])=>`<button data-act="pickMode" data-k="${k}" class="${(S.cfg.mode||'system')===k?'on':''}">${v}</button>`).join('')}</div></div>
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
-    <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button><button class="btn" data-act="restoreMenu">↺ 이전 내용 되살리기</button></div></div>
+    <div class="inrow bkrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button><button class="btn" data-act="restoreMenu">↺ 이전 내용 되살리기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
    <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.0<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
@@ -1853,7 +1864,7 @@ function onRemote(snap){
 }
 function adopt(d){UST=[];try{const x=JSON.parse(d.json);const b=defState();const ui=S.ui;S={...b,...x,cfg:{...b.cfg,...x.cfg},ui,at:d.at};fixWildTimes();
   S.subjects.forEach(v=>{v.days=normDays(v.days);if(!(v.pre>0))v.pre=0});
-  if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
+  if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];ensureRest();
   PC.clear();LASTJ=bodyJ();UJ=ubody();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
   if(typeof applyTheme==='function')applyTheme();const y=scrollY;render();scrollTo({top:y});setSync('☁ 동기화됨')}catch(e){}}
 function applyPending(){if(SY.pending&&!syBusy()){const d=SY.pending;SY.pending=null;takeRemote(d);markSynced()}}
@@ -1910,13 +1921,11 @@ async function exportBackup(){
 
 /* ========== demo ========== */
 function demo(){
-  const t=TODAY;const mk=(name,color,total,daily,unit,mins,days,off,time)=>({id:uid(),name,color,total,daily,pre:0,unit,mins,days:normDays(days),start:addD(t,off),time});
-  if(!S.exams.length)S.exams.push({id:uid(),name:'상지대 시험',date:addD(t,62)},{id:uid(),name:'세명대 시험',date:addD(t,69)},{id:uid(),name:'동신대 시험',date:addD(t,82)});
-  S.subjects.push(
-    mk('한문 논어','#9FD8CF',365,28,'p',140,'daily',1,580),
-    mk('생물 쪽지 시험','#DDB3E8',60,1,'회',30,'daily',1,950),
-    mk('생물 4권','#F8BFA6',387,30,'p',120,'weekday',3,990)
-  );
+  const t=TODAY,{dayStart:A,dayEnd:B}=S.cfg;const mk=(name,color,total,daily,unit,mins,days,time)=>({id:uid(),name,color,total,daily,pre:0,unit,mins,days:normDays(days),fix:[],start:t,time:clamp(time,A*60,B*60-mins),mode:'amount',end:''});
+  if(!S.exams.length)S.exams.push({id:uid(),name:'모의고사',date:addD(t,24)},{id:uid(),name:'기말고사',date:addD(t,45)});
+  S.subjects.push(mk('국어','#A9D8B8',40,1,'강',90,'daily',480),mk('수학','#F6C1C8',520,25,'p',120,'daily',570),
+    mk('영어','#B5CCF2',600,30,'p',90,'weekday',780),mk('과학','#F7D79B',300,15,'p',90,'daily',870),
+    mk('한국사','#DDB3E8',30,1,'강',60,[1,3,5],960),mk('사회','#9FD8CF',240,12,'p',60,[2,4,6],960),mk('일본어','#F8BFA6',60,2,'과',60,'daily',1140));
   save();closeModal();render();toast('예시 데이터를 넣었어요');
 }
 
@@ -2034,6 +2043,8 @@ document.addEventListener('click',e=>{
       if(dA){S.subjects.forEach(s=>{s.time+=dA;if(s.ov)for(const k in s.ov)s.ov[k]+=dA});(S.ones||[]).forEach(o=>{if(o.date>=TODAY)o.time+=dA});CH=null;setTimeout(()=>toast(`하루 시작이 ${durTxt(Math.abs(dA))} ${dA<0?'당겨져서':'늦춰져서'} 과목들도 같이 ${dA<0?'앞당겼어요':'늦췄어요'}`),300)}
       S.cfg.meals.forEach((m,i)=>{const v=fv('mT'+i);m.time=inMin(v);const n=Math.round(+fv('mM'+i));if(n>0)m.mins=clamp(n,5,240)});
       S.subjects.forEach(s=>{s.mins=Math.min(s.mins,(B-A)*60);if(s.time<A*60)s.time=A*60});PC.clear();save();closeModal();render();break}
+    case 'addRest':{readMeals();const rs=S.cfg.meals.filter(m=>m.rest);if(rs.length>=4)break;if(rs.length===1&&rs[0].n==='휴식')rs[0].n='휴식 1';let k=rs.length+1;while(S.cfg.meals.some(m=>m.n==='휴식 '+k))k++;S.cfg.meals.push({n:'휴식 '+k,time:null,mins:15,rest:true});redrawRest();break}
+    case 'delRest':{readMeals();const i=+el.dataset.i;if(S.cfg.meals[i]&&S.cfg.meals[i].rest&&S.cfg.meals.filter(m=>m.rest).length>1)S.cfg.meals.splice(i,1);const rs=S.cfg.meals.filter(m=>m.rest);if(rs.length===1)rs[0].n='휴식';redrawRest();break}
     case 'export':exportBackup();break;
     case 'restoreMenu':restoreChoice();break;
     case 'restoreHist':{const h=(SY.hist||[])[+el.dataset.i];if(!h)break;gunz(h.z).then(j=>{const d=JSON.parse(j);ask(`이 기록(과목 ${(d.subjects||[]).length}개)으로 되돌릴까요?`,'되돌리기',()=>restoreData(d))}).catch(()=>toast('불러올 수 없어요'));break}
