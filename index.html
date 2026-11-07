@@ -135,6 +135,7 @@ main{padding:0 14px}
 .mwrap.lanes{--gut:0px}.lanes .gutter{border:0;overflow:hidden;min-width:0}.lanes .week{transition:none}.lanes .seg .bar{height:100%;border-radius:4px}
 .lanes .seg .rsz{right:0;width:20px}.lanes .seg .rsz:after{display:none}.lanesg .bar{position:relative}.lanesg .bar .rzg{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:12px;height:8px;background-color:currentColor;opacity:.9;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 8%27%3E%3Cpath d=%27M1 4h10M3.5 1.2L1 4l2.5 2.8M8.5 1.2L11 4 8.5 6.8%27 fill=%27none%27 stroke=%27black%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 8%27%3E%3Cpath d=%27M1 4h10M3.5 1.2L1 4l2.5 2.8M8.5 1.2L11 4 8.5 6.8%27 fill=%27none%27 stroke=%27black%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center/contain no-repeat}.seg:not(.lanesg) .rzg{display:none}
 .lanes .seg:has(.rsz) .bar{padding-right:18px}
+.seg .rsl{position:absolute;left:0;top:0;bottom:0;width:20px;pointer-events:auto;cursor:ew-resize;z-index:2;touch-action:none}.lanes .seg:has(.rsl) .bar{padding-left:18px}.lanesg .bar .rzl{position:absolute;left:4px;top:50%;transform:translateY(-50%);width:12px;height:8px;background-color:currentColor;opacity:.9;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 8%27%3E%3Cpath d=%27M1 4h10M3.5 1.2L1 4l2.5 2.8M8.5 1.2L11 4 8.5 6.8%27 fill=%27none%27 stroke=%27black%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 8%27%3E%3Cpath d=%27M1 4h10M3.5 1.2L1 4l2.5 2.8M8.5 1.2L11 4 8.5 6.8%27 fill=%27none%27 stroke=%27black%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center/contain no-repeat}.seg:not(.lanesg) .rzl{display:none}
 .seg.hold.rs .rsz:after,.seg.lift.rs .rsz:after{background:var(--ink)}
 .seg.ghost .bar{background:transparent!important;border:2px dashed var(--ink);box-shadow:none;opacity:.9}.lanes .seg.ghost .bar{background:var(--card)!important;color:transparent!important}.lanes .seg.ghost.cut .bar{opacity:.85;border-color:var(--sub)}
 .seg.flash .bar{animation:flash 1.2s ease 2}
@@ -909,7 +910,7 @@ function renderMonth(){
     <button class="btn sq" data-act="mPrev">‹</button><div class="ttl">${y}년 ${mo}월</div><button class="btn sq" data-act="mNext">›</button>
     <button class="btn" data-act="mToday">오늘</button>
     <div class="spacer"></div>
-    <span class="hint">띠를 꾹 누른 채 끌면 날짜(←→)·순서(↑↓) 이동 · 끝의 ↔를 끌면 종료일 조절 · 두 번 누르면 수정/삭제 · 화면을 옆으로 밀면 다음 달</span>
+    <span class="hint">띠를 꾹 누른 채 끌면 날짜(←→)·순서(↑↓) 이동 · 앞·끝의 ↔를 끌면 시작일·종료일 조절 · 두 번 누르면 수정/삭제 · 화면을 옆으로 밀면 다음 달</span>
   </div>
   <div class="zfab"><button data-act="zoomIn" title="칸 높이 늘리기"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h12M3 20h12M6 10h6M6 14h6"/><path d="M19 8v8M17 10l2-2 2 2M17 14l2 2 2-2"/></svg></button><button data-act="zoomOut" title="칸 높이 줄이기"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h12M3 16h12"/><path d="M19 3v5M17 6l2 2 2-2M19 21v-5M17 18l2-2 2 2"/></svg></button></div>
   ${S.subjects.length>1?`<div class="chips"><button data-act="focusSub" data-id="" class="all">전체</button>${listOrder().map(s=>`<button data-act="focusSub" data-id="${s.id}"><i style="background:${s.color}"></i>${esc(s.name)}</button>`).join('')}</div>`:''}
@@ -937,10 +938,10 @@ function segsHTML(s,p,ws,cls,lane){
     const d0=addD(ws,c0),d1=addD(ws,c1);
     const contL=p.idx[d0]>0&&diffD(p.dates[p.idx[d0]-1],d0)===1&&c0===0;
     const contR=p.idx[d1]<p.dates.length-1&&c1===6&&diffD(d1,p.dates[p.idx[d1]+1])===1;
-    const dots='';
+    const dots='';const fr=!cls&&d0===p.dates[0]&&p.dates[0]>=TODAY;
     return `<div class="seg ${useL?'lanesg':''} ${cls||''} ${contL?'cont-l':''} ${contR?'cont-r':''}" data-id="${s.id}"
       style="left:calc(${c0/7*100}% + 1px);width:calc(${(c1-c0+1)/7*100}% - 2px);${useL?`top:${lane*LH+1}px;height:${LH-2}px;padding:0`:`top:calc(${top}% - 6px);height:calc(${ht}% + 12px)`}">
-      <div class="bar" style="background:${s.color};color:${textOn(s.color)};font-size:${fs}px">${fs?`<span style="overflow:hidden;text-overflow:ellipsis">${cls?'':esc(s.name)}</span>${dots?`<span class="dots">${dots}</span>`:''}`:''}${useL&&!cls&&d1===p.end?'<b class="rzg"></b>':''}</div>${!cls&&d1===p.end?`<i class="rsz" title="꾹 눌러 끌면 종료일 조절" style="color:${textOn(s.color)}"></i>`:''}</div>`;
+      <div class="bar" style="background:${s.color};color:${textOn(s.color)};font-size:${fs}px">${useL&&fr?'<b class="rzl"></b>':''}${fs?`<span style="overflow:hidden;text-overflow:ellipsis">${cls?'':esc(s.name)}</span>${dots?`<span class="dots">${dots}</span>`:''}`:''}${useL&&!cls&&d1===p.end?'<b class="rzg"></b>':''}</div>${!cls&&d1===p.end?`<i class="rsz" title="꾹 눌러 끌면 종료일 조절" style="color:${textOn(s.color)}"></i>`:''}${fr?'<i class="rsl" title="꾹 눌러 끌면 시작일 조절"></i>':''}</div>`;
   }).join('');
 }
 /* A: one subject in focus -> only its band is drawn strong and can be grabbed */
@@ -1021,7 +1022,7 @@ const HOLD_MS=380;
 function beginDrag(h){
   const s=sub(h.id);if(!s)return;
   const els=[...document.querySelectorAll(`.seg[data-id="${s.id}"],.wblk[data-id="${s.id}"]:not(.ghost)`)];if(h.wk){els.forEach(x=>x.classList.remove('hold'));els.length=0;els.push(...document.querySelectorAll(`.wblk[data-id="${s.id}"][data-date="${h.wday}"]:not(.ghost)`))}els.forEach(x=>{x.classList.remove('hold');x.classList.add('lift')});
-  drag={rs:!!h.rs,end0:plan(s).end,id:s.id,pid:h.pid,x0:h.x,y0:h.y,x:h.x,y:h.y,sy0:scrollY,d0:h.L.date,m0:h.L.min,start0:s.start,time0:s.time,moved:true,els,key:'',target:{start:s.start,time:s.time},wk:!!h.wk,day:h.wday};
+  drag={rs:!!h.rs,rsl:!!h.rsl,end0:plan(s).end,id:s.id,pid:h.pid,x0:h.x,y0:h.y,x:h.x,y:h.y,sy0:scrollY,d0:h.L.date,m0:h.L.min,start0:s.start,time0:s.time,moved:true,els,key:'',target:{start:s.start,time:s.time},wk:!!h.wk,day:h.wday};
   if(drag.wk){drag.wrs=!!h.wrs;const shown=itemsOn(drag.day).find(x=>x.s.id===s.id);drag.time0=shown?shown.time:dayTime(s,drag.day);drag.mins0=dayMins(s,drag.day);drag.target={start:s.start,time:drag.time0,mins:drag.mins0};if(drag.wrs)h.el.classList.add('wr')}
   document.body.classList.add('dragging');
   try{navigator.vibrate&&navigator.vibrate(15)}catch(e){}
@@ -1039,8 +1040,8 @@ document.addEventListener('pointerdown',e=>{
       const r=x.querySelector('.bar').getBoundingClientRect();const d=e.clientY<r.top?r.top-e.clientY:e.clientY>r.bottom?e.clientY-r.bottom:0;
       if(d<bd){bd=d;seg=x}})}
   const L=locate(e.clientX,e.clientY);if(!L)return;
-  hold={el:seg,wk:seg.classList.contains('wblk'),wrs:!!(e.target.closest&&e.target.closest('.wrsz')),wday:seg.dataset.date,id:seg.dataset.id,pid:e.pointerId,x:e.clientX,y:e.clientY,L,mouse:e.pointerType==='mouse',timer:0,rs:!!(e.target.closest&&e.target.closest('.rsz'))&&seg.classList.contains('seg')};
-  if(hold.rs)seg.classList.add('rs');
+  hold={el:seg,wk:seg.classList.contains('wblk'),wrs:!!(e.target.closest&&e.target.closest('.wrsz')),wday:seg.dataset.date,id:seg.dataset.id,pid:e.pointerId,x:e.clientX,y:e.clientY,L,mouse:e.pointerType==='mouse',timer:0,rs:!!(e.target.closest&&e.target.closest('.rsz'))&&seg.classList.contains('seg'),rsl:!!(e.target.closest&&e.target.closest('.rsl'))&&seg.classList.contains('seg')};
+  if(hold.rs||hold.rsl)seg.classList.add('rs');
   // stacked-band picker removed: month bands no longer overlap
   if(hold.mouse){e.preventDefault();return} // mouse: drag starts as soon as it moves
   document.querySelectorAll(`.seg[data-id="${hold.id}"],.wblk[data-id="${hold.id}"]`).forEach(x=>x.classList.add('hold'));
@@ -1074,6 +1075,22 @@ function resizeFrame(s){
   const t=drag.target;
   if(t.end)showTip(drag.x,drag.y,s.name,`${mdw(planRaw(s).dates[0])} ~ ${mdw(t.end)}`,`공부일 ${t.n}일 · 하루 ${perDay(t.daily)}${esc(s.unit||'')}`);
   else showTip(drag.x,drag.y,s.name,`${mdw(planRaw(s).dates[0])} ~ ${mdw(planRaw(s).end)}`,'좌우로 끌어 종료일 조절');
+}
+// 앞 ↔: 시작일만 바꾸고 종료일·전체 분량은 그대로 (하루 분량이 다시 계산됨). 오늘보다 앞으로는 못 감
+function startFrame(s){
+  const L=locate(drag.x,drag.y);if(!L)return;
+  const p0=plan(s),f0=p0.dates[0];let ns=addD(f0,diffD(drag.d0,L.date));if(ns<TODAY)ns=TODAY;if(ns>drag.end0)ns=drag.end0;
+  if(ns!==drag.key){drag.key=ns;const t={...s,start:ns,mode:'period',end:drag.end0};rePeriod(t);const n=studyDaysBetween(s.days,ns,drag.end0);
+    document.querySelectorAll('.seg.ghost').forEach(e=>e.remove());
+    if(n>=1&&ns!==f0){drag.target={start:ns,daily:t.daily,end:drag.end0,n};
+      const p=planRaw(t);const add=p.dates.filter(d=>p0.idx[d]===undefined),cut=p0.dates.filter(d=>p.idx[d]===undefined);
+      const part=ds=>{const idx={};ds.forEach((d,i)=>idx[d]=i);return {dates:ds,idx,end:ds[ds.length-1]}};
+      document.querySelectorAll('.bands').forEach(layer=>{const ws=layer.dataset.start,ly=LAY[ws],ln=ly?(ly.lane[s.id]!=null?ly.lane[s.id]:ly.occ.length):null;
+        [[add,'ghost'],[cut,'ghost cut']].forEach(([ds,c])=>{if(!ds.length)return;const h=segsHTML(s,part(ds),ws,c,ln);if(h)layer.insertAdjacentHTML('beforeend',h)})})}
+    else drag.target={start:s.start}}
+  const t=drag.target;
+  if(t.end)showTip(drag.x,drag.y,s.name,`${mdw(t.start)} ~ ${mdw(t.end)}`,`공부일 ${t.n}일 · 하루 ${perDay(t.daily)}${esc(s.unit||'')}`);
+  else showTip(drag.x,drag.y,s.name,`${mdw(f0)} ~ ${mdw(p0.end)}`,'좌우로 끌어 시작일 조절');
 }
 function wGhost(day,t,m){const a=S.cfg.dayStart*60,b=S.cfg.dayEnd*60;
   document.querySelectorAll('.wblk.ghost').forEach(e=>e.remove());
@@ -1127,6 +1144,7 @@ function laneTime(s,L){GLANE=null;if(drag)drag.pick=null;
 function dragFrame(){
   raf=0;if(!drag||!drag.moved)return;const s=sub(drag.id);
   if(drag.rs)return resizeFrame(s);
+  if(drag.rsl)return startFrame(s);
   if(drag.wk)return drag.wrs?durFrame(s):dayFrame(s);
   const dx=drag.x-drag.x0,dy=drag.y-drag.y0+(scrollY-drag.sy0);
   drag.els.forEach(el=>el.style.transform=`translate3d(${dx/ZM()}px,${dy/ZM()}px,0)`);
@@ -1164,6 +1182,8 @@ function endDrag(cancel){
       toast(`${mdw(d.day)} 하루만 ${Math.floor(d.target.mins/60)?Math.floor(d.target.mins/60)+'시간 ':''}${d.target.mins%60?d.target.mins%60+'분':''}`)}}
   else if(d.wk){if(!cancel&&s&&d.target.time!==dayTime(s,d.day)){s.ov=s.ov||{};if(s.aslide)delete s.aslide[d.day];if(d.target.time===s.time)delete s.ov[d.day];else s.ov[d.day]=d.target.time;weekPush(s,d.day,d.target.time);save();
       toast(d.target.time===s.time?'원래 시간으로 돌아왔어요':`${mdw(d.day)} 하루만 ${hm(d.target.time)}로 옮겼어요`)}}
+  else if(d.rsl){if(!cancel&&s&&d.target.end&&d.target.start!==plan(s).dates[0]){clearDayEdits(s);if(s.parent){s.autoStart=false;s.chain=false}s.start=d.target.start;s.mode='period';s.end=d.target.end;rePeriod(s);PC.delete(s.id);save();renderHeader();
+      toast(`${mdw(plan(s).dates[0])}부터 · 하루 ${perDay(s.daily)}${s.unit||''}`)}}
   else if(d.rs){if(!cancel&&s&&d.target.end&&Math.abs(d.target.daily-s.daily)>1e-9){clearDayEdits(s);s.daily=d.target.daily;s.mode='period';s.end=d.target.end;PC.delete(s.id);save();renderHeader();
       toast(`${mdw(plan(s).end)}까지 · 하루 ${perDay(s.daily)}${s.unit||''}`)}}
   else if(d.moved&&!cancel&&s&&d.pick&&LAY[d.pick.ws]){const ly=LAY[d.pick.ws];
