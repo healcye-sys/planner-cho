@@ -1052,8 +1052,8 @@ document.addEventListener('touchmove',e=>{if(drag)e.preventDefault()},{passive:f
 function showTip(x,y,name,main,sub,side){const tip=document.getElementById('tip');
   tip.innerHTML=`<b>${esc(name)}</b><span>${main}</span>${sub?`<small>${sub}</small>`:''}`;tip.classList.remove('hidden');
   const w=tip.offsetWidth,h=tip.offsetHeight;
-  // 위클리: beside the finger (left of it, right when there is no room) so the block and its neighbours stay visible
-  if(side){tip.style.transform='translate(0,-50%)';tip.style.left=(x-18-w>=8?x-18-w:Math.min(x+18,innerWidth-w-8))+'px';tip.style.top=clamp(y,h/2+8,innerHeight-h/2-8)+'px';return}
+  // 위클리: below-left of the finger (right / above when there is no room) so the block and the time lines around it stay visible
+  if(side){tip.style.transform='none';tip.style.left=(x-12-w>=8?x-12-w:Math.min(x+12,innerWidth-w-8))+'px';tip.style.top=(y+40+h<=innerHeight-8?y+40:Math.max(8,y-40-h))+'px';return}
   tip.style.transform='';tip.style.left=clamp(x,w/2+8,innerWidth-w/2-8)+'px';tip.style.top=Math.max(h+8,y-30)+'px'}
 const hideTip=()=>document.getElementById('tip').classList.add('hidden');
 function bandTip(s,start,time,x,y){const pl=planRaw(shiftS(s,start));const sg=spanSegs(time,s.mins);
