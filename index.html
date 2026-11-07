@@ -1044,14 +1044,17 @@ document.addEventListener('pointerdown',e=>{
   // stacked-band picker removed: month bands no longer overlap
   if(hold.mouse){e.preventDefault();return} // mouse: drag starts as soon as it moves
   document.querySelectorAll(`.seg[data-id="${hold.id}"],.wblk[data-id="${hold.id}"]`).forEach(x=>x.classList.add('hold'));
-  if(!hold.cands){const s0=sub(hold.id);if(s0){if(hold.wk){const it=itemsOn(hold.wday).find(x=>x.s.id===s0.id);if(it)showTip(hold.x,hold.y,s0.name,`${hm(it.segs[0][0])}~${hm(it.end)}`,`${mdw(hold.wday)}`)}else bandTip(s0,s0.start,s0.time,hold.x,hold.y)}}
+  if(!hold.cands){const s0=sub(hold.id);if(s0){if(hold.wk){const it=itemsOn(hold.wday).find(x=>x.s.id===s0.id);if(it)showTip(hold.x,hold.y,s0.name,`${hm(it.segs[0][0])}~${hm(it.end)}`,`${mdw(hold.wday)}`,1)}else bandTip(s0,s0.start,s0.time,hold.x,hold.y)}}
   hold.timer=setTimeout(()=>{const h=hold;hold=null;if(!h)return;if(h.cands){document.querySelectorAll('.seg.hold').forEach(x=>x.classList.remove('hold'));hideTip();showPick(h)}else beginDrag(h)},HOLD_MS);
 });
 document.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('.seg,.wblk'))e.preventDefault()});
 document.addEventListener('touchmove',e=>{if(drag)e.preventDefault()},{passive:false});
-function showTip(x,y,name,main,sub){const tip=document.getElementById('tip');
+function showTip(x,y,name,main,sub,side){const tip=document.getElementById('tip');
   tip.innerHTML=`<b>${esc(name)}</b><span>${main}</span>${sub?`<small>${sub}</small>`:''}`;tip.classList.remove('hidden');
-  const w=tip.offsetWidth,h=tip.offsetHeight;tip.style.left=clamp(x,w/2+8,innerWidth-w/2-8)+'px';tip.style.top=Math.max(h+8,y-30)+'px'}
+  const w=tip.offsetWidth,h=tip.offsetHeight;
+  // 위클리: beside the finger (left of it, right when there is no room) so the block and its neighbours stay visible
+  if(side){tip.style.transform='translate(0,-50%)';tip.style.left=(x-18-w>=8?x-18-w:Math.min(x+18,innerWidth-w-8))+'px';tip.style.top=clamp(y,h/2+8,innerHeight-h/2-8)+'px';return}
+  tip.style.transform='';tip.style.left=clamp(x,w/2+8,innerWidth-w/2-8)+'px';tip.style.top=Math.max(h+8,y-30)+'px'}
 const hideTip=()=>document.getElementById('tip').classList.add('hidden');
 function bandTip(s,start,time,x,y){const pl=planRaw(shiftS(s,start));const sg=spanSegs(time,s.mins);
   showTip(x,y,s.name,`${mdw(pl.dates[0])} ~ ${mdw(pl.end)}`,`${hm(sg[0][0])}~${hm(sg[sg.length-1][1])}`)}
@@ -1083,7 +1086,7 @@ function durFrame(s){
   if(nm!==drag.key){drag.key=nm;drag.target={start:s.start,time:t0,mins:nm};
     drag.els.forEach(el=>el.style.opacity='.35');wGhost(drag.day,t0,nm)}
   const tip=document.getElementById('tip');tip.classList.remove('hidden');tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
-  const sg=spanSegs(t0,nm);showTip(drag.x,drag.y,s.name,`${hm(t0)}~${hm(sg[sg.length-1][1])}`,`${mdw(drag.day)} 이날만 · ${durTxt(nm)}`);
+  const sg=spanSegs(t0,nm);showTip(drag.x,drag.y,s.name,`${hm(t0)}~${hm(sg[sg.length-1][1])}`,`${mdw(drag.day)} 이날만 · ${durTxt(nm)}`,1);
 }
 /* 위클리 놓기: the dropped block takes the spot it was dropped on; that day's blocks it lands on move back just as far as they overlap (a gap stops the push). Those moves are the app's (no ↺) */
 function weekPush(s,day,t0){const pm=MDAY;MDAY=day;let cur;try{cur=spanSegs(t0,dayMins(s,day)).pop()[1]}finally{MDAY=pm}
@@ -1100,7 +1103,7 @@ function dayFrame(s){
     const col=document.querySelector(`.wcol[data-date="${drag.day}"]`);
     wGhost(drag.day,nt,dayMins(s,drag.day))}
   const tip=document.getElementById('tip');tip.classList.remove('hidden');tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
-  const sg=spanSegs(nt,dayMins(s,drag.day));showTip(drag.x,drag.y,s.name,`${hm(nt)}~${hm(sg[sg.length-1][1])}`,`${mdw(drag.day)} 이날만`);
+  const sg=spanSegs(nt,dayMins(s,drag.day));showTip(drag.x,drag.y,s.name,`${hm(nt)}~${hm(sg[sg.length-1][1])}`,`${mdw(drag.day)} 이날만`,1);
 }
 const shiftS=(s,ns)=>s.mode==='period'&&s.end&&ns!==s.start?{...s,start:ns,end:addD(s.end,diffD(s.start,ns))}:{...s,start:ns};
 /* month drag up/down: the row under the finger says where in the order the band goes */
