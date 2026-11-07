@@ -248,7 +248,7 @@ input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:tex
 .dayts button.fx::after,.rd .dd button.fx::after{content:'📌';position:absolute;top:-7px;right:-5px;font-size:12px}
 .fxh{color:#e5534b;font-size:12px;font-weight:600;margin-left:8px}
 .rlate{display:block;color:var(--sub);font-size:12px;margin-top:4px}.rlate:empty{display:none}.rd .sum .rlate{display:inline}
-.rd label.rchk,.rchk{display:flex;align-items:center;gap:8px;font-size:14px!important;font-weight:700;color:var(--ink);margin:8px 0 2px;cursor:pointer}.rchk input{width:18px;height:18px;accent-color:var(--brand);margin:0}
+.rd label.rchk,.rchk{display:flex;align-items:center;gap:8px;font-size:var(--t3)!important;font-weight:700;color:var(--ink);margin:8px 0 2px;cursor:pointer}.rchk input{width:18px;height:18px;accent-color:var(--brand);margin:0}
 .fxpin{font-size:.85em;margin-right:2px}
 .rd.fold{padding:12px;cursor:pointer}.rd.fold h5{margin:0;white-space:nowrap}.rd.fold h5 .fs{flex:1;min-width:0}.rd .fs{font-size:12.5px;color:var(--sub);font-weight:500;margin-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rd1{font-size:13px;color:var(--sub);margin-top:10px;display:flex;align-items:center;gap:8px}.rd1 em{font-style:normal;font-size:11px;font-weight:800;color:var(--brand);background:var(--brandSoft);border-radius:6px;padding:2px 7px}
@@ -548,6 +548,8 @@ label{white-space:normal;overflow:visible;line-height:1.3}
 .lbtn,.sheet-acts .btn{height:var(--bhl)!important;font-size:14px!important;font-weight:700}
 .lbtn{padding:0!important;display:flex!important;align-items:center;justify-content:center}
 /* T4 guide text: always grey, small */
+/* one size inside the result boxes, and the fixed-day hint matches its label */
+.preview small,.preview b,.rd .sum small,.rd .sum b,.rd .sum .rlate{font-size:inherit!important}.fxh{font-size:inherit!important}.rlate{font-size:var(--t4)!important}
 .hint,.center-hint,.fld .note,.pvn,.lbox p,.lbox .lnote,.exw,.bpick h6,.ovfbar small,.xskip,.foot,.rd label,.rd .sum,.dhd .meta,th,.bpr small,.tip small{font-size:var(--t4)!important;color:var(--sub)!important;font-weight:500!important}
 th{font-weight:700!important}
 /* T5 tags, chips, badges */
