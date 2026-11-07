@@ -2103,6 +2103,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ds(new Da
 S.ui.view='day';S.ui.day=TODAY; // always open on today's daily schedule
 S.ui.seen=1;
 freezeOld();PC.clear();
+// no Firebase (offline first open, blocked script): nothing else will tidy overflow on open, so do it here
+if(typeof firebase==='undefined')setTimeout(()=>queueSettle(),800);
 if(fixWildTimes()){save();setTimeout(()=>toast('겹치는 과목이 있어 조정했어요'),600)}
 {const save0=save;save=function(){save0();if(!UKEEP&&!UNDOING&&!DEC&&!(typeof SILENT!=='undefined'&&SILENT))clearUndo();if(!DEC&&!UNDOING)queueSettle()}}
 {const r0=render;render=function(){r0.apply(this,arguments);paintUndo()}}
