@@ -129,6 +129,7 @@ main{padding:0 14px}
 .seg.lift{z-index:6;will-change:transform}
 .seg.lift .bar{opacity:.85;box-shadow:0 0 0 2px var(--ink),0 8px 18px rgba(0,0,0,.28)}
 .seg.ghost{pointer-events:none;z-index:4}
+.insline{position:absolute;left:0;right:0;height:0;border-top:3px solid var(--brand);border-radius:2px;margin-top:-1px;z-index:5;pointer-events:none}.insline:before{content:'';position:absolute;left:-4px;top:-6px;width:9px;height:9px;border-radius:50%;background:var(--brand)}
 .seg .rsz{position:absolute;right:-6px;top:0;bottom:0;width:22px;pointer-events:auto;cursor:ew-resize;z-index:2;touch-action:none}
 .seg .rsz:after{content:"";position:absolute;right:11px;top:50%;width:7px;height:7px;transform:translateY(-50%);border-radius:50%;background:rgba(255,255,255,.95);box-shadow:0 0 0 1px rgba(0,0,0,.35)}
 .mwrap.lanes{--gut:0px}.lanes .gutter{border:0;overflow:hidden;min-width:0}.lanes .week{transition:none}.lanes .seg .bar{height:100%;border-radius:4px}
@@ -1095,14 +1096,22 @@ function dayFrame(s){
 const shiftS=(s,ns)=>s.mode==='period'&&s.end&&ns!==s.start?{...s,start:ns,end:addD(s.end,diffD(s.start,ns))}:{...s,start:ns};
 /* month drag up/down: the row under the finger says where in the order the band goes */
 function laneTime(s,L){GLANE=null;if(drag)drag.pick=null;
+  const line=(layer,y)=>{document.querySelectorAll('.insline').forEach(e=>{if(e.parentNode!==layer)e.remove()});let el=layer&&layer.querySelector('.insline');if(!layer){return}if(!el){el=document.createElement('div');el.className='insline';layer.appendChild(el)}el.style.top=y+'px'};
   // a sideways move with a little up/down wobble is not a reorder: the finger must travel most of a lane height
-  if(Math.abs(drag.y-drag.y0+(scrollY-drag.sy0))<LANEH()*ZM()*0.7)return drag.time0;const row=[...document.querySelectorAll('.week')].find(r=>L.date>=r.dataset.start&&L.date<=addD(r.dataset.start,6));if(!row)return drag.time0;
-  const ws=row.dataset.start,ly=LAY[ws],layer=row.querySelector('.bands');if(!ly||!layer)return drag.time0;
-  const li=Math.max(0,Math.floor((drag.y-layer.getBoundingClientRect().top)/(LANEH()*ZM())));GLANE={ws,li};const own=ly.lane[s.id];
-  if(li===own)return drag.time0;const col=diffD(ws,L.date);const ids=(ly.occ[Math.min(li,ly.occ.length-1)]||[]).filter(id=>id!==s.id);if(!ids.length)return drag.time0;
+  if(Math.abs(drag.y-drag.y0+(scrollY-drag.sy0))<LANEH()*ZM()*0.7){line(null);return drag.time0}const row=[...document.querySelectorAll('.week')].find(r=>L.date>=r.dataset.start&&L.date<=addD(r.dataset.start,6));if(!row){line(null);return drag.time0}
+  const ws=row.dataset.start,ly=LAY[ws],layer=row.querySelector('.bands');if(!ly||!layer){line(null);return drag.time0}
+  // the gap between two rows nearest the finger is where the band goes: before the row below it (after the last row at the bottom)
+  const n=ly.occ.length,own=ly.lane[s.id];const gi=Math.max(0,Math.min(n,Math.round((drag.y-layer.getBoundingClientRect().top)/(LANEH()*ZM()))));
+  if(own!=null&&(gi===own||gi===own+1)){line(null);return drag.time0}
+  const col=diffD(ws,L.date);const pickRow=li=>(ly.occ[li]||[]).filter(id=>id!==s.id);
+  let li=gi,after=false;let ids=li<n?pickRow(li):[];if(!ids.length){li=Math.min(gi,n)-1;after=true;while(li>=0&&!pickRow(li).length)li--;if(li<0){line(null);return drag.time0}ids=pickRow(li)}
   const t=sub(ids.find(id=>plan(sub(id)).idx[addD(ws,col)]!==undefined)||ids[0]);
-  const after=li>=ly.occ.length||(own!=null?li>own:t.time<=drag.time0);drag.pick={ws,t:t.id,after,date:L.date};
-  const it=itemsOn(L.date).find(i=>i.s===t);return after?(it?it.end:spanSegs(t.time,t.mins).pop()[1]):(it?it.segs[0][0]:t.time)}
+  GLANE={ws,li:gi};drag.pick={ws,t:t.id,after,date:L.date};line(layer,gi*LANEH());
+  const posOf=q=>{const it=itemsOn(L.date).find(i=>i.s===q);return it?[it.segs[0][0],it.end]:[spanSegs(q.time,q.mins)[0][0],spanSegs(q.time,q.mins).pop()[1]]};
+  if(after)return posOf(t)[1];
+  // before a row: the band starts where the row above it ends (that is where insertChain puts it)
+  for(let k=li-1;k>=0;k--){const pr=pickRow(k);if(pr.length){const q=sub(pr.find(id=>plan(sub(id)).idx[addD(ws,col)]!==undefined)||pr[0]);return posOf(q)[1]}}
+  return posOf(t)[0]}
 function dragFrame(){
   raf=0;if(!drag||!drag.moved)return;const s=sub(drag.id);
   if(drag.rs)return resizeFrame(s);
@@ -1112,11 +1121,12 @@ function dragFrame(){
   const L=locate(drag.x,drag.y);if(!L)return;
   const {dayStart:a,dayEnd:b}=S.cfg;
   const ns=addD(drag.start0,diffD(drag.d0,L.date));
-  const nt=clamp(Math.round(laneTime(s,L)/10)*10,a*60,Math.max(a*60,b*60-Math.min(s.mins,(b-a)*60)));
+  const lt=laneTime(s,L);const nt=lt===drag.time0?lt:clamp(Math.round(lt/10)*10,a*60,Math.max(a*60,b*60-Math.min(s.mins,(b-a)*60)));
   const key=ns+'|'+nt;const sm=shiftS(s,ns);
   if(key!==drag.key){drag.key=key;
-    const ok=drag.pick?nt:resolveTime(sm,ns,nt,nt-drag.target.time); // reorder: the band goes exactly where it is dropped (끼워 넣기), nothing bounces it away
-    if(ok!=null){drag.target={start:ns,time:ok};renderGhost(sm,ns,ok)}
+    // the band goes exactly where it is dropped (끼워 넣기): nothing bounces it to a free slot. Reorder / a plain date move keep the time, overlaps are pushed at drop
+    const ok=drag.pick||(ns===drag.start0&&nt===drag.time0)||(nt===drag.time0)?nt:resolveTime(sm,ns,nt,nt-drag.target.time);drag.ldate=L.date;
+    if(ok!=null){drag.target={start:ns,time:ok};if(drag.pick)document.querySelectorAll('.seg.ghost,.wblk.ghost').forEach(e=>e.remove());else renderGhost(sm,ns,ok)}
   }
   const t=drag.target;const tip=document.getElementById('tip');tip.classList.remove('hidden');
   tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
@@ -1134,7 +1144,7 @@ window.addEventListener('pointermove',e=>{
 },{passive:false});
 function endDrag(cancel){
   if(!drag)return;GLANE=null;const d=drag;drag=null;clearInterval(autoT);if(raf){cancelAnimationFrame(raf);raf=0}
-  document.body.classList.remove('dragging');document.getElementById('tip').classList.add('hidden');
+  document.body.classList.remove('dragging');document.getElementById('tip').classList.add('hidden');document.querySelectorAll('.insline').forEach(e=>e.remove());
   const s=sub(d.id);const before0=JSON.stringify(S.subjects);const uj0=UJ;UKEEP=1;
   const pushU=()=>{if(ubody()!==uj0){UST.push(uj0);if(UST.length>10)UST.shift()}paintUndo()};
   document.querySelectorAll('.seg.rs').forEach(x=>x.classList.remove('rs'));
@@ -1148,7 +1158,9 @@ function endDrag(cancel){
     if(d.target.start!==s.start){clearDayEdits(s);if(s.parent){s.autoStart=false;s.chain=false}if(s.mode==='period'&&s.end)s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s);PC.delete(s.id)}
     const ids=ly.order.filter(x=>ly.lane[x.id]!=null&&x.id!==s.id).map(x=>x.id);let k=ids.indexOf(d.pick.t);k=k<0?ids.length:k+(d.pick.after?1:0);ids.splice(k,0,s.id);
     insertChain(ids,s.id,S.cfg.pack!==false,d.pick.date);save();renderHeader()}
-  else if(d.moved&&!cancel&&s&&(d.target.start!==s.start||d.target.time!==s.time)){if(d.target.start!==s.start)clearDayEdits(s);if(s.parent&&d.target.start!==s.start){s.autoStart=false;s.chain=false}if(s.mode==='period'&&s.end&&d.target.start!==s.start){s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s)}s.start=d.target.start;s.time=d.target.time;PC.delete(s.id);save();renderHeader()}
+  else if(d.moved&&!cancel&&s&&(d.target.start!==s.start||d.target.time!==s.time)){if(d.target.start!==s.start)clearDayEdits(s);if(s.parent&&d.target.start!==s.start){s.autoStart=false;s.chain=false}if(s.mode==='period'&&s.end&&d.target.start!==s.start){s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s)}s.start=d.target.start;const tm0=s.time;s.time=d.target.time;PC.delete(s.id);
+    if(!d.wk&&!d.rs&&tm0===s.time&&d.ldate){const o0=spanSegs(s.time,s.mins)[0][0];const ids=itemsOn(d.ldate).filter(x=>!x.oo).map(x=>[x.s===s?o0:x.segs[0][0],x.s.id]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);if(!ids.includes(s.id))ids.push(s.id);insertChain(ids,s.id,false,d.ldate,true)}
+    save();renderHeader()}
   const rr=()=>{if(S.ui.view==='week'){const sc=V.querySelector('.wscroll'),sl=sc?sc.scrollLeft:0;renderWeek();const n=V.querySelector('.wscroll');if(n)n.scrollLeft=sl}
   else{renderHeader();renderBands()}};rr();
   /* a drop that runs the day past its end: same rule as saving (ask up to the limit, move the last subject beyond it) */
@@ -1278,7 +1290,7 @@ function rechain(ids){
   PC.clear();return act.length}
 /* month drag up/down = 끼워 넣기: the dragged subject starts right where the subject above it ends; subjects below move only as far as they overlap (a gap below absorbs the push); subjects above don't move.
    pull (빈자리 자동으로 채우기 on): the subjects that followed it back-to-back move up into the slot it left */
-function insertChain(ids,sid,pull,date){
+function insertChain(ids,sid,pull,date,keep){
   const s=sub(sid);const act=ids.map(sub).filter(x=>x&&!projEnd(x).done&&plan(x).end>=TODAY);const k=act.indexOf(s);if(!s||k<0)return 0;
   const ds=new Map(act.map(x=>[x.id,plan(x).dates.filter(d=>d>=TODAY)]));const dss=new Map(act.map(x=>[x.id,new Set(ds.get(x.id))]));
   const share=(a,b)=>{const o=dss.get(b.id);for(const d of ds.get(a.id))if(o.has(d))return true;return false};
@@ -1290,11 +1302,11 @@ function insertChain(ids,sid,pull,date){
   const set=(x,t)=>{let sg=spanSegs(t,x.mins);const lim=S.cfg.dayEnd*60;
     if(sg[sg.length-1][1]>lim){const t2=Math.max(S.cfg.dayStart*60,lim-Math.min(x.mins,(S.cfg.dayEnd-S.cfg.dayStart)*60));if(t2<sg[0][0])sg=spanSegs(t2,x.mins)}
     x.time=sg[0][0];if(x.ov)x.ov={};clearDayEdits(x);PC.clear()};
-  if(pull){const [o0,o1]=eff(s,null);let cur=o0,ce=o1,gOld=-1,gNew=0;
+  if(pull&&!keep){const [o0,o1]=eff(s,null);let cur=o0,ce=o1,gOld=-1,gNew=0;
     const rest=act.filter(x=>x!==s&&share(x,s)).map(x=>[x,eff(x,s)]).filter(([x,[a]])=>a>=o1-.5).sort((a,b)=>a[1][0]-b[1][0]);
     for(const [x,[a,e]] of rest){if(Math.abs(a-gOld)>.5){if(a>ce+.5)break;gOld=a;gNew=cur}set(x,gNew);cur=Math.max(cur,own(x,s)[1]);ce=Math.max(ce,e)}}
   const prev=act.slice(0,k).reverse().find(x=>share(x,s)),next=act.slice(k+1).find(x=>share(x,s));
-  set(s,prev?eff(prev,s)[1]:next?eff(next,s)[0]:s.time);
+  if(!keep)set(s,prev?eff(prev,s)[1]:next?eff(next,s)[0]:s.time);
   const done=[s];
   act.slice(k+1).forEach(x=>{let t=-1;const x0=own(x,null)[0];done.forEach(p=>{if(share(x,p)){const e=own(p,x)[1];if(x0<e-.5)t=Math.max(t,e)}});if(t>=0){set(x,t);done.push(x)}});
   PC.clear();return act.length}
