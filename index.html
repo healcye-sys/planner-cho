@@ -638,10 +638,10 @@ const PC=new Map();let CH=null,ORDC=null;
 let DEC=null,ITC=new Map(); /* day-end / day-items caches, only while the overflow gate runs */
 {const c=PC.clear.bind(PC),dl=PC.delete.bind(PC);PC.clear=()=>{ORDC=null;if(DEC){DEC.clear();ITC.clear()}c()};PC.delete=k=>{ORDC=null;if(DEC){DEC.clear();ITC.clear()}return dl(k)}}
 // everything except S.ui (view/month/etc.) is synced; S.at = time of the last real change
-const bodyJ=()=>{const {ui,at,...r}=S;return JSON.stringify(r)};
+const bodyJ=()=>{const {ui,at,uat,...r}=S;return JSON.stringify(r)};
 let LASTJ=bodyJ();
-function stamp(){const j=bodyJ();if(j!==LASTJ){LASTJ=j;S.at=Date.now();schedulePush()}}
-const ubody=()=>{const {ui,at,...r}=S;return JSON.stringify(r)};let UNDO=null,UNDOING=0,UJ=ubody();
+function stamp(){const j=bodyJ();if(j!==LASTJ){LASTJ=j;S.at=Math.max(Date.now(),(S.at||0)+1);if(!SILENT)S.uat=S.at;schedulePush()}}
+const ubody=()=>{const {ui,at,uat,...r}=S;return JSON.stringify(r)};let UNDO=null,UNDOING=0,UJ=ubody();
 function save(){CH=null;syncRounds();const uj=ubody();if(uj!==UJ&&!UNDOING)UNDO={j:UJ,t:Date.now()};UJ=uj;PC.clear();stamp();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('저장에 실패했어요 (저장공간 확인)')}}
 function saveUI(){stamp();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const sub=id=>S.subjects.find(x=>x.id===id);
@@ -1782,39 +1782,65 @@ function login(){const pr=new firebase.auth.GoogleAuthProvider();pr.setCustomPar
 const SYNCK=KEY+'-synced';
 const syncedUid=()=>{try{return localStorage.getItem(SYNCK)}catch(e){return null}};
 const markSynced=()=>{try{if(SY.user)localStorage.setItem(SYNCK,SY.user.uid)}catch(e){}};
-function keepLocalCopy(){try{const {ui,...rest}=S;localStorage.setItem(KEY+'-local-'+TODAY,JSON.stringify(rest))}catch(e){}}
+function keepLocalCopy(){try{const {ui,...rest}=S;const n=new Date();localStorage.setItem(KEY+'-local-'+TODAY+' '+String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'),JSON.stringify(rest));
+  localCopies().slice(6).forEach(k=>localStorage.removeItem(k))}catch(e){}}
+/* which cloud version this device's data was last in step with (per account) */
+const BASEK=KEY+'-base';
+function getBase(){if(SY.base!=null)return SY.base;try{const v=localStorage.getItem(BASEK)||'';const i=v.lastIndexOf(':');if(i>0&&v.slice(0,i)===SY.user.uid)return +v.slice(i+1)}catch(e){}return null}
+function setBase(a){SY.base=a;try{localStorage.setItem(BASEK,SY.user.uid+':'+a)}catch(e){}}
+const syBusy=()=>drag||hold||!M.classList.contains('hidden');
+/* a newer cloud version arrived. If this device changed nothing since its last sync, take it.
+   If both changed, the cloud copy (another device's real edits) wins and this device's copy is kept aside, never pushed over it */
+function takeRemote(d){const b=getBase(),la=S.at||0;
+  const dirty=b==null?la>d.at:la>b;
+  if(d.at===b){if(dirty)schedulePush();return}
+  if(syBusy()){SY.pending=d;return 'wait'}
+  if(dirty&&(S.uat||0)>(d.uat||d.at)){setBase(d.at);schedulePush();return} // this device has the newer real edit: it wins
+  if(dirty){const {ui,...rest}=S;if(JSON.stringify(rest)!==d.json){keepLocalCopy();setTimeout(()=>toast('다른 기기에서 바꾼 내용을 불러왔어요 · 이 기기에서 바꾼 건 설정 > 이전 내용 되살리기에 보관했어요'),500)}}
+  if(d.at!==la||dirty)adopt(d);setBase(d.at)}
 function onRemote(snap){
+  if(snap.metadata.hasPendingWrites)return; // our own write echoing back
   const live=!snap.metadata.fromCache;
-  if(!live&&!SY.live){if(snap.exists){const d=snap.data();if(d.at>(S.at||0)&&syncedUid()===SY.user.uid)adopt(d)}return}
+  if(!live&&!SY.live){if(snap.exists&&syncedUid()===SY.user.uid){const d=snap.data(),b=getBase();if(b!=null&&d.at!==b&&(S.at||0)<=b&&!syBusy()){adopt(d);setBase(d.at)}}return}
   const first=!SY.live;SY.live=true;
   if(!snap.exists){if(S.subjects.length||S.exams.length)pushNow();else setSync('☁ 동기화됨');markSynced();return}
-  const d=snap.data(),la=S.at||0;SY.lastJson=d.json;SY.lastAt=d.at;if(d.prev){SY.prevJson=d.prev;SY.prevAt=d.prevAt}
+  const d=snap.data();SY.lastJson=d.json;SY.lastAt=d.at;if(d.prev){SY.prevJson=d.prev;SY.prevAt=d.prevAt}
   let cloudN=0;try{cloudN=(JSON.parse(d.json).subjects||[]).length}catch(e){}
   if(first&&syncedUid()!==SY.user.uid){ // first sync of this device with this account: cloud wins
     const {ui,...rest}=S;if((S.subjects.length||S.exams.length)&&JSON.stringify(rest)!==d.json){keepLocalCopy();setTimeout(()=>toast('클라우드 내용을 불러왔어요 · 이 기기에 있던 내용은 따로 보관했어요'),500)}
-    adopt(d);markSynced();return}
-  if(!S.subjects.length&&cloudN){adopt(d);markSynced();return} // never push an empty planner over a filled one
-  if(d.at>la){if(drag||hold||!M.classList.contains('hidden')){SY.pending=d;return}adopt(d)}
-  else if(d.at<la)pushNow();
+    adopt(d);setBase(d.at);markSynced();return}
+  if(!S.subjects.length&&cloudN){adopt(d);setBase(d.at);markSynced();return} // never push an empty planner over a filled one
+  if(getBase()==null&&d.dev===DEV)setBase(d.at); // older version: cloud was last written by this device
+  if(takeRemote(d)==='wait')return;
   markSynced();
-  if(!snap.metadata.hasPendingWrites&&!SY.writing)setSync('☁ 동기화됨');
+  if(!SY.writing)setSync('☁ 동기화됨');
 }
 function adopt(d){try{const x=JSON.parse(d.json);const b=defState();const ui=S.ui;S={...b,...x,cfg:{...b.cfg,...x.cfg},ui,at:d.at};fixWildTimes();
   S.subjects.forEach(v=>{v.days=normDays(v.days);if(!(v.pre>0))v.pre=0});
   if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
   PC.clear();LASTJ=bodyJ();UJ=ubody();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
   if(typeof applyTheme==='function')applyTheme();const y=scrollY;render();scrollTo({top:y});setSync('☁ 동기화됨')}catch(e){}}
-function applyPending(){if(SY.pending&&!drag&&!hold&&M.classList.contains('hidden')){const d=SY.pending;SY.pending=null;if(d.at>(S.at||0))adopt(d)}}
+function applyPending(){if(SY.pending&&!syBusy()){const d=SY.pending;SY.pending=null;takeRemote(d);markSynced()}}
 async function pushNow(){
   if(!SY.on||!SY.live)return;if(SY.writing){SY.again=true;return}
   {let n=0;try{n=(JSON.parse(SY.lastJson||'{}').subjects||[]).length}catch(e){}if(!S.subjects.length&&n)return}
   SY.writing=true;setSync(navigator.onLine?'저장 중…':'오프라인 · 연결되면 올라가요');
-  try{const {ui,...rest}=S;const json=JSON.stringify(rest),doc={json,at:S.at||Date.now(),dev:DEV};if(SY.lastJson&&SY.lastJson!==json){doc.prev=SY.lastJson;doc.prevAt=SY.lastAt||0}
-    await SY.ref.set(doc);SY.lastJson=json;SY.lastAt=doc.at;markSynced();setSync('☁ 동기화됨')}
-  catch(e){setSync('동기화 오류 · 이 기기엔 저장됨',1)}
+  const {ui,...rest}=S;const json=JSON.stringify(rest),at=S.at||Date.now(),base=getBase();let res='ok';
+  try{await firebase.firestore().runTransaction(async tx=>{const cur=await tx.get(SY.ref);
+      if(cur.exists){const c=cur.data();if(base!=null&&c.at!==base&&c.at!==at){res='stale';return}
+        if(c.json===json){res='same';return}
+        tx.set(SY.ref,{json,at,uat:S.uat||at,dev:DEV,prev:c.json,prevAt:c.at||0})}
+      else tx.set(SY.ref,{json,at,uat:S.uat||at,dev:DEV})});
+    if(res==='stale'){setSync('☁ 다른 기기 내용 받는 중…')}
+    else{if(res==='ok'){SY.prevJson=SY.lastJson;SY.prevAt=SY.lastAt}SY.lastJson=json;SY.lastAt=at;setBase(at);markSynced();setSync('☁ 동기화됨')}}
+  catch(e){setSync(navigator.onLine?'동기화 오류 · 이 기기엔 저장됨':'오프라인 · 연결되면 올라가요',1);clearTimeout(SY.retry);SY.retry=setTimeout(schedulePush,8000)}
   SY.writing=false;if(SY.again){SY.again=false;pushNow()}
 }
-function schedulePush(){if(!SY.on)return;clearTimeout(SY.timer);SY.timer=setTimeout(pushNow,600)}
+addEventListener('online',()=>schedulePush());
+/* leaving the app (closing, switching apps): upload right away instead of waiting */
+function flushPush(){if(SY.timer){clearTimeout(SY.timer);SY.timer=null;pushNow()}}
+addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushPush()});addEventListener('pagehide',flushPush);
+function schedulePush(){if(!SY.on)return;clearTimeout(SY.timer);SY.timer=setTimeout(()=>{SY.timer=null;pushNow()},600)}
 function syncBox(){
   const cfg=getFbCfg();
   if(!cfg)return `<div class="box" id="syncBox"><div class="hint" style="margin-bottom:8px">Firebase 콘솔에서 복사한 <b>firebaseConfig</b>를 그대로 붙여넣으세요.</div>
@@ -2000,7 +2026,7 @@ function restoreData(d){const b=defState();S={...b,...d,cfg:{...b.cfg,...d.cfg},
 const localCopies=()=>{const o=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(KEY+'-local-'))o.push(k)}}catch(e){}return o.sort().reverse()};
 function restoreChoice(){const L=localCopies();let prevN=0;try{prevN=SY.prevJson?(JSON.parse(SY.prevJson).subjects||[]).length:0}catch(e){}
   const rows=[];if(SY.prevJson)rows.push(`<button class="lbtn" data-act="restorePrev">☁ 직전 클라우드 버전 (${SY.prevAt?md(new Date(SY.prevAt).toISOString().slice(0,10))+' '+new Date(SY.prevAt).toTimeString().slice(0,5):''} · 과목 ${prevN}개)</button>`);
-  L.forEach(k=>{let n=0;try{n=(JSON.parse(localStorage.getItem(k)).subjects||[]).length}catch(e){}rows.push(`<button class="lbtn" data-act="restoreLocal" data-k="${esc(k)}">📱 이 기기에 따로 보관한 내용 (${md(k.slice(-10))} · 과목 ${n}개)</button>`)});
+  L.forEach(k=>{let n=0;try{n=(JSON.parse(localStorage.getItem(k)).subjects||[]).length}catch(e){}const ts=k.slice(KEY.length+7);rows.push(`<button class="lbtn" data-act="restoreLocal" data-k="${esc(k)}">📱 이 기기에 따로 보관한 내용 (${md(ts.slice(0,10))}${ts.slice(10)} · 과목 ${n}개)</button>`)});
   openModal(`<h3>이전 내용 되살리기</h3><div class="hint" style="margin-bottom:10px">고른 내용으로 바뀌고, 다른 기기에도 같이 반영돼요</div>${rows.join('')||'<div class="empty">되살릴 이전 내용이 없어요</div>'}<div class="sheet-acts"><div class="spacer"></div><button class="btn" data-act="close">닫기</button></div>`)}
 document.getElementById('importFile').addEventListener('change',e=>{
   const f=e.target.files[0];if(!f)return;const r=new FileReader();
