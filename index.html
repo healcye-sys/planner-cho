@@ -1803,7 +1803,7 @@ function askClash(so,want,oldT,cf,before,isNew){
   const sw=canSwap?[[c,oldT],[so,want]].sort((x,y)=>x[1]-y[1]).map(([s,t])=>row(s,t,s.id===c.id?'⇄':'')).join(''):'';
   const el=document.createElement('div');el.className='ckdim';
   el.innerHTML=`<div class="ckbox"><div class="ckh">${hm(itemFor(c,d).segs[0][0])}에 ${jo(c.name,'이','가')} 있어요</div>
-   <div class="cks">${jo(so.name,'을','를')} ${hm(want)}로 옮기면 겹쳐요.<br>${jo(c.name,'은','는')} 어떻게 할까요?</div>
+   <div class="cks">${jo(so.name,'을','를')} ${hm(want)}${isNew?'에 넣으면':'로 옮기면'} 겹쳐요.<br>${jo(c.name,'은','는')} 어떻게 할까요?</div>
    <button class="ckopt pri" data-k="push"><div class="ckt"><b>뒤로 밀기</b><em>기본</em></div><div class="ckd">${esc(c.name)}부터 뒤 과목들이 한 칸씩 밀려요</div><div class="ckl">${pr}</div></button>
    ${canSwap?`<button class="ckopt" data-k="swap"><div class="ckt"><b>자리 바꾸기</b></div><div class="ckd">${jo(c.name,'이','가')} ${esc(so.name)} 자리(${hm(oldT)})로 가요</div><div class="ckl">${sw}</div></button>`:''}
    <button class="ckno" data-k="no">취소</button></div>`;
