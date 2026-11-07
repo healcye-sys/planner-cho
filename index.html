@@ -135,7 +135,7 @@ main{padding:0 14px}
 .lanes .seg .rsz{right:0;width:20px}.lanes .seg .rsz:after{display:none}.lanesg .bar{position:relative}.lanesg .bar .rzg{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:12px;height:8px;background-color:currentColor;opacity:.9;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 8%27%3E%3Cpath d=%27M1 4h10M3.5 1.2L1 4l2.5 2.8M8.5 1.2L11 4 8.5 6.8%27 fill=%27none%27 stroke=%27black%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 8%27%3E%3Cpath d=%27M1 4h10M3.5 1.2L1 4l2.5 2.8M8.5 1.2L11 4 8.5 6.8%27 fill=%27none%27 stroke=%27black%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center/contain no-repeat}.seg:not(.lanesg) .rzg{display:none}
 .lanes .seg:has(.rsz) .bar{padding-right:18px}
 .seg.hold.rs .rsz:after,.seg.lift.rs .rsz:after{background:var(--ink)}
-.seg.ghost .bar{background:transparent!important;border:2px dashed var(--ink);box-shadow:none;opacity:.55}
+.seg.ghost .bar{background:transparent!important;border:2px dashed var(--ink);box-shadow:none;opacity:.9}
 .seg.flash .bar{animation:flash 1.2s ease 2}
 @keyframes flash{50%{box-shadow:0 0 0 3px #ffd54a,0 0 12px #ffd54a}}
 .seg .dots{margin-left:auto;padding-left:3px;letter-spacing:-1px;font-size:9px;opacity:.9}
@@ -865,7 +865,7 @@ function segsHTML(s,p,ws,cls,lane){
     const d0=addD(ws,c0),d1=addD(ws,c1);
     const contL=p.idx[d0]>0&&diffD(p.dates[p.idx[d0]-1],d0)===1&&c0===0;
     const contR=p.idx[d1]<p.dates.length-1&&c1===6&&diffD(d1,p.dates[p.idx[d1]+1])===1;
-    let dots='';if(!cls)for(let c=c0;c<=c1;c++){const m=ch[addD(ws,c)];dots+=m==='o'?'●':m==='t'?'◐':m==='x'?'✕':''}
+    const dots='';
     return `<div class="seg ${useL?'lanesg':''} ${cls||''} ${contL?'cont-l':''} ${contR?'cont-r':''}" data-id="${s.id}"
       style="left:calc(${c0/7*100}% + 1px);width:calc(${(c1-c0+1)/7*100}% - 2px);${useL?`top:${lane*LH+1}px;height:${LH-2}px;padding:0`:`top:calc(${top}% - 6px);height:calc(${ht}% + 12px)`}">
       <div class="bar" style="background:${s.color};color:${textOn(s.color)};font-size:${fs}px">${fs?`<span style="overflow:hidden;text-overflow:ellipsis">${cls?'':esc(s.name)}</span>${dots?`<span class="dots">${dots}</span>`:''}`:''}${useL&&!cls&&d1===p.end?'<b class="rzg"></b>':''}</div>${!cls&&d1===p.end?`<i class="rsz" title="꾹 눌러 끌면 종료일 조절" style="color:${textOn(s.color)}"></i>`:''}</div>`;
@@ -873,11 +873,19 @@ function segsHTML(s,p,ws,cls,lane){
 }
 /* A: one subject in focus -> only its band is drawn strong and can be grabbed */
 function applyFocus(){let st=document.getElementById('fxst');if(!st){st=document.createElement('style');st.id='fxst';document.head.appendChild(st)}
-  if(S.ui.focus&&!sub(S.ui.focus))S.ui.focus=null;const id=S.ui.focus;const w=V.querySelector('.mwrap');if(w)w.classList.toggle('bfx',!!id);
-  const q=id?`[data-id="${String(id).replace(/"/g,'')}"]`:'';
-  st.textContent=id?`.bfx .seg:not(.ghost){opacity:.13}.bfx .seg${q}{opacity:1;z-index:3}.bfx .seg${q} .bar{box-shadow:0 0 0 2px var(--ink)}.bfx .seg:not(${q}),.bfx .seg:not(${q}) *{pointer-events:none!important}`:'';
-  V.querySelectorAll('.chips [data-id]').forEach(b=>b.classList.toggle('on',b.dataset.id===(id||'')));
-  const on=V.querySelector('.chips .on');if(on&&id)on.scrollIntoView({inline:'nearest',block:'nearest'})}
+  const ids=focusIds();const w=V.querySelector('.mwrap');if(w)w.classList.toggle('bfx',!!ids.length);
+  const q=ids.map(id=>`[data-id="${String(id).replace(/"/g,'')}"]`),on1=q.map(x=>`.bfx .seg${x}`).join(','),off=q.map(x=>`:not(${x})`).join('');
+  st.textContent=ids.length?`.bfx .seg:not(.ghost){opacity:.13}${on1}{opacity:1;z-index:3}${q.map(x=>`.bfx .seg${x} .bar`).join(',')}{box-shadow:0 0 0 2px var(--ink)}.bfx .seg${off},.bfx .seg${off} *{pointer-events:none!important}`:'';
+  V.querySelectorAll('.chips [data-id]').forEach(b=>b.classList.toggle('on',b.dataset.id?ids.includes(b.dataset.id):!ids.length));
+  const on=S.ui.flast&&V.querySelector(`.chips [data-id="${S.ui.flast}"].on`);if(on)on.scrollIntoView({inline:'nearest',block:'nearest'})}
+/* month chips: several subjects can be in focus (S.ui.focus = array of ids) */
+function focusIds(){let f=S.ui.focus;if(!f)f=[];else if(!Array.isArray(f))f=[f];f=f.filter(id=>sub(id));if(!f.length)f=null;S.ui.focus=f;return f||[]}
+function toggleFocus(id){if(!id){S.ui.focus=null;S.ui.flast=null;saveUI();applyFocus();return}
+  const f=focusIds();const i=f.indexOf(id);if(i>=0){f.splice(i,1);S.ui.flast=null}else{f.push(id);S.ui.flast=id}S.ui.focus=f.length?f:null;saveUI();
+  // a newly picked subject that isn't in this month: jump to the month it starts in
+  const s=i<0&&sub(id);if(s&&S.ui.view==='month'){const p=plan(s),m=S.ui.month||TODAY.slice(0,7);
+    if(p.dates.length&&!p.dates.some(d=>d.slice(0,7)===m)){S.ui.month=p.dates[0].slice(0,7);saveUI();const sc=V.querySelector('.chips'),sl=sc?sc.scrollLeft:0;render();const n=V.querySelector('.chips');if(n)n.scrollLeft=sl;applyFocus();return}}
+  applyFocus()}
 /* B: long-press where several bands are stacked -> pick one */
 let PCL=null;function closePick(){document.querySelectorAll('.bpick').forEach(x=>x.remove());if(PCL){document.removeEventListener('pointerdown',PCL,true);PCL=null}}
 function bandsNear(x,y){const seen=new Map();document.querySelectorAll('.seg:not(.ghost)').forEach(g=>{const r=g.querySelector('.bar').getBoundingClientRect();
@@ -982,8 +990,9 @@ function resizeFrame(s){
     if(n>=1){const before=planRaw(s).before;const daily=Math.max(1e-6,(s.total-before)/n);
       drag.target={start:s.start,time:s.time,daily,end:en,n};
       document.querySelectorAll('.seg.ghost').forEach(e=>e.remove());
-      const t={...s,daily};const p=planRaw(t);
-      document.querySelectorAll('.bands').forEach(layer=>{const h=segsHTML(t,p,layer.dataset.start,'ghost');if(h)layer.insertAdjacentHTML('beforeend',h)})}}
+      const t={...s,daily,mode:'period',end:en};const p=planRaw(t);
+      drag.els.forEach(el=>el.style.opacity='.35');
+      document.querySelectorAll('.bands').forEach(layer=>{const ws=layer.dataset.start,ly=LAY[ws];const h=segsHTML(t,p,ws,'ghost',ly?(ly.lane[s.id]!=null?ly.lane[s.id]:ly.occ.length):null);if(h)layer.insertAdjacentHTML('beforeend',h)})}}
   const t=drag.target;
   if(t.end)showTip(drag.x,drag.y,s.name,`${mdw(planRaw(s).dates[0])} ~ ${mdw(t.end)}`,`공부일 ${t.n}일 · 하루 ${perDay(t.daily)}${esc(s.unit||'')}`);
   else showTip(drag.x,drag.y,s.name,`${mdw(planRaw(s).dates[0])} ~ ${mdw(planRaw(s).end)}`,'좌우로 끌어 종료일 조절');
@@ -1950,8 +1959,8 @@ document.addEventListener('click',e=>{
     case 'editSub':closePick();openSubject(id);break;
     case 'editDraft':openSubject(id);break;
     case 'delDraft':ask('이 날짜 미정 과목을 삭제할까요?','삭제',()=>{S.drafts=(S.drafts||[]).filter(x=>x.id!==id);save();closeModal();render()});break;
-    case 'focusSub':S.ui.focus=id&&S.ui.focus!==id?id:null;saveUI();applyFocus();break;
-    case 'pickFocus':{closePick();S.ui.focus=id;saveUI();applyFocus();const s=sub(id);if(s)toast(`'${s.name}'만 보여요 · 꾹 눌러 끌 수 있어요 · 다시 보려면 "전체"`);break}
+    case 'focusSub':toggleFocus(id);break;
+    case 'pickFocus':{closePick();S.ui.focus=[id];S.ui.flast=id;saveUI();applyFocus();const s=sub(id);if(s)toast(`'${s.name}'만 보여요 · 꾹 눌러 끌 수 있어요 · 다시 보려면 "전체"`);break}
     case 'xAdd':openAddDay(el.dataset.date,null);break;
     case 'xTog':{el.classList.toggle('on');const n=SH.querySelectorAll('.xsel.on').length,b=document.getElementById('xSel');b.hidden=!n;b.textContent=`${n}과목 추가`;break}
     case 'xAddSel':{const d=SH.dataset.xd,tm=SH.dataset.xt,sel=[...SH.querySelectorAll('.xsel.on')].map(e=>sub(e.dataset.id)).filter(Boolean);if(!sel.length)break;
