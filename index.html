@@ -781,6 +781,12 @@ function itemsOn1(date){
 /* auto pull-up: subjects whose usual times run back-to-back form a chain; on a day when some of the chain is
    missing (finished, not a study day, skipped), the rest close the gap from the chain's start time.
    A real gap between usual times breaks the chain and is kept. Per-day moves (s.ov) stay where they are. */
+/* 켜기 → 끄기: 오늘부터 지금 보이는(당겨진) 시간을 날짜별로 굳힘 (aslide=2, ↺ 없음). 다시 켜면 지움 */
+function freezePack(){let last=TODAY;for(const s of S.subjects){const e=plan(s).end;if(e&&e>last)last=e}
+  let d=TODAY,n=0,g=0;while(d<=last&&g<400){for(const x of itemsOn(d)){if(x.oo)continue;const s=x.s;if(s.ov&&s.ov[d]!=null)continue;
+    if(Math.abs(x.time-s.time)>.5){(s.ov||(s.ov={}))[d]=x.time;(s.aslide||(s.aslide={}))[d]=2;n++}}d=addD(d,1);g++}
+  if(n)PC.clear();return n}
+function unfreezePack(){let n=0;for(const s of S.subjects)if(s.aslide)for(const d in s.aslide)if(s.aslide[d]===2){delete s.aslide[d];if(s.ov)delete s.ov[d];n++}if(n)PC.clear();return n}
 function packPrev(on){
   const row=(t,n,c,cls)=>`<div class="pvr ${cls||''}"><code>${t}</code>${c?`<i style="background:${c}"></i>`:''}<span>${n}</span></div>`;
   const before=row('09:00','맹자 강의','#A8D8E0')+row('11:00','생리학','#F6C1C8','hl')+row('12:00','🍚 점심','', 'ml')+row('13:00','한문','#F7D79B');
@@ -2096,7 +2102,8 @@ function syncBox(){
 
 /* ========== confirm & backup ========== */
 let ASK=null;
-function ask(msg,label,fn){ASK=fn;openModal(`<h3>확인</h3><p>${esc(msg)}</p><div class="sheet-acts"><div class="spacer"></div><button class="btn" data-act="close">취소</button><button class="btn" data-act="askYes" style="background:var(--red);border-color:var(--red);color:#fff">${esc(label)}</button></div>`)}
+let ASKNO=null;
+function ask(msg,label,fn,no,plain){ASK=fn;ASKNO=no||null;openModal(`<h3>확인</h3><p>${esc(msg)}</p><div class="sheet-acts"><div class="spacer"></div><button class="btn" data-act="close">취소</button><button class="btn${plain?' pri':''}" data-act="askYes" ${plain?'':'style="background:var(--red);border-color:var(--red);color:#fff"'}>${esc(label)}</button></div>`)}
 async function exportBackup(){
   const data=JSON.stringify(S,null,1),filename=`한의대플래너_백업_${TODAY}.json`;
   let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){}
@@ -2204,7 +2211,7 @@ document.addEventListener('click',e=>{
     case 'xDelOne':{S.ones=(S.ones||[]).filter(o=>o.id!==id);delete S.checks[id];save();closeModal();render();toast('지웠어요');break}
     case 'saveSub':saveSubject();break;
     case 'delSub':delSubject(id);break;
-    case 'close':ASK=null;closeModal();break;
+    case 'close':{const g=ASKNO;ASK=null;ASKNO=null;closeModal();if(g)g();break}
     case 'newExam':openExam(null);break;
     case 'editExam':openExam(id);break;
     case 'editTitle':openModal(`<h3>플래너 제목</h3><div class="fld"><input class="inp" id="tName" maxlength="40" value="${esc(S.cfg.title||'📚 한의대 편입 플래너')}"></div>
@@ -2226,7 +2233,10 @@ document.addEventListener('click',e=>{
     case 'pickColor':S.cfg.themeColor=el.dataset.c;saveUI();applyTheme();SH.querySelectorAll('.hive polygon').forEach(b=>b.classList.toggle('on',b===el));hivePreview();break;
     case 'pickTheme':S.cfg.theme=el.dataset.k;saveUI();applyTheme();SH.querySelectorAll('[data-act=pickTheme]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'pickLate':S.cfg.lateMax=+el.dataset.k;save();render();SH.querySelectorAll('[data-act=pickLate]').forEach(b=>b.classList.toggle('on',b===el));break;
-    case 'pickPack':{const was=S.cfg.pack!==false;S.cfg.pack=el.dataset.k==='on';
+    case 'pickPack':{const was=S.cfg.pack!==false,on=el.dataset.k==='on';if(was===on)break;
+      // 끄기: 확인창 → 오늘부터 보이는 시간 그대로 굳히고 끔 (취소하면 설정 창으로)
+      if(!on){ask('지금 끄면 오늘부터 보이는 시간 그대로 고정돼요. 과목별 시작 시간을 고쳐야 할 수도 있어요.','확인',()=>{freezePack();S.cfg.pack=false;CH=null;save();render();openSettings()},()=>openSettings(),true);break}
+      S.cfg.pack=true;unfreezePack();
       // 다시 켜면: 끄기 동안 다음 날로 보낸 과목을 자리가 있으면 원래 날로 (넘치는 날이 없어도 한 번 정리)
       if(!was&&S.cfg.pack&&S.subjects.length){S.subjects.forEach(so=>{let ch=false;
           for(const d in so.askip||{})if(so.askip[d]===2){delete so.askip[d];if(so.skip)delete so.skip[d];ch=true}
@@ -2251,7 +2261,7 @@ document.addEventListener('click',e=>{
     case 'install':if(INST){INST.prompt();INST.userChoice.finally(()=>{INST=null;document.getElementById('instBtn').classList.add('hidden')})}break;
     case 'fbLogout':ask('로그아웃할까요? 이 기기의 기록은 그대로 남아요.','로그아웃',()=>{firebase.auth().signOut();closeModal()});break;
     case 'fbForget':ask('이 기기의 동기화 설정을 지울까요? 기록은 이 기기에 그대로 남아요.','지우기',()=>{try{localStorage.removeItem(CFGKEY)}catch(e){}location.reload()});break;
-    case 'askYes':{const f=ASK;ASK=null;closeModal();if(f)f();break}
+    case 'askYes':{const f=ASK;ASK=null;ASKNO=null;closeModal();if(f)f();break}
     case 'import':document.getElementById('importFile').click();break;
     case 'demo':demo();break;
     case 'reset':ask('모든 과목·D-day·체크 기록을 지울까요? 로그인한 다른 기기에서도 지워지고 되돌릴 수 없어요.','전체 삭제',()=>{S=defState();save();closeModal();render()});break;
