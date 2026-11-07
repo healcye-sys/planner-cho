@@ -636,7 +636,7 @@ let S=load();
 S.subjects.forEach(x=>{x.days=normDays(x.days);if(!(x.pre>0))x.pre=0});if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
 if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
 function ensureRest(){if(!S.cfg.meals.some(m=>m.rest))S.cfg.meals.push({n:'휴식',time:null,mins:15,rest:true})}ensureRest();
-const mIco=m=>m.rest?'☕':'🍚',mName=m=>m.rest?m.n:m.n+' 식사';
+const mIco=m=>m.rest?'☕':'🍚',mName=m=>m.rest?'휴식':m.n+' 식사';
 /* MDAY = the date being laid out; its one-day breaks (S.rests[date]) count like meals: study pauses and continues after */
 let MDAY=null;
 const mealsOn=()=>{const g=(S.cfg.meals||[]).filter(m=>m.time!=null);const r=MDAY&&S.rests&&S.rests[MDAY];
@@ -1674,7 +1674,7 @@ function saveRest(d,id){const v=fv('rsT');if(!v)return toast('시작 시각을 �
   // a break makes the day longer, so it follows the same rule as any edit: ask within the limit, move the day's last subject beyond it
   lateGate(last.s.id,'',before,done,()=>{S.rests=JSON.parse(bR);CH=null;PC.clear();save();closeModal();render()},'넣으면')}
 function openMeal(n){const m=(S.cfg.meals||[]).find(x=>x.n===n);if(!m)return;
-  openModal(`<h3>${mIco(m)} ${esc(m.n)} 시간</h3><div class="g2"><div class="fld"><label>시작</label><input class="inp" type="time" step="600" id="mlT" value="${hmv(m.time)}"></div>
+  openModal(`<h3>${mIco(m)} ${m.rest?'휴식':esc(m.n)} 시간</h3><div class="g2"><div class="fld"><label>시작</label><input class="inp" type="time" step="600" id="mlT" value="${hmv(m.time)}"></div>
    <div class="fld"><label>소요시간 (분)</label><input class="inp" type="number" inputmode="numeric" min="5" max="240" step="5" id="mlM" value="${m.mins}"></div></div>
    <div class="hint" style="margin:-2px 0 12px">매일 같은 시간으로 바뀌어요</div>
    <div class="sheet-acts"><div class="spacer"></div><button class="btn" data-act="close">취소</button><button class="btn pri" data-act="mealSave" data-n="${esc(m.n)}">저장</button></div>`)}
@@ -1743,7 +1743,7 @@ function openExam(id){
    <button class="btn" data-act="close">취소</button><button class="btn pri" data-act="saveExam" data-id="${e?e.id:''}">확인</button></div>`);
   if(!e)setTimeout(()=>document.getElementById('eName').focus(),50);
 }
-function mealRow(m,i){return `<div class="inrow meal-row"><span class="mlab">${esc(m.n)}</span><input class="inp" type="time" step="600" id="mT${i}" value="${m.time==null?'':hmv(m.time)}">
+function mealRow(m,i){return `<div class="inrow meal-row"><span class="mlab">${m.rest?'휴식':esc(m.n)}</span><input class="inp" type="time" step="600" id="mT${i}" value="${m.time==null?'':hmv(m.time)}">
      <input class="inp mmin" type="number" inputmode="numeric" min="5" max="240" step="5" id="mM${i}" value="${m.mins}"><span class="hint">분</span>${m.rest&&S.cfg.meals.filter(x=>x.rest).length>1?`<button class="mdel" data-act="delRest" data-i="${i}" title="이 휴식 지우기">✕</button>`:''}</div>`}
 /* break rows are added/removed inside the open settings sheet: keep what was typed, then redraw that one field */
 function restInner(){return `<label>휴식 시간 <span class="hint" style="font-weight:400">(비워 두면 표시 안 함)</span></label>`+S.cfg.meals.map((m,i)=>m.rest?mealRow(m,i):'').join('')+'<button class="rdbtn" data-act="addRest">＋ 휴식 추가</button>'}
