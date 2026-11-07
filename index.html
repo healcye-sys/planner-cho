@@ -506,10 +506,10 @@ html.mopen,html.mopen body{overflow:hidden!important;overscroll-behavior:none}
   tbody tr{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:10px 0;border-bottom:1px solid var(--line2)}
   tbody td{display:block;border:0;padding:0;white-space:normal}
   td.nmc{grid-column:1;font-size:15px}
-  td.en{grid-column:2;grid-row:1;text-align:right}
+  td.en{grid-column:2;grid-row:2;text-align:right}
   td.en::before{content:'끝 ';color:var(--sub);font-weight:400;font-size:12px}
   td.rem{grid-column:1}
-  td.st{grid-column:2;grid-row:2;text-align:right;color:var(--sub);font-size:13px}
+  td.st{grid-column:2;grid-row:1;text-align:right;color:var(--sub);font-size:13px}
   td.st::before{content:'시작 ';font-size:12px}
   td.cfgc{grid-column:1/-1}
   td.ac{grid-column:1/-1}
@@ -702,6 +702,7 @@ document.addEventListener('input',e=>{const el=e.target;if(el.id!=='dmemo')retur
 document.addEventListener('focusout',e=>{if(e.target.id==='dmemo'&&MEMOT)memoSave(e.target)});
 addEventListener('pagehide',()=>{const el=document.getElementById('dmemo');if(el&&MEMOT)memoSave(el)});
 const sub=id=>S.subjects.find(x=>x.id===id);
+const ymd=d=>d?d.slice(2).replace(/-/g,'/'):''; // 26/11/08 (과목 리스트)
 const chk=id=>S.checks[id]||(S.checks[id]={});
 const dayAmt=(s,d)=>s.mode!=='period'&&s.ovm&&s.ovm[d]!=null&&s.asplit&&s.asplit[d]&&s.mins>0?Math.max(1,Math.round(s.daily*s.ovm[d]/s.mins)):s.daily;
 const perDay=v=>{const f=Math.floor(v+1e-6),c=Math.ceil(v-1e-6);return f===c?String(c):f<1?'1':f+'~'+c};
@@ -758,7 +759,7 @@ function itemFor(s,date){const pm=MDAY;MDAY=date;try{return itemFor1(s,date)}fin
 function itemFor1(s,date){
   const p=plan(s);const k=p.idx[date];if(k===undefined)return null;
   const from=p.before+p.cum[k],to=Math.min(s.total,from+(s.mode==='period'?p.amt[k]:dayAmt(s,date)));
-  return {s,date,k,from,to,label:rangeTxt(s,from,to),time:dayTime(s,date),ov:!!(s.ov&&s.ov[date]!=null||s.ovm&&s.ovm[date]!=null),mins:dayMins(s,date),segs:spanSegs(dayTime(s,date),dayMins(s,date)),get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[s.id]||{})[date]||''};
+  return {s,date,k,from,to,label:rangeTxt(s,from,to),time:dayTime(s,date),ov:!!(s.ov&&s.ov[date]!=null&&!(s.aslide&&s.aslide[date])||s.ovm&&s.ovm[date]!=null&&!(s.asplit&&s.asplit[date])),mins:dayMins(s,date),segs:spanSegs(dayTime(s,date),dayMins(s,date)),get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[s.id]||{})[date]||''};
 }
 /* one-off items: a single day only (not in month bands or subject list) */
 function onesOn(date){return (S.ones||[]).filter(o=>o.date===date).map(o=>{const sg=spanSegs(o.time,o.mins);
@@ -812,7 +813,7 @@ function projEnd(s){
 const isBehind=s=>{const p=projEnd(s);return !p.done&&p.date>plan(s).end};
 /* restart the remaining amount from today (tomorrow if today is already marked); period subjects keep their end day, so the daily amount goes up */
 /* one-day edits (위클리 시간·길이) belong to a date; when the whole schedule moves they would land on other work, so drop them from today on */
-function clearDayEdits(s){if(s.ov)for(const d in s.ov)if(d>=TODAY)delete s.ov[d];if(s.ovm)for(const d in s.ovm)if(d>=TODAY&&!(s.asplit&&s.asplit[d]))delete s.ovm[d]}
+function clearDayEdits(s){if(s.ov)for(const d in s.ov)if(d>=TODAY)delete s.ov[d];if(s.aslide)for(const d in s.aslide)if(d>=TODAY)delete s.aslide[d];if(s.ovm)for(const d in s.ovm)if(d>=TODAY&&!(s.asplit&&s.asplit[d]))delete s.ovm[d]}
 function reschedOne(s){clearDayEdits(s);const st=(S.checks[s.id]||{})[TODAY]?addD(TODAY,1):TODAY;s.start=st;s.rz=st;if(s.parent){s.autoStart=false;s.chain=false}
   if(s.mode==='period'&&s.end&&s.end<st)s.end=st;rePeriod(s);PC.delete(s.id)}
 /* overlap: other bands that collide with subject s (placed at start/time) on any shared day */
@@ -1152,7 +1153,7 @@ function endDrag(cancel){
   document.querySelectorAll('.seg.rs').forEach(x=>x.classList.remove('rs'));
   if(d.wk&&d.wrs){if(!cancel&&s&&d.target.mins!==dayMins(s,d.day)){s.ovm=s.ovm||{};if(d.target.mins===s.mins)delete s.ovm[d.day];else s.ovm[d.day]=d.target.mins;if(s.asplit)delete s.asplit[d.day];save();
       toast(`${mdw(d.day)} 하루만 ${Math.floor(d.target.mins/60)?Math.floor(d.target.mins/60)+'시간 ':''}${d.target.mins%60?d.target.mins%60+'분':''}`)}}
-  else if(d.wk){if(!cancel&&s&&d.target.time!==dayTime(s,d.day)){s.ov=s.ov||{};if(d.target.time===s.time)delete s.ov[d.day];else s.ov[d.day]=d.target.time;save();
+  else if(d.wk){if(!cancel&&s&&d.target.time!==dayTime(s,d.day)){s.ov=s.ov||{};if(s.aslide)delete s.aslide[d.day];if(d.target.time===s.time)delete s.ov[d.day];else s.ov[d.day]=d.target.time;save();
       toast(d.target.time===s.time?'원래 시간으로 돌아왔어요':`${mdw(d.day)} 하루만 ${hm(d.target.time)}로 옮겼어요`)}}
   else if(d.rs){if(!cancel&&s&&d.target.end&&Math.abs(d.target.daily-s.daily)>1e-9){clearDayEdits(s);s.daily=d.target.daily;s.mode='period';s.end=d.target.end;PC.delete(s.id);save();renderHeader();
       toast(`${mdw(plan(s).end)}까지 · 하루 ${perDay(s.daily)}${s.unit||''}`)}}
@@ -1219,6 +1220,8 @@ const markSym=m=>m==='o'?'○':m==='t'?'△':m==='x'?'×':'';
 const nextMark=m=>({'':'o',o:'t',t:'x',x:''})[m||''];
 
 /* ---- day ---- */
+/* the date strip shows the chosen day in the middle */
+function centreStrip(){const st=document.getElementById('strip'),on=st&&st.querySelector('.sd.on');if(!on||!st.clientWidth)return;const a=st.getBoundingClientRect(),r=on.getBoundingClientRect();st.scrollLeft+=(r.left+r.width/2)-(a.left+a.width/2)}
 function renderDay(){
   const d=S.ui.day||TODAY;const it=itemsOn(d);const dn=it.filter(x=>x.mark==='o').length;
   const mins=it.reduce((t,x)=>t+x.mins,0);
@@ -1268,7 +1271,7 @@ function renderDay(){
       +`<div class="hint" style="padding-top:8px">밀린 만큼 종료일이 늦어져요. 과목 리스트에서 <b>오늘부터 재배치</b>를 누르면 남은 분량으로 띠가 다시 그려져요.</div>`
       :'<div class="hint" style="padding:8px 0">밀린 공부가 없어요 👍</div>'}
    </div></div>`;
-  const on=V.querySelector('.sd.on');if(on)on.scrollIntoView({inline:'center',block:'nearest'});
+  centreStrip();requestAnimationFrame(centreStrip);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(centreStrip);
   const mo=document.getElementById('dmemo');if(mo)memoFit(mo);
 }
 
@@ -1356,10 +1359,10 @@ function renderList(){
   const rows=arr.map(s=>{
     const p=plan(s),pe=projEnd(s);const done=doneAll(s);const pct=Math.round(done/s.total*100);
     const late=!pe.done&&pe.date>p.end;
-    const endTxt=pe.done?`<span class="ok">완료 ✓</span>`:late?`<span class="late">${md(pe.date)} (계획 ${md(p.end)})</span>`:`<span class="ok">${md(p.end)}</span>`;
+    const endTxt=pe.done?`<span class="ok">완료 ✓</span>`:late?`<span class="late">${ymd(pe.date)} (계획 ${ymd(p.end)})</span>`:`<span class="ok">${ymd(p.end)}</span>`;
     return `<tr data-id="${s.id}"><td class="nmc"><span class="sw" style="background:${s.color}"></span>${esc(s.name)}${exLate(s)?`<div class="exw"><mark>⚠ ${esc(fx.name)}(${md(fx.date)})보다 늦게 끝나요</mark></div>`:''}</td>
       <td class="rem">${Math.round(s.total-done)}${esc(s.unit||'')} <span class="hint">/ ${fmtN(s.total)}</span><div class="minibar"><i style="width:${pct}%;background:${s.color}"></i></div></td>
-      <td class="st">${md(p.dates[0])}</td><td class="en">${endTxt}</td>
+      <td class="st">${ymd(p.dates[0])}</td><td class="en">${endTxt}</td>
       <td class="hint cfgc">${s.mode==='period'?perDay(s.daily):fmtN(s.daily)}${esc(s.unit||'')}/일 · ${daysLabel(s.days)} · ${hm(s.time)}~${hm(s.time+s.mins)}</td>
       <td class="ac"><div class="acts">${late?`<button class="btn sm" data-act="resched" data-id="${s.id}">오늘부터 재배치</button>`:''}
         <button class="btn sm" data-act="editSub" data-id="${s.id}">수정</button><button class="btn sm danger" data-act="delSub" data-id="${s.id}">삭제</button><span class="hdl" title="끌어서 순서 바꾸기"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M1.5 1.5h13M1.5 6h13M1.5 10.5h13"/></svg></span></div></td></tr>`}).join('');
@@ -1636,7 +1639,7 @@ function slideDay(d){const it=itemsOn(d).slice().sort((p,q)=>p.segs[0][0]-q.segs
   if(n){PC.clear();ITC.clear();if(DEC)DEC.clear()}return n}
 function autoMove(L,M){const mv=[],DE=S.cfg.dayEnd*60;
   for(const x of L){for(let g=0;g<8;g++){const it=itemsOn(x.d).filter(y=>!lateOn(y,x.d));if(!it.length||Math.max(...it.map(y=>y.end))<=M)break;
-    const c=it.filter(y=>!y.oo&&!(y.s.mode==='period'&&y.s.end&&!periodLeft(y.s,x.d))&&!(y.s.keep&&y.s.keep[x.d])&&!(y.s.asplit&&y.s.asplit[x.d])&&!y.fx).sort((p,q)=>q.end-p.end)[0];if(!c){if(g<7&&slideDay(x.d))continue;break}
+    const c=it.filter(y=>!y.oo&&!(y.s.mode==='period'&&y.s.end&&!periodLeft(y.s,x.d))&&!(y.s.keep&&y.s.keep[x.d])&&!(y.s.asplit&&y.s.asplit[x.d])&&!y.fx).sort((p,q)=>q.end-p.end)[0];if(!c){if(g<7&&S.cfg.pack!==false&&slideDay(x.d))continue;break}
     const so=c.s,d=x.d,userOv=so.ovm&&so.ovm[d]!=null;
     const f=!userOv&&splitFit(so,c.mins-(c.end-DE));
     if(f){(so.ovm||(so.ovm={}))[d]=f.nm;(so.asplit||(so.asplit={}))[d]=true;touch(so);
@@ -2183,7 +2186,7 @@ document.addEventListener('click',e=>{
     case 'restoreHist':{const h=(SY.hist||[])[+el.dataset.i];if(!h)break;gunz(h.z).then(j=>{const d=JSON.parse(j);ask(`이 기록(과목 ${(d.subjects||[]).length}개)으로 되돌릴까요?`,'되돌리기',()=>restoreData(d))}).catch(()=>toast('불러올 수 없어요'));break}
     case 'restorePrev':ask('직전 클라우드 버전으로 되돌릴까요?','되돌리기',()=>{try{restoreData(JSON.parse(SY.prevJson))}catch(e){toast('되돌릴 수 없어요')}});break;
     case 'restoreLocal':{const k=el.dataset.k;ask('따로 보관한 내용으로 바꿀까요?','바꾸기',()=>{try{restoreData(JSON.parse(localStorage.getItem(k)))}catch(e){toast('불러올 수 없어요')}});break}
-    case 'resetOv':{const so=sub(id);if(so&&(so.ov||so.ovm)){if(so.ov)delete so.ov[el.dataset.date];if(so.ovm)delete so.ovm[el.dataset.date];if(so.asplit)delete so.asplit[el.dataset.date];save();render();toast('원래 시간으로 돌렸어요')}break}
+    case 'resetOv':{const so=sub(id);if(so&&(so.ov||so.ovm)){if(so.ov)delete so.ov[el.dataset.date];if(so.ovm)delete so.ovm[el.dataset.date];if(so.asplit)delete so.asplit[el.dataset.date];if(so.aslide)delete so.aslide[el.dataset.date];save();render();toast('원래 시간으로 돌렸어요')}break}
     case 'fbConnect':{const c=parseCfg(document.getElementById('fbCfg').value);if(!c||!c.apiKey||!c.projectId)return toast('firebaseConfig 내용을 그대로 붙여넣어 주세요');
       try{localStorage.setItem(CFGKEY,JSON.stringify(c))}catch(e){}closeModal();toast('연결했어요. 이제 Google로 로그인해 주세요');startSync().then(openSettings);break}
     case 'fbLogin':login();break;
