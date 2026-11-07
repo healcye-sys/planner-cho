@@ -651,9 +651,11 @@ function save(){CH=null;syncRounds();const uj=ubody();if(uj!==UJ&&!UNDOING)UNDO=
 function saveUI(){stamp();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const sub=id=>S.subjects.find(x=>x.id===id);
 const chk=id=>S.checks[id]||(S.checks[id]={});
-const dayAmt=(s,d)=>s.mode!=='period'&&s.ovm&&s.ovm[d]!=null&&s.mins>0?Math.max(1,Math.round(s.daily*s.ovm[d]/s.mins)):s.daily;
+const dayAmt=(s,d)=>s.mode!=='period'&&s.ovm&&s.ovm[d]!=null&&s.asplit&&s.asplit[d]&&s.mins>0?Math.max(1,Math.round(s.daily*s.ovm[d]/s.mins)):s.daily;
 const perDay=v=>{const f=Math.floor(v+1e-6),c=Math.ceil(v-1e-6);return f===c?String(c):f<1?'1':f+'~'+c};
 const markAmt=(m,daily)=>m==='o'?daily:m==='t'?daily/2:0;
+/* the amount a checked day was worth is kept with the subject (s.ma[date]) so later changes (재배치, 종료일, 하루 분량) never change what was already done */
+const mAmt=(s,d,fb)=>s.ma&&s.ma[d]!=null?s.ma[d]:fb;
 
 /* plan: which dates a subject occupies */
 function plan(s){
@@ -664,7 +666,7 @@ function planRaw(s){let p;
   let st0=s.start;for(const d in s.add||{})if(s.add[d]&&d<st0)st0=d; // "오늘만 추가" before the start pulls the subject forward (only that day)
   const SO=x=>x<s.start?!!(s.add&&s.add[x])&&!(s.skip&&s.skip[x]):studyOn(s,x);
   const ch=S.checks[s.id]||{}; let before=0;
-  for(const d in ch) if(d<st0) before+=markAmt(ch[d],dayAmt(s,d));
+  for(const d in ch) if(d<st0) before+=markAmt(ch[d],mAmt(s,d,dayAmt(s,d)));
   before+=s.pre||0;
   before=Math.min(before,s.total);
   before=Math.floor(before+1e-9); // a half-done (△) unit before the start isn't counted: the new start begins again from that unit
@@ -682,10 +684,14 @@ function syncRounds(){if(!S.subjects.some(s=>s.parent))return;
   const roots=new Map(S.subjects.filter(s=>!s.parent).map(s=>[s.id,s]));
   S.subjects=S.subjects.filter(s=>!s.parent||roots.has(s.parent));PC.clear();
   roots.forEach(p=>{let prev=p;roundsOf(p.id).forEach((r,i)=>{r.round=i+2;r.name=p.name+' · '+r.round+'회독';r.color=p.color;r.total=p.total;r.unit=p.unit;r.pre=0;
-    if(r.autoStart!==false){const st=addD(plan(prev).end,1);if(st!==r.start){if(r.mode==='period'&&r.end)r.end=addD(r.end,diffD(r.start,st));r.start=st;rePeriod(r);PC.delete(r.id)}}
+    if(r.autoStart!==false){const st=addD(plan(prev).end,1);if(st!==r.start){clearDayEdits(r);if(r.mode==='period'&&r.end)r.end=addD(r.end,diffD(r.start,st));r.start=st;rePeriod(r);PC.delete(r.id)}}
     prev=r})});PC.clear()}
+function freezeMark(s,d){const it=itemFor(s,d);(s.ma||(s.ma={}))[d]=it?Math.max(0,it.to-it.from):dayAmt(s,d)}
+/* older data: freeze what each existing check is worth right now, so it can't drift later */
+function freezeOld(){let n=0;S.subjects.forEach(s=>{const ch=S.checks[s.id];if(!ch)return;const pp=s.mode==='period'&&s.end?plan(s):null;
+  for(const d in ch){if(s.ma&&s.ma[d]!=null)continue;const k=pp&&d>=s.start?pp.idx[d]:undefined;(s.ma||(s.ma={}))[d]=k!==undefined?pp.amt[k]:dayAmt(s,d);n++}});return n}
 function doneAll(s){const ch=S.checks[s.id]||{};let t=s.pre||0;const pp=s.mode==='period'&&s.end?plan(s):null;
-  for(const d in ch){const k=pp&&d>=s.start?pp.idx[d]:undefined;t+=markAmt(ch[d],k!==undefined?pp.amt[k]:dayAmt(s,d))}return Math.min(t,s.total)}
+  for(const d in ch){const k=pp&&d>=s.start?pp.idx[d]:undefined;t+=markAmt(ch[d],mAmt(s,d,k!==undefined?pp.amt[k]:dayAmt(s,d)))}return Math.min(t,s.total)}
 function rangeTxt(s,from,to){
   const a=Math.floor(from)+1,b=Math.ceil(to);const r=a>=b?String(b):a+'~'+b;const u=(s.unit||'').trim();
   if(/^p\.?$/i.test(u))return 'p.'+r; return r+u;
@@ -747,7 +753,9 @@ function projEnd(s){
 }
 const isBehind=s=>{const p=projEnd(s);return !p.done&&p.date>plan(s).end};
 /* restart the remaining amount from today (tomorrow if today is already marked); period subjects keep their end day, so the daily amount goes up */
-function reschedOne(s){const st=(S.checks[s.id]||{})[TODAY]?addD(TODAY,1):TODAY;s.start=st;if(s.parent){s.autoStart=false;s.chain=false}
+/* one-day edits (위클리 시간·길이) belong to a date; when the whole schedule moves they would land on other work, so drop them from today on */
+function clearDayEdits(s){if(s.ov)for(const d in s.ov)if(d>=TODAY)delete s.ov[d];if(s.ovm)for(const d in s.ovm)if(d>=TODAY&&!(s.asplit&&s.asplit[d]))delete s.ovm[d]}
+function reschedOne(s){clearDayEdits(s);const st=(S.checks[s.id]||{})[TODAY]?addD(TODAY,1):TODAY;s.start=st;if(s.parent){s.autoStart=false;s.chain=false}
   if(s.mode==='period'&&s.end&&s.end<st)s.end=st;rePeriod(s);PC.delete(s.id)}
 /* overlap: other bands that collide with subject s (placed at start/time) on any shared day */
 function colliders(s,start,time){
@@ -1077,13 +1085,13 @@ function endDrag(cancel){
       toast(`${mdw(d.day)} 하루만 ${Math.floor(d.target.mins/60)?Math.floor(d.target.mins/60)+'시간 ':''}${d.target.mins%60?d.target.mins%60+'분':''}`)}}
   else if(d.wk){if(!cancel&&s&&d.target.time!==dayTime(s,d.day)){s.ov=s.ov||{};if(d.target.time===s.time)delete s.ov[d.day];else s.ov[d.day]=d.target.time;save();
       toast(d.target.time===s.time?'원래 시간으로 돌아왔어요':`${mdw(d.day)} 하루만 ${hm(d.target.time)}로 옮겼어요`)}}
-  else if(d.rs){if(!cancel&&s&&d.target.end&&Math.abs(d.target.daily-s.daily)>1e-9){s.daily=d.target.daily;s.mode='period';s.end=d.target.end;PC.delete(s.id);save();renderHeader();
+  else if(d.rs){if(!cancel&&s&&d.target.end&&Math.abs(d.target.daily-s.daily)>1e-9){clearDayEdits(s);s.daily=d.target.daily;s.mode='period';s.end=d.target.end;PC.delete(s.id);save();renderHeader();
       toast(`${mdw(plan(s).end)}까지 · 하루 ${perDay(s.daily)}${s.unit||''}`)}}
   else if(d.moved&&!cancel&&s&&d.pick&&LAY[d.pick.ws]){const ly=LAY[d.pick.ws];
-    if(d.target.start!==s.start){if(s.parent){s.autoStart=false;s.chain=false}if(s.mode==='period'&&s.end)s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s);PC.delete(s.id)}
+    if(d.target.start!==s.start){clearDayEdits(s);if(s.parent){s.autoStart=false;s.chain=false}if(s.mode==='period'&&s.end)s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s);PC.delete(s.id)}
     const ids=ly.order.filter(x=>ly.lane[x.id]!=null&&x.id!==s.id).map(x=>x.id);let k=ids.indexOf(d.pick.t);k=k<0?ids.length:k+(d.pick.after?1:0);ids.splice(k,0,s.id);
     rechain(ids);save();renderHeader()}
-  else if(d.moved&&!cancel&&s&&(d.target.start!==s.start||d.target.time!==s.time)){if(s.parent&&d.target.start!==s.start){s.autoStart=false;s.chain=false}if(s.mode==='period'&&s.end&&d.target.start!==s.start){s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s)}s.start=d.target.start;s.time=d.target.time;PC.delete(s.id);save();renderHeader()}
+  else if(d.moved&&!cancel&&s&&(d.target.start!==s.start||d.target.time!==s.time)){if(d.target.start!==s.start)clearDayEdits(s);if(s.parent&&d.target.start!==s.start){s.autoStart=false;s.chain=false}if(s.mode==='period'&&s.end&&d.target.start!==s.start){s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s)}s.start=d.target.start;s.time=d.target.time;PC.delete(s.id);save();renderHeader()}
   const rr=()=>{if(S.ui.view==='week'){const sc=V.querySelector('.wscroll'),sl=sc?sc.scrollLeft:0;renderWeek();const n=V.querySelector('.wscroll');if(n)n.scrollLeft=sl}
   else{renderHeader();renderBands()}};rr();
   /* a drop that runs the day past its end: same rule as saving (ask up to the limit, move the last subject beyond it) */
@@ -1204,7 +1212,10 @@ function rechain(ids){
   const base=Math.min(...act.map(s=>s.time)),done=[];
   act.forEach(s=>{const mine=ds.get(s.id);let t=base;
     done.forEach(q=>{const o=ds.get(q.s.id);for(const d of mine)if(o.has(d)){t=Math.max(t,q.end);break}});
-    const sg=spanSegs(t,s.mins);s.time=sg[0][0];if(s.ov)s.ov={};done.push({s,end:sg[sg.length-1][1]})});
+    let sg=spanSegs(t,s.mins);
+    // never chain a start past the day end: it would look like a deliberately late subject and never move. Start it at the latest normal slot instead; the day's overflow is then pushed to other days like any other overflow
+    const lim=S.cfg.dayEnd*60;if(sg[sg.length-1][1]>lim){const t2=Math.max(S.cfg.dayStart*60,lim-Math.min(s.mins,(S.cfg.dayEnd-S.cfg.dayStart)*60));if(t2<sg[0][0])sg=spanSegs(t2,s.mins)}
+    s.time=sg[0][0];if(s.ov)s.ov={};clearDayEdits(s);done.push({s,end:Math.max(t,sg[sg.length-1][1])})});
   PC.clear();return act.length}
 function applyOrder(ids){
   ids.forEach((id,i)=>{const s=sub(id);if(s)s.ord=i});
@@ -1320,7 +1331,7 @@ function openSubject(id){
       if(v.typedD>0&&Math.abs(v.typedD-v.daily)>=1){w=v.typedD<v.daily?`⚠ 하루 ${fmtN(v.typedD)}${u}로는 ${mdw(v.end)}까지 못 끝나요 → <b>하루 ${perDay(v.daily)}${u}</b>로 맞출게요<br><small>하루 ${fmtN(v.typedD)}${u}로 하고 싶으면 종료일을 지워 주세요</small>`:`⚠ 종료일에 맞춰 <b>하루 ${perDay(v.daily)}${u}</b>로 나눠요<br><small>하루 ${fmtN(v.typedD)}${u}로 하고 싶으면 종료일을 지워 주세요</small>`}
       el.className='preview'+(w?' warn':'');el.innerHTML=w||`${pre>0?`남은 ${fmtN(v.total-pre)}${u} · `:''}${v.autoT?`하루 ${fmtN(v.daily)}${u} × ${v.n}일 = <b>전체 ${fmtN(v.total)}${u}</b> · `:`공부일 <b>${v.n}일</b> · 하루 <b>${perDay(v.daily)}${u}</b> · `}<b>${mdw(v.st)} ~ ${mdw(v.end)}</b> · ${tm}<br><small>종료일을 정했으니, 밀리면 하루 분량이 늘어나요</small>`;return}
     if(v.mode==='amount'){const pre=clamp(num(fv('fDone')),0,v.total),st=v.st,d=v.daily;
-      const before=Math.min(v.total,pre+(F.id?Object.entries(S.checks[F.id]||{}).filter(([k])=>k<st).reduce((a,[,x])=>a+markAmt(x,d),0):0));
+      const before=Math.min(v.total,pre+(F.id?Object.entries(S.checks[F.id]||{}).filter(([k])=>k<st).reduce((a,[k,x])=>a+markAmt(x,mAmt(sub(F.id)||{},k,d)),0):0));
       const n=Math.max(1,Math.ceil((v.total-before)/d-1e-9));let x=st,c=0,last=st,g=0;while(c<n&&g<3000){if(isStudy(F.days,x)){c++;last=x}x=addD(x,1);g++}
       auto('total','fTotal','');auto('daily','fDaily','');auto('end','fEnd',last);
       el.className='preview';el.innerHTML=`${pre>0?`남은 ${fmtN(v.total-pre)}${u} · `:''}공부일 <b>${n}일</b> (${daysLabel(F.days)}) · <b>${mdw(st)} ~ ${mdw(last)}</b> · ${tm}<br><small>종료일을 비워 두면, 밀릴 때 종료일이 뒤로 가요</small>`;return}
@@ -1467,6 +1478,7 @@ function saveSubject(){
     else if(!(r.daily>0))return toast(`${n}회독: 하루 분량을 넣어 주세요`)}
   const before=JSON.stringify(S.subjects),oldT=isNew?null:sub(id).time;
   const o={id,name,color:F.color,total,daily,pre,unit:fv('fUnit'),mins,days:[...F.days].sort(),fix:F.fix.filter(x=>F.days.includes(x)).sort(),start,time:time??a*60,mode:period?'period':'amount',end:period?v.end:''};
+  if(!isNew){const q=sub(id);if(q&&(q.start!==o.start||(q.end||'')!==(o.end||'')||q.daily!==o.daily||q.mode!==o.mode))clearDayEdits(q)}
   if(isNew)S.subjects.push(o);else Object.assign(sub(id),o);
   if(F.draft)S.drafts=(S.drafts||[]).filter(x=>x.id!==F.draft);
   applyRounds(id);
@@ -2049,7 +2061,7 @@ document.addEventListener('click',e=>{
     case 'gotoDay':go(()=>{S.ui.day=el.dataset.date;S.ui.view='day'});break;
     case 'dPrev':case 'dNext':go(()=>S.ui.day=addD(S.ui.day||TODAY,a==='dNext'?1:-1));break;
     case 'dToday':go(()=>S.ui.day=TODAY);break;
-    case 'mark':{const c=chk(id);const n=nextMark(c[el.dataset.date]);if(n)c[el.dataset.date]=n;else delete c[el.dataset.date];
+    case 'mark':{const c=chk(id);const dd=el.dataset.date;const so=sub(id);if(so&&!c[dd])freezeMark(so,dd);const n=nextMark(c[dd]);if(n)c[dd]=n;else{delete c[dd];if(so&&so.ma)delete so.ma[dd]}
       const y=scrollY;save();render();scrollTo({top:y});break}
     case 'resched':{const s=sub(id),before=JSON.stringify(S.subjects);reschedOne(s);PC.clear();
       lateGate(s.id,s.name,before,()=>{save();render();toast(`'${s.name}' 남은 분량을 오늘부터 다시 배치했어요`)},()=>{save();render()},'다시 배치하면');break}
@@ -2090,6 +2102,7 @@ function undo(){if(!UNDO)return;let o;try{o=JSON.parse(UNDO.j)}catch(e){return}U
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ds(new Date())!==TODAY)render()});
 S.ui.view='day';S.ui.day=TODAY; // always open on today's daily schedule
 S.ui.seen=1;
+freezeOld();PC.clear();
 if(fixWildTimes()){save();setTimeout(()=>toast('겹치는 과목이 있어 조정했어요'),600)}
 {const save0=save;save=function(){save0();if(!UKEEP&&!UNDOING&&!DEC&&!(typeof SILENT!=='undefined'&&SILENT))clearUndo();if(!DEC&&!UNDOING)queueSettle()}}
 {const r0=render;render=function(){r0.apply(this,arguments);paintUndo()}}
