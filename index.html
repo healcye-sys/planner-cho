@@ -775,7 +775,11 @@ function chainHeads(){const bl=S.subjects.map(s=>{const sg=spanSegs(s.time,s.min
   bl.forEach(b=>{const next=ce<0?-1:spanSegs(ce,1)[0][0];if(cs==null||b.t0>next+.5)cs=b.t0;head[b.id]=cs;ce=Math.max(ce,b.t1)});return head}
 function packDay(it,date){const head=CH||(CH=chainHeads()),g={};
   it.forEach(x=>{if(x.oo||(x.s.ov&&x.s.ov[date]!=null))return;const h=head[x.s.id];if(h==null)return;(g[h]||(g[h]=[])).push(x)});
-  for(const h in g){let cur=+h;g[h].sort((a,b)=>a.s.time-b.s.time).forEach(x=>{x.segs=spanSegs(cur,x.mins);x.time=x.segs[0][0];cur=x.end})}
+  // subjects with a time of their own that day (moved in 위클리, one-offs) keep it: the chain flows around them in its usual order
+  const fx=it.filter(x=>x.oo||(x.s.ov&&x.s.ov[date]!=null)).map(x=>[x.segs[0][0],x.end]);
+  for(const h in g){let cur=+h;g[h].sort((a,b)=>a.s.time-b.s.time).forEach(x=>{let sg=spanSegs(cur,x.mins);
+    for(let k=0;k<50;k++){const a0=sg[0][0],a1=sg[sg.length-1][1],f=fx.find(([f0,f1])=>f0<a1&&f1>a0);if(!f)break;cur=Math.max(cur,f[1]);sg=spanSegs(cur,x.mins)}
+    x.segs=sg;x.time=x.segs[0][0];cur=x.end})}
   it.sort((a,b)=>a.time-b.time)}
 /* projected end: the plan's end, pushed later only by days marked △ or × (unmarked days are not "late") */
 function projEnd(s){
