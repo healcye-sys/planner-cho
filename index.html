@@ -676,7 +676,7 @@ function planRaw(s){let p;
   let st0=s.start;for(const d in s.add||{})if(s.add[d]&&d<st0)st0=d; // "오늘만 추가" before the start pulls the subject forward (only that day)
   const SO=x=>x<s.start?!!(s.add&&s.add[x])&&!(s.skip&&s.skip[x]):studyOn(s,x);
   const ch=S.checks[s.id]||{}; let before=0;
-  for(const d in ch) if(d<st0) before+=markAmt(ch[d],mAmt(s,d,dayAmt(s,d)));
+  for(const d in ch) if(d<st0&&!(s.pz&&d<s.pz)) before+=markAmt(ch[d],mAmt(s,d,dayAmt(s,d)));
   before+=s.pre||0;
   before=Math.min(before,s.total);
   before=Math.floor(before+1e-9); // a half-done (△) unit before the start isn't counted: the new start begins again from that unit
@@ -701,7 +701,7 @@ function freezeMark(s,d){const it=itemFor(s,d);(s.ma||(s.ma={}))[d]=it?Math.max(
 function freezeOld(){let n=0;S.subjects.forEach(s=>{const ch=S.checks[s.id];if(!ch)return;const pp=s.mode==='period'&&s.end?plan(s):null;
   for(const d in ch){if(s.ma&&s.ma[d]!=null)continue;const k=pp&&d>=s.start?pp.idx[d]:undefined;(s.ma||(s.ma={}))[d]=k!==undefined?pp.amt[k]:dayAmt(s,d);n++}});return n}
 function doneAll(s){const ch=S.checks[s.id]||{};let t=s.pre||0;const pp=s.mode==='period'&&s.end?plan(s):null;
-  for(const d in ch){const k=pp&&d>=s.start?pp.idx[d]:undefined;t+=markAmt(ch[d],mAmt(s,d,k!==undefined?pp.amt[k]:dayAmt(s,d)))}return Math.min(t,s.total)}
+  for(const d in ch){if(s.pz&&d<s.pz)continue;const k=pp&&d>=s.start?pp.idx[d]:undefined;t+=markAmt(ch[d],mAmt(s,d,k!==undefined?pp.amt[k]:dayAmt(s,d)))}return Math.min(t,s.total)}
 function rangeTxt(s,from,to){
   const a=Math.floor(from)+1,b=Math.ceil(to);const r=a>=b?String(b):a+'~'+b;const u=(s.unit||'').trim();
   if(/^p\.?$/i.test(u))return 'p.'+r; return r+u;
@@ -756,7 +756,7 @@ function packDay(it,date){const head=CH||(CH=chainHeads()),g={};
 function projEnd(s){
   const rem=s.total-doneAll(s); if(rem<=1e-9) return {done:true};
   const p=plan(s),ch=S.checks[s.id]||{};let short=0;
-  for(const d in ch){const k=p.idx[d];if(k===undefined||d<s.start||(ch[d]!=='t'&&ch[d]!=='x'))continue;
+  for(const d in ch){const k=p.idx[d];if(k===undefined||d<s.start||(s.pz&&d<s.pz)||(ch[d]!=='t'&&ch[d]!=='x'))continue;
     const a=s.mode==='period'&&s.end?p.amt[k]:dayAmt(s,d);short+=a-markAmt(ch[d],a)}
   if(short<=1e-9)return {date:p.end,rem};
   let d=addD(p.end,1),c=0,g=0,last=p.end;const per=s.mode==='period'&&s.end?Math.max(1,Math.round(s.daily)):0;
@@ -767,7 +767,7 @@ const isBehind=s=>{const p=projEnd(s);return !p.done&&p.date>plan(s).end};
 /* restart the remaining amount from today (tomorrow if today is already marked); period subjects keep their end day, so the daily amount goes up */
 /* one-day edits (위클리 시간·길이) belong to a date; when the whole schedule moves they would land on other work, so drop them from today on */
 function clearDayEdits(s){if(s.ov)for(const d in s.ov)if(d>=TODAY)delete s.ov[d];if(s.ovm)for(const d in s.ovm)if(d>=TODAY&&!(s.asplit&&s.asplit[d]))delete s.ovm[d]}
-function reschedOne(s){clearDayEdits(s);const st=(S.checks[s.id]||{})[TODAY]?addD(TODAY,1):TODAY;s.start=st;if(s.parent){s.autoStart=false;s.chain=false}
+function reschedOne(s){clearDayEdits(s);const st=(S.checks[s.id]||{})[TODAY]?addD(TODAY,1):TODAY;s.start=st;s.rz=st;if(s.parent){s.autoStart=false;s.chain=false}
   if(s.mode==='period'&&s.end&&s.end<st)s.end=st;rePeriod(s);PC.delete(s.id)}
 /* overlap: other bands that collide with subject s (placed at start/time) on any shared day */
 function colliders(s,start,time){
@@ -1182,7 +1182,7 @@ function renderDay(){
   if(it.length)mealsAt(d).forEach(m=>rowsA.push([m.time-.5,`<div class="row meal one${m.rid?' drest':''}"${m.rid?` data-act="restOpen" data-date="${d}" data-id="${m.rid}"`:''}><div class="tm">${hm(m.time)}</div><div class="cb">${mIco(m)}</div><div class="tx"><div class="nm" style="font-size:15px">${esc(mName(m))}</div></div></div>`]));
   const rows=rowsA.sort((p,q)=>p[0]-q[0]).map(r=>r[1]).join('');
   // overdue
-  const od=[];for(let i=1;i<=21;i++){const x=addD(TODAY,-i);itemsOn(x).forEach(t=>{if((t.mark==='t'||t.mark==='x')&&!t.oo)od.push(t)})}
+  const od=[];for(let i=1;i<=21;i++){const x=addD(TODAY,-i);itemsOn(x).forEach(t=>{if((t.mark==='t'||t.mark==='x')&&!t.oo&&!(t.s.rz&&x<t.s.rz))od.push(t)})}
   const exs=examsOn(d);
   V.innerHTML=`<div class="dwrap">
    <div class="strip" id="strip">${strip}</div>
@@ -1304,6 +1304,7 @@ function openSubject(id){
   const s=id?sub(id):null;
   const dr=!s&&id?(S.drafts||[]).find(x=>x.id===id):null;
   F=s?{...s,days:[...s.days],fix:[...(s.fix||[])],mode:s.mode||'amount',end:s.mode==='period'?plan(s).end:(s.end||'')}:dr?{...dr,days:[...dr.days],fix:[...(dr.fix||[])],draft:dr.id,id:undefined}:{mode:'amount',end:'',name:'',color:palVis()[(S.subjects.length*7)%palVis().length],total:'',daily:'',unit:'p',mins:60,days:PRESET.daily.slice(),fix:[],start:TODAY,time:null,pre:0};
+  F.done0=s&&!s.parent?doneAll(s):null;
   F.src=new Set(s?(F.mode==='period'&&F.end?['total','end']:['total','daily']):dr?['total','daily','end'].filter(k=>dr[k]):[]);
   palOpen=[...PAL.slice(1).flat(),...PAL_N].some(c=>c.toLowerCase()===String(F.color).toLowerCase());
   const h=Math.floor(F.mins/60),m=F.mins%60;
@@ -1320,7 +1321,7 @@ function openSubject(id){
    </div>
    <div class="g2 fq">
     <div class="fld"><label>단위</label><select class="inp" id="fUnit">${unitOpts(F.unit)}</select></div>
-    <div class="fld"><label>이미 진행한 양</label><input class="inp" id="fDone" type="number" inputmode="decimal" min="0" value="${F.pre>0?fmtN(F.pre):''}" placeholder="0"></div>
+    <div class="fld"><label>이미 진행한 양</label><input class="inp" id="fDone" type="number" inputmode="decimal" min="0" value="${(F.done0!=null?F.done0:F.pre)>0?fmtN(F.done0!=null?F.done0:F.pre):''}" placeholder="0"></div>
    </div>
    <div class="hint fqh">전체 분량 · 하루 분량 · 종료일 중 <b>2개</b>만 채우면 나머지는 알아서 계산돼요</div>
    <div class="trow">
@@ -1343,7 +1344,7 @@ function openSubject(id){
       if(v.typedD>0&&Math.abs(v.typedD-v.daily)>=1){w=v.typedD<v.daily?`⚠ 하루 ${fmtN(v.typedD)}${u}로는 ${mdw(v.end)}까지 못 끝나요 → <b>하루 ${perDay(v.daily)}${u}</b>로 맞출게요<br><small>하루 ${fmtN(v.typedD)}${u}로 하고 싶으면 종료일을 지워 주세요</small>`:`⚠ 종료일에 맞춰 <b>하루 ${perDay(v.daily)}${u}</b>로 나눠요<br><small>하루 ${fmtN(v.typedD)}${u}로 하고 싶으면 종료일을 지워 주세요</small>`}
       el.className='preview'+(w?' warn':'');el.innerHTML=w||`${pre>0?`남은 ${fmtN(v.total-pre)}${u} · `:''}${v.autoT?`하루 ${fmtN(v.daily)}${u} × ${v.n}일 = <b>전체 ${fmtN(v.total)}${u}</b> · `:`공부일 <b>${v.n}일</b> · 하루 <b>${perDay(v.daily)}${u}</b> · `}<b>${mdw(v.st)} ~ ${mdw(v.end)}</b> · ${tm}<br><small>종료일을 정했으니, 밀리면 하루 분량이 늘어나요</small>`;return}
     if(v.mode==='amount'){const pre=clamp(num(fv('fDone')),0,v.total),st=v.st,d=v.daily;
-      const before=Math.min(v.total,pre+(F.id?Object.entries(S.checks[F.id]||{}).filter(([k])=>k<st).reduce((a,[k,x])=>a+markAmt(x,mAmt(sub(F.id)||{},k,d)),0):0));
+      const PO=preOf(),before=Math.min(v.total,PO.pre+(F.id&&!PO.cut?Object.entries(S.checks[F.id]||{}).filter(([k])=>k<st&&!(sub(F.id).pz&&k<sub(F.id).pz)).reduce((a,[k,x])=>a+markAmt(x,mAmt(sub(F.id)||{},k,d)),0):0));
       const n=Math.max(1,Math.ceil((v.total-before)/d-1e-9));let x=st,c=0,last=st,g=0;while(c<n&&g<3000){if(isStudy(F.days,x)){c++;last=x}x=addD(x,1);g++}
       auto('total','fTotal','');auto('daily','fDaily','');auto('end','fEnd',last);
       el.className='preview';el.innerHTML=`${pre>0?`남은 ${fmtN(v.total-pre)}${u} · `:''}공부일 <b>${n}일</b> (${daysLabel(F.days)}) · <b>${mdw(st)} ~ ${mdw(last)}</b> · ${tm}<br><small>종료일을 비워 두면, 밀릴 때 종료일이 뒤로 가요</small>`;return}
@@ -1372,7 +1373,13 @@ function openSubject(id){
 const fv=id=>document.getElementById(id).value.trim();
 let FR=[];const RDD=[1,2,3,4,5,6,0];
 /* the form: any 2 of total / daily / end give the third; end + total wins over a typed daily */
-function formVals(){const has=k=>F.src.has(k),pre0=num(fv('fDone')),st=fv('fStart')||TODAY;
+/* '이미 진행한 양' shows everything done so far (pre + ○△ credit). Typing a new number makes it the truth:
+   earlier marks stop counting (s.pz) and the plan restarts from today (or after the last marked day) */
+function preOf(){const x=num(fv('fDone')),s=F.id&&sub(F.id);if(!s||F.done0==null)return {pre:x,cut:null};
+  if(Math.abs(x-F.done0)<1e-9)return {pre:s.pre||0,cut:null};
+  const ch=S.checks[s.id]||{},ks=Object.keys(ch).filter(k=>!(s.pz&&k<s.pz));if(!ks.length)return {pre:x,cut:null};
+  let c=ch[TODAY]?addD(TODAY,1):TODAY;ks.forEach(k=>{if(k>=c)c=addD(k,1)});return {pre:x,cut:c}}
+function formVals(){const has=k=>F.src.has(k),PO=preOf(),pre0=PO.pre,st1=fv('fStart')||TODAY,st=PO.cut&&st1<PO.cut?PO.cut:st1;
   const T=has('total')?num(fv('fTotal')):0,D=has('daily')?num(fv('fDaily')):0,E=has('end')?fv('fEnd'):'';const n=E?studyDaysBetween(F.days,st,E):0;
   if(T>0&&E)return {mode:'period',total:T,end:E,n,daily:n>0?(T-Math.min(pre0,T))/n:0,typedD:D,st};
   if(D>0&&E)return {mode:'period',total:Math.round((D*n+Math.max(0,pre0))*100)/100,end:E,n,daily:D,st,autoT:1};
@@ -1470,16 +1477,16 @@ function saveSubject(){
     S.drafts=(S.drafts||[]).filter(x=>x.id!==dd.id);S.drafts.push(dd);save();closeModal();render();return toast(`'${name}' 날짜 미정으로 보관했어요 · 과목 리스트 맨 아래에 있어요`)}
   if(v.mode==='period'&&v.n<1)return toast('종료일은 시작일 뒤로, 공부하는 요일이 들어가게 골라 주세요');
   const period=v.mode==='period',total=v.total;let daily=v.daily;
-  if(period){const pre0=num(fv('fDone'));daily=Math.max(1e-6,(total-Math.min(pre0,total))/v.n);F.end=v.end}
+  if(period){const pre0=preOf().pre;daily=Math.max(1e-6,(total-Math.min(pre0,total))/v.n);F.end=v.end}
   let mins=Math.round(num(fv('fH'))*60+num(fv('fM')));
   if(!name)return toast('과목명을 입력해 주세요');
   if(!(total>0))return toast('전체 분량을 입력해 주세요');
   if(!(daily>0))return toast('하루 공부량을 입력해 주세요');
   if(!F.days.length)return toast('공부할 요일을 하나 이상 골라 주세요');
-  const pre=num(fv('fDone'));if(pre<0||pre>=total)return toast('이미 진행한 양은 전체 분량보다 작게 넣어 주세요');
+  const PO=preOf(),pre=PO.pre;if(num(fv('fDone'))<0||num(fv('fDone'))>=total)return toast('이미 진행한 양은 전체 분량보다 작게 넣어 주세요');
   if(mins<10)mins=10;
   const {dayStart:a,dayEnd:b}=S.cfg;mins=Math.min(mins,(b-a)*60);
-  const start=fv('fStart')||TODAY;const tv=fv('fTime');
+  const start=v.st;const tv=fv('fTime');
   const isNew=!F.id;const id=F.id||uid();
   const clr=(document.getElementById('fTime')||{dataset:{}}).dataset.cleared;let time=tv?inMin(tv):(isNew||clr?null:F.time);
   roundChain();
@@ -1491,6 +1498,7 @@ function saveSubject(){
   const before=JSON.stringify(S.subjects),oldT=isNew?null:sub(id).time;
   const o={id,name,color:F.color,total,daily,pre,unit:fv('fUnit'),mins,days:[...F.days].sort(),fix:F.fix.filter(x=>F.days.includes(x)).sort(),start,time:time??a*60,mode:period?'period':'amount',end:period?v.end:''};
   if(!isNew){const q=sub(id);if(q&&(q.start!==o.start||(q.end||'')!==(o.end||'')||q.daily!==o.daily||q.mode!==o.mode))clearDayEdits(q)}
+  if(PO.cut){o.pz=PO.cut;o.rz=PO.cut}
   if(isNew)S.subjects.push(o);else Object.assign(sub(id),o);
   if(F.draft)S.drafts=(S.drafts||[]).filter(x=>x.id!==F.draft);
   applyRounds(id);
