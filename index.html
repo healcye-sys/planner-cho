@@ -789,16 +789,23 @@ function packPrev(on){
   return `<div class="pv"><div class="pvc"><div class="pvh">맹자 강의 하는 날</div>${before}</div><div class="pva">→</div>
    <div class="pvc ${on?'on':''}"><div class="pvh">맹자 강의 끝난 다음 날</div>${after}</div></div>
    <div class="pvn">${on?'생리학이 11:00 → <b>09:00으로 당겨져요</b>. 뒤 과목들도 같이요':'생리학은 <b>11:00 그대로</b>, 9:00은 빈 시간으로 남아요'}</div>`}
+/* study minutes between a and b (meals/rests not counted) */
+function studyMins(a,b){let m=Math.max(0,b-a);for(const ml of mealsOn()){const o=Math.min(b,ml.time+ml.mins)-Math.max(a,ml.time);if(o>0)m-=o}return Math.max(0,m)}
+let CHG={}; // chain head -> study minutes left empty on purpose before it (gap after the chain before it in the timetable)
 function chainHeads(){const bl=S.subjects.map(s=>{const sg=spanSegs(s.time,s.mins);return {id:s.id,t0:sg[0][0],t1:sg[sg.length-1][1]}}).sort((a,b)=>a.t0-b.t0);
   const head={};let cs=null,ce=-1;
-  bl.forEach(b=>{const next=ce<0?-1:spanSegs(ce,1)[0][0];if(cs==null||b.t0>next+.5)cs=b.t0;head[b.id]=cs;ce=Math.max(ce,b.t1)});return head}
+  const gap={};bl.forEach(b=>{const next=ce<0?-1:spanSegs(ce,1)[0][0];if(cs==null||b.t0>next+.5){if(cs!=null&&ce>=0&&gap[b.t0]==null)gap[b.t0]=studyMins(ce,b.t0);cs=b.t0}head[b.id]=cs;ce=Math.max(ce,b.t1)});CHG=gap;return head}
 function packDay(it,date){const head=CH||(CH=chainHeads()),g={};
   it.forEach(x=>{if(x.oo||(x.s.ov&&x.s.ov[date]!=null))return;const h=head[x.s.id];if(h==null)return;(g[h]||(g[h]=[])).push(x)});
   // subjects with a time of their own that day (moved in 위클리, one-offs) keep it: the chain flows around them in its usual order
   const fx=it.filter(x=>x.oo||(x.s.ov&&x.s.ov[date]!=null)).map(x=>[x.segs[0][0],x.end]);
-  for(const h in g){let cur=+h;g[h].sort((a,b)=>a.s.time-b.s.time).forEach(x=>{let sg=spanSegs(cur,x.mins);
+  // 뒤 덩어리도 앞 덩어리가 당겨진 만큼 따라옴: 원래 띄워둔 간격(식사·휴식 빼고)은 그대로, 원래 시각보다 늦어지진 않음. 하루 끝 뒤에 일부러 잡은 덩어리는 그대로
+  const DE=S.cfg.dayEnd*60;let prev=null;
+  for(const h of Object.keys(g).map(Number).sort((a,b)=>a-b)){let cur=h;
+    if(prev!=null&&h<DE){const gp=CHG[h]||0;const st=gp>0?spanSegs(prev,gp).pop()[1]:prev;if(st<h)cur=st}
+    g[h].sort((a,b)=>a.s.time-b.s.time).forEach(x=>{let sg=spanSegs(cur,x.mins);
     for(let k=0;k<50;k++){const a0=sg[0][0],a1=sg[sg.length-1][1],f=fx.find(([f0,f1])=>f0<a1&&f1>a0);if(!f)break;cur=Math.max(cur,f[1]);sg=spanSegs(cur,x.mins)}
-    x.segs=sg;x.time=x.segs[0][0];cur=x.end})}
+    x.segs=sg;x.time=x.segs[0][0];cur=x.end});prev=prev==null?cur:Math.max(prev,cur)}
   it.sort((a,b)=>a.time-b.time)}
 /* projected end: the plan's end, pushed later only by days marked △ or × (unmarked days are not "late") */
 function projEnd(s){
@@ -1666,20 +1673,30 @@ function slideDay(d){const it=itemsOn(d).slice().sort((p,q)=>p.segs[0][0]-q.segs
     if(!fixed&&st>cur+1){const t=spanSegs(cur,1)[0][0];if(t<st){(so.ov||(so.ov={}))[d]=t;(so.aslide||(so.aslide={}))[d]=true;n++;cur=spanSegs(t,y.mins).pop()[1];continue}}
     cur=Math.max(cur,y.end)}
   if(n){PC.clear();ITC.clear();if(DEC)DEC.clear()}return n}
-function autoMove(L,M){const mv=[],DE=S.cfg.dayEnd*60;
-  for(const x of L){for(let g=0;g<8;g++){const it=itemsOn(x.d).filter(y=>!lateOn(y,x.d));if(!it.length||Math.max(...it.map(y=>y.end))<=M)break;
-    const c=it.filter(y=>!y.oo&&!(y.s.mode==='period'&&y.s.end&&!periodLeft(y.s,x.d))&&!(y.s.keep&&y.s.keep[x.d])&&!(y.s.asplit&&y.s.asplit[x.d])&&!y.fx).sort((p,q)=>q.end-p.end)[0];if(!c){if(g<7&&S.cfg.pack!==false&&slideDay(x.d))continue;break}
-    const so=c.s,d=x.d,userOv=so.ovm&&so.ovm[d]!=null;
-    const f=!userOv&&splitFit(so,c.mins-(c.end-DE));
-    if(f){(so.ovm||(so.ovm={}))[d]=f.nm;(so.asplit||(so.asplit={}))[d]=S.cfg.pack===false?2:true;touch(so);
-      if(dayEndOf(d)<=M){mv.push({d,end:x.end,s:so,split:f});continue}
-      delete so.ovm[d];delete so.asplit[d];touch(so)}
-    // 빈자리 채우기 끄기: 뒤 과목이 앞으로 안 당겨지니, 보내도 그날 끝이 안 줄면 보내지 않고 넘친 채 둠 (🌙)
-    const off=S.cfg.pack===false,e0=off?dayEndOf(d):0,ad=so.add&&so.add[d];
-    (so.askip||(so.askip={}))[d]=off?2:true;(so.skip||(so.skip={}))[d]=true;if(so.add)delete so.add[d];touch(so); // 2 = 끄기 동안 보낸 것 (다시 켜면 되돌림)
-    if(off&&dayEndOf(d)>=e0){delete so.askip[d];delete so.skip[d];if(ad)so.add[d]=ad;touch(so);break}
-    mv.push({d,end:x.end,s:so})}}
+function autoMove(L,M){const mv=[],DE=S.cfg.dayEnd*60,off=S.cfg.pack===false,tag=off?2:true; // 2 = 끄기 동안 보낸 것 (다시 켜면 되돌림)
+  for(const x of L){const d=x.d,e0=off?dayEndOf(d):0,m0=mv.length,log=[];
+    // remember a day-entry before changing it, so the whole day can be put back
+    const keep=(so,k)=>{const o=so[k];log.push([so,k,o&&d in o,o&&o[d]])};
+    const put=(so,k,v)=>{keep(so,k);(so[k]||(so[k]={}))[d]=v};const del=(so,k)=>{if(so[k]&&d in so[k]){keep(so,k);delete so[k][d]}};
+    for(let g=0;g<8;g++){const it=itemsOn(d).filter(y=>!lateOn(y,d));if(!it.length||Math.max(...it.map(y=>y.end))<=M)break;
+      const c=it.filter(y=>!y.oo&&!(y.s.mode==='period'&&y.s.end&&!periodLeft(y.s,d))&&!(y.s.keep&&y.s.keep[d])&&!(y.s.asplit&&y.s.asplit[d])&&!y.fx).sort((p,q)=>q.end-p.end)[0];
+      if(!c){if(g<7&&!off&&slideDay(d))continue;
+        // 이미 일부만 남긴(asplit) 과목이 그래도 넘치면 그날은 통째로 다음 날로
+        const sp=it.filter(y=>!y.oo&&!y.fx&&y.s.asplit&&y.s.asplit[d]&&!(y.s.keep&&y.s.keep[d])&&!(y.s.mode==='period'&&y.s.end&&!periodLeft(y.s,d))).sort((p,q)=>q.end-p.end)[0];
+        if(sp&&sp.end>M){const so=sp.s,e1=dayEndOf(d),n=log.length;del(so,'asplit');del(so,'ovm');put(so,'askip',tag);put(so,'skip',true);touch(so);
+          if(dayEndOf(d)<e1){mv.push({d,end:x.end,s:so});continue}
+          undoLog(log.splice(n),d)}
+        break}
+      const so=c.s,userOv=so.ovm&&so.ovm[d]!=null;
+      const f=!userOv&&splitFit(so,c.mins-(c.end-DE));
+      if(f){const n=log.length;put(so,'ovm',f.nm);put(so,'asplit',tag);touch(so);
+        if(dayEndOf(d)<=M){mv.push({d,end:x.end,s:so,split:f});continue}
+        undoLog(log.splice(n),d)}
+      put(so,'askip',tag);put(so,'skip',true);del(so,'add');touch(so);mv.push({d,end:x.end,s:so})}
+    // 빈자리 채우기 끄기: 뒤 과목이 앞으로 안 당겨지니, 이날 보낸 걸 다 합쳐도 그날 끝이 안 줄면 하나도 안 보내고 넘친 채 둠 (🌙)
+    if(off&&log.length&&dayEndOf(d)>=e0){undoLog(log,d);mv.length=m0}}
   return mv}
+function undoLog(log,d){const ss=new Set();for(let i=log.length-1;i>=0;i--){const [so,k,had,v]=log[i];if(had)(so[k]||(so[k]={}))[d]=v;else if(so[k])delete so[k][d];ss.add(so)}ss.forEach(touch)}
 /* room opened up earlier: bring auto-skipped / auto-split days back (whole if it fits before the day end, else the part that fits),
    only when no day gets later than it was (or goes past the day end) */
 /* d, d+1, … up to `last` (at most n days), from one shared list instead of building dates each time */
