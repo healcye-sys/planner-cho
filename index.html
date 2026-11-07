@@ -190,6 +190,7 @@ main{padding:0 14px}
 .ckd{font-size:12.5px;color:var(--sub);margin-top:3px}.ckl{margin-top:9px;display:grid;gap:4px;font-size:12.5px}
 .ckr{display:flex;gap:8px;align-items:center;min-width:0}.ckr code{width:44px;flex:0 0 auto;color:var(--sub)}.ckr i{width:4px;height:16px;border-radius:2px;flex:0 0 auto}.ckr span{color:var(--brand);white-space:nowrap}.ckr.more{color:var(--sub);padding-left:56px}
 .ckno{all:unset;display:block;width:100%;text-align:center;padding:12px 0 4px;font-size:14px;color:var(--sub);font-weight:600;cursor:pointer}
+.xrow{display:flex;gap:8px}.xrow .xadd{flex:1 1 0;min-width:0;white-space:nowrap}.row.drest{cursor:pointer}
 .xadd{display:flex;align-items:center;justify-content:center;margin:10px 0 2px;padding:10px;border:1.5px dashed var(--line);border-radius:12px;color:var(--sub);font-size:14px;font-weight:600;cursor:pointer}
 .xtag{font-size:10.5px;font-weight:800;color:var(--brand);background:var(--brandSoft);border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:2px;white-space:nowrap}
 .xskip{font-size:12.5px;color:var(--sub);margin-top:8px;display:flex;flex-wrap:wrap;gap:4px 10px}.xskip b{color:var(--brand);cursor:pointer;margin-left:2px}
@@ -634,9 +635,13 @@ function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.is
 let S=load();
 S.subjects.forEach(x=>{x.days=normDays(x.days);if(!(x.pre>0))x.pre=0});if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
 if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
-function ensureRest(){if(!S.cfg.meals.some(m=>m.rest))S.cfg.meals.push({n:'휴식',time:null,mins:15,rest:true})}ensureRest();
+function ensureRest(){S.cfg.meals=S.cfg.meals.filter(m=>!m.rest)}ensureRest();
 const mIco=m=>m.rest?'☕':'🍚',mName=m=>m.rest?m.n:m.n+' 식사';
-const mealsOn=()=>(S.cfg.meals||[]).filter(m=>m.time!=null).sort((a,b)=>a.time-b.time);
+/* MDAY = the date being laid out; its one-day breaks (S.rests[date]) count like meals: study pauses and continues after */
+let MDAY=null;
+const mealsOn=()=>{const g=(S.cfg.meals||[]).filter(m=>m.time!=null&&!m.rest);const r=MDAY&&S.rests&&S.rests[MDAY];
+  return (r&&r.length?g.concat(r.map(x=>({n:'휴식',time:x.time,mins:x.mins,rest:true,rid:x.id}))):g).sort((a,b)=>a.time-b.time)};
+const mealsAt=d=>{const p=MDAY;MDAY=d;try{return mealsOn()}finally{MDAY=p}};
 /* subject colours: 12 clearly different hues; row 1 = deepest, "+" opens lighter rows below */
 const hslHex=(h,s,l)=>{s/=100;l/=100;const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return '#'+[f(0),f(8),f(4)].map(x=>Math.round(x*255).toString(16).padStart(2,'0')).join('').toUpperCase()};
 const PAL=[[45,62],[55,71],[65,80],[70,88]].map(([sa,l])=>[0,24,36,48,80,130,165,195,215,245,275,330].map(h=>hslHex(h,sa,l)));
@@ -707,7 +712,8 @@ function spanSegs(t,m){const out=[];let cur=t,left=m;
     if(a>cur){out.push([cur,a]);left-=a-cur}cur=Math.max(cur,b)}
   if(left>0||!out.length)out.push([cur,cur+Math.max(0,left)]);return out}
 const dayMins=(s,d)=>s.ovm&&s.ovm[d]!=null?s.ovm[d]:s.mins;
-function itemFor(s,date){
+function itemFor(s,date){const pm=MDAY;MDAY=date;try{return itemFor1(s,date)}finally{MDAY=pm}}
+function itemFor1(s,date){
   const p=plan(s);const k=p.idx[date];if(k===undefined)return null;
   const from=p.before+p.cum[k],to=Math.min(s.total,from+(s.mode==='period'?p.amt[k]:dayAmt(s,date)));
   return {s,date,k,from,to,label:rangeTxt(s,from,to),time:dayTime(s,date),ov:!!(s.ov&&s.ov[date]!=null||s.ovm&&s.ovm[date]!=null),mins:dayMins(s,date),segs:spanSegs(dayTime(s,date),dayMins(s,date)),get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[s.id]||{})[date]||''};
@@ -721,7 +727,8 @@ function setDay(s,d,kind,on){const o=s[kind]||(s[kind]={});if(on)o[d]=true;else 
   const other=kind==='add'?'skip':'add';if(on&&s[other])delete s[other][d];if(kind==='add'&&on&&s.askip)delete s.askip[d];if(kind==='skip'&&on&&s.asplit&&s.asplit[d]){delete s.asplit[d];if(s.ovm)delete s.ovm[d]}rePeriod(s);PC.clear()}
 /* one day's items, never overlapping: a subject that would start before the previous one ends waits until it ends */
 function itemsOn(date){if(DEC){const c=ITC.get(date);if(c)return c;const r=itemsOn0(date);ITC.set(date,r);return r}return itemsOn0(date)}
-function itemsOn0(date){
+function itemsOn0(date){const pm=MDAY;MDAY=date;try{return itemsOn1(date)}finally{MDAY=pm}}
+function itemsOn1(date){
   const ord=ORDC||(ORDC=new Map(listOrder().map((s,i)=>[s.id,i])));
   const it=S.subjects.map(s=>itemFor(s,date)).filter(Boolean).concat(onesOn(date)).sort((a,b)=>a.time-b.time||(ord.get(a.s.id)??1e9)-(ord.get(b.s.id)??1e9));
   if(S.cfg.pack!==false)packDay(it,date);
@@ -1125,8 +1132,8 @@ function renderWeek(){
     // lanes for overlaps
     const lanes=[];it.forEach(x=>{let l=lanes.findIndex(e=>e<=x.time);if(l<0){l=lanes.length;lanes.push(0)}lanes[l]=x.end;x.lane=l});
     const L=Math.max(1,lanes.length);
-    const meals=mealsOn().filter(m=>m.time<b*60&&m.time+m.mins>a*60).map(m=>{const t0=Math.max(m.time,a*60),t1=Math.min(m.time+m.mins,b*60);
-      return `<div class="wmeal" data-act="mealTap" data-n="${esc(m.n)}" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">${mIco(m)} ${esc(m.n)}</div>`}).join('');
+    const meals=mealsAt(d).filter(m=>m.time<b*60&&m.time+m.mins>a*60).map(m=>{const t0=Math.max(m.time,a*60),t1=Math.min(m.time+m.mins,b*60);
+      return `<div class="wmeal" data-act="${m.rid?'restTap':'mealTap'}" data-n="${esc(m.n)}" data-date="${d}" data-id="${m.rid||''}" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">${mIco(m)} ${esc(m.n)}</div>`}).join('');
     const nwl=d===TODAY?`<div class="wnow" style="top:${(nowMin()-a*60)/60*HP}px;${nowMin()<a*60||nowMin()>b*60?'display:none':''}"><span>${hm(nowMin())}</span></div>`:'';
     cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H2}px;background-image:${bg}">`+meals+nwl+(ob?`<div class="lnight" style="top:${(b-a)*HP}px;height:${ob/60*HP}px"><span>🌙 +${Math.floor(ob/60)}:${pad(ob%60)}</span></div>`:'')+(MV[i]?MV[i].am.map((s,j)=>{const n=nextStudy(s,d);return `<div class="mvchip" data-act="gotoDay" data-date="${d}" style="top:${MV[i].top+j*36}px">${esc(s.name)}<br>${n?md(n)+'로':''}</div>`}).join(''):'')+it.map(x=>x.segs.map(([t0,t1],si)=>{
       const first=si===0,last=si===x.segs.length-1;
@@ -1172,7 +1179,7 @@ function renderDay(){
       <div class="tm">${hm(t0)}~${hm(t1)}</div><div class="cb" style="background:${x.s.color}"></div>
       <div class="tx"><div class="nm">${esc(x.s.name)} <span class="ctn">이어서</span></div><div class="rg">${esc(x.label)}</div></div>
       <div class="hr"></div><span class="mk" style="visibility:hidden"></span></div>`])));
-  if(it.length)mealsOn().forEach(m=>rowsA.push([m.time-.5,`<div class="row meal one"><div class="tm">${hm(m.time)}</div><div class="cb">${mIco(m)}</div><div class="tx"><div class="nm" style="font-size:15px">${esc(mName(m))}</div></div></div>`]));
+  if(it.length)mealsAt(d).forEach(m=>rowsA.push([m.time-.5,`<div class="row meal one${m.rid?' drest':''}"${m.rid?` data-act="restOpen" data-date="${d}" data-id="${m.rid}"`:''}><div class="tm">${hm(m.time)}</div><div class="cb">${mIco(m)}</div><div class="tx"><div class="nm" style="font-size:15px">${esc(mName(m))}</div></div></div>`]));
   const rows=rowsA.sort((p,q)=>p[0]-q[0]).map(r=>r[1]).join('');
   // overdue
   const od=[];for(let i=1;i<=21;i++){const x=addD(TODAY,-i);itemsOn(x).forEach(t=>{if((t.mark==='t'||t.mark==='x')&&!t.oo)od.push(t)})}
@@ -1189,7 +1196,7 @@ function renderDay(){
       ${d!==TODAY?'<button class="btn" data-act="dToday">오늘로</button>':''}</div>
     ${overBy(it)?`<div class="ovfbar">🌙 ${lateTxt(Math.max(...it.map(x=>x.end)))} 가요 · ${endH()}보다 <b>${durTxt(overBy(it))}</b> 넘어요<small>공부 시간을 줄이거나 과목을 다른 날로 옮겨 보세요</small></div>`:''}
     <div style="margin-top:10px">${rows||'<div class="empty">이 날은 계획된 공부가 없어요.</div>'}</div>
-    <div class="xadd" data-act="xAdd" data-date="${d}">＋ 오늘만 추가</div>
+    <div class="xrow"><div class="xadd" data-act="xAdd" data-date="${d}">＋ 오늘만 추가</div><div class="xadd" data-act="restOpen" data-date="${d}">☕ 휴식 추가</div></div>
     ${(()=>{const a=askipOn(d).length,b=asplitOn(d).length;return a+b?`<div class="restln" data-act="xAdd" data-date="${d}">🌙<span>${a+b}과목을 다른 날로 옮겼어요</span><i>보기 ›</i></div>`:''})()}
     ${skippedOn(d).length?`<div class="xskip">다른 날로 옮김 · ${skippedOn(d).map(s=>`<span>${esc(s.name)} <b data-act="xUnskip" data-id="${s.id}" data-date="${d}">되돌리기</b></span>`).join('')}</div>`:''}
     <div class="foot"><span>${dn} / ${it.length} 완료</span><span>공부 ${hrs(mins)}</span></div>
@@ -1645,6 +1652,19 @@ function askClash(so,want,oldT,cf,before,isNew){
     toast(k==='push'?`${c.name}부터 뒤로 밀었어요`:'자리를 바꿨어요')})});
 }
 let MTAP=null;
+/* one-day break (데일리 ☕ 휴식 추가): S.rests[date]=[{id,time,mins}] */
+function openRest(d,id){const r=id&&((S.rests&&S.rests[d])||[]).find(x=>x.id===id);const t0=r?r.time:(d===TODAY?clamp(Math.ceil(nowMin()/10)*10,S.cfg.dayStart*60,S.cfg.dayEnd*60-10):15*60);
+  openModal(`<h3>☕ ${mdw(d)} 휴식</h3><div class="g2"><div class="fld"><label>시작</label><input class="inp" type="time" step="600" id="rsT" value="${hmv(t0)}"></div>
+   <div class="fld"><label>쉬는 시간 (분)</label><input class="inp" type="number" inputmode="numeric" min="5" max="240" step="5" id="rsM" value="${r?r.mins:15}"></div></div>
+   <div class="hint" style="margin:-2px 0 12px">이날만 쉬어요</div>
+   <div class="sheet-acts">${r?`<button class="btn danger" data-act="restDel" data-date="${d}" data-id="${id}">지우기</button>`:''}<div class="spacer"></div><button class="btn" data-act="close">취소</button><button class="btn pri" data-act="restSave" data-date="${d}" data-id="${r?id:''}">저장</button></div>`)}
+function saveRest(d,id){const v=fv('rsT');if(!v)return toast('시작 시각을 넣어 주세요');const tm=inMin(v);const mins=clamp(Math.round(+fv('rsM')||15),5,240);
+  const before=JSON.stringify(S.subjects),bR=JSON.stringify(S.rests||{});S.rests=S.rests||{};const L=S.rests[d]||(S.rests[d]=[]);
+  const r=id&&L.find(x=>x.id===id);if(r){r.time=tm;r.mins=mins}else L.push({id:uid(),time:tm,mins});L.sort((a,b)=>a.time-b.time);CH=null;PC.clear();
+  const last=itemsOn(d).filter(x=>!x.oo).sort((a,b)=>b.end-a.end)[0];const done=()=>{save();closeModal();render();toast(`${mdw(d)} ${hm(tm)}부터 ${durTxt(mins)} 쉬어요`)};
+  if(!last)return done();
+  // a break makes the day longer, so it follows the same rule as any edit: ask within the limit, move the day's last subject beyond it
+  lateGate(last.s.id,'',before,done,()=>{S.rests=JSON.parse(bR);CH=null;PC.clear();save();closeModal();render()},'넣으면')}
 function openMeal(n){const m=(S.cfg.meals||[]).find(x=>x.n===n);if(!m)return;
   openModal(`<h3>${mIco(m)} ${esc(m.n)} 시간</h3><div class="g2"><div class="fld"><label>시작</label><input class="inp" type="time" step="600" id="mlT" value="${hmv(m.time)}"></div>
    <div class="fld"><label>소요시간 (분)</label><input class="inp" type="number" inputmode="numeric" min="5" max="240" step="5" id="mlM" value="${m.mins}"></div></div>
@@ -1731,7 +1751,7 @@ function openSettings(){
     <div class="hint" style="margin-top:6px;line-height:1.5">이만큼까지는 물어보고 넣어요. 더 넘치면 그 날은 맨 뒤 과목을 쉬고 다음 공부하는 날로 넘겨요.</div></div>
    <div class="fld"><label>식사 시간 <span class="hint" style="font-weight:400">(비워 두면 표시 안 함)</span></label>
     ${S.cfg.meals.map((m,i)=>m.rest?'':mealRow(m,i)).join('')}</div>
-   <div class="fld" id="restFld">${restInner()}</div>
+
    <div class="fld"><label>빈 시간 자동으로 당기기</label><div class="seg3 small">${[['on','켜기'],['off','끄기']].map(([k,v])=>`<button data-act="pickPack" data-k="${k}" class="${(S.cfg.pack!==false)===(k==='on')?'on':''}">${v}</button>`).join('')}</div><div id="packPrev">${packPrev(S.cfg.pack!==false)}</div></div>
    <div class="fld"><label>테마 색상</label><div class="hive">${honeycomb()}<div class="hivePrev" id="hivePrev"></div></div></div>
    <div class="fld"><label>화면 모드</label><div class="seg3 small">${[['system','기기 설정'],['light','밝게'],['dark','어둡게']].map(([k,v])=>`<button data-act="pickMode" data-k="${k}" class="${(S.cfg.mode||'system')===k?'on':''}">${v}</button>`).join('')}</div></div>
@@ -2009,6 +2029,10 @@ document.addEventListener('click',e=>{
     case 'xUnadd':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'add',false);if(s.ov)delete s.ov[d];save();closeModal();render();toast('오늘만 추가를 취소했어요');break}
     case 'xKeep':{const s=sub(id),d=el.dataset.date;if(!s)break;(s.keep||(s.keep={}))[d]=true;if(s.asplit&&s.asplit[d]){delete s.asplit[d];if(s.ovm)delete s.ovm[d]}setDay(s,d,'skip',false);save();closeModal();render();toast(`'${s.name}' 오늘 해요`);break}
     case 'mealTap':{const now=Date.now(),n=el.dataset.n;if(MTAP&&MTAP.n===n&&now-MTAP.t<450){MTAP=null;openMeal(n)}else MTAP={n,t:now};break}
+    case 'restOpen':openRest(el.dataset.date,id||null);break;
+    case 'restTap':{const now=Date.now(),k=el.dataset.date+id;if(MTAP&&MTAP.n===k&&now-MTAP.t<450){MTAP=null;openRest(el.dataset.date,id)}else MTAP={n:k,t:now};break}
+    case 'restSave':saveRest(el.dataset.date,id||null);break;
+    case 'restDel':{const d=el.dataset.date;if(S.rests&&S.rests[d]){S.rests[d]=S.rests[d].filter(x=>x.id!==id);if(!S.rests[d].length)delete S.rests[d]}CH=null;PC.clear();save();closeModal();render();toast('휴식을 지웠어요');break}
     case 'mealSave':{const m=(S.cfg.meals||[]).find(x=>x.n===el.dataset.n);if(!m)break;const t=SH.querySelector('#mlT').value,mm=+SH.querySelector('#mlM').value;
       if(t){const [h,mi]=t.split(':').map(Number);m.time=h*60+mi}if(mm>=5)m.mins=Math.min(240,mm);PC.clear();save();closeModal();render();toast(`${m.n} ${hm(m.time)}부터 ${durTxt(m.mins)}`);break}
     case 'xUnskip':{const s=sub(id),d=el.dataset.date;setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 다시 공부하는 날이에요`);break}
