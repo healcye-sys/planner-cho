@@ -1157,7 +1157,7 @@ function renderDay(){
     <div style="margin-top:10px">${rows||'<div class="empty">이 날은 계획된 공부가 없어요.</div>'}</div>
     <div class="xadd" data-act="xAdd" data-date="${d}">＋ 오늘만 추가</div>
     ${(()=>{const a=askipOn(d).length,b=asplitOn(d).length;return a+b?`<div class="restln" data-act="xAdd" data-date="${d}">🌙<span>${a+b}과목을 다른 날로 옮겼어요</span><i>보기 ›</i></div>`:''})()}
-    ${skippedOn(d).length?`<div class="xskip">오늘만 쉬기 · ${skippedOn(d).map(s=>`<span>${esc(s.name)} <b data-act="xUnskip" data-id="${s.id}" data-date="${d}">되돌리기</b></span>`).join('')}</div>`:''}
+    ${skippedOn(d).length?`<div class="xskip">다른 날로 옮김 · ${skippedOn(d).map(s=>`<span>${esc(s.name)} <b data-act="xUnskip" data-id="${s.id}" data-date="${d}">되돌리기</b></span>`).join('')}</div>`:''}
     <div class="foot"><span>${dn} / ${it.length} 완료</span><span>공부 ${hrs(mins)}</span></div>
    </div>
    <div class="card"><div class="sec-title">⏰ 밀린 공부 <span class="hint">(최근 3주, △·× 친 항목)</span></div>
@@ -1640,7 +1640,7 @@ function openDayMenu(id,d){
   openModal(`<h3>${esc((o||s).name)}</h3><p class="xsub">${dTitle(d)}</p>
    ${o?`<button class="xit" data-act="xDelOne" data-id="${id}">🗑 지우기</button>`:
      added?`<button class="xit" data-act="xUnadd" data-id="${id}">↺ 오늘만 추가 취소</button>`:
-     `<button class="xit" data-act="xSkip" data-id="${id}">🌿 오늘만 쉬기<small>이날 분량은 다음 공부일로</small></button>`}
+     `<button class="xit" data-act="xSkip" data-id="${id}">🌿 다른 날로 옮기기</button>`}
    ${s?`<button class="xit" data-act="editSub" data-id="${id}">✏️ 과목 수정</button>`:''}
    <div class="sheet-acts"><div class="spacer"></div><button class="btn" data-act="close">닫기</button></div>`);
   SH.dataset.xd=d;
@@ -1924,7 +1924,7 @@ document.addEventListener('click',e=>{
       const d=SH.dataset.xd;const used=(S.ones||[]).length+S.subjects.length;
       (S.ones||(S.ones=[])).push({id:uid(),date:d,name,time:tv?inMin(tv):(SH.dataset.xt?+SH.dataset.xt:S.cfg.dayStart*60),mins,color:palVis()[used%palVis().length]});
       save();closeModal();render();toast(`'${name}' 오늘만 추가했어요`);break}
-    case 'xSkip':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'skip',true);save();closeModal();render();toast(`'${s.name}' 오늘만 쉬어요`);break}
+    case 'xSkip':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'skip',true);save();closeModal();render();toast(`'${s.name}' 다른 날로 옮겼어요`);break}
     case 'xUnadd':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'add',false);if(s.ov)delete s.ov[d];save();closeModal();render();toast('오늘만 추가를 취소했어요');break}
     case 'xKeep':{const s=sub(id),d=el.dataset.date;if(!s)break;(s.keep||(s.keep={}))[d]=true;if(s.asplit&&s.asplit[d]){delete s.asplit[d];if(s.ovm)delete s.ovm[d]}setDay(s,d,'skip',false);save();closeModal();render();toast(`'${s.name}' 오늘 해요`);break}
     case 'mealTap':{const now=Date.now(),n=el.dataset.n;if(MTAP&&MTAP.n===n&&now-MTAP.t<450){MTAP=null;openMeal(n)}else MTAP={n,t:now};break}
