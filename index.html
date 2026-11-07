@@ -135,7 +135,7 @@ main{padding:0 14px}
 .lanes .seg .rsz{right:0;width:20px}.lanes .seg .rsz:after{display:none}.lanesg .bar{position:relative}.lanesg .bar .rzg{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:12px;height:8px;background-color:currentColor;opacity:.9;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 8%27%3E%3Cpath d=%27M1 4h10M3.5 1.2L1 4l2.5 2.8M8.5 1.2L11 4 8.5 6.8%27 fill=%27none%27 stroke=%27black%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 12 8%27%3E%3Cpath d=%27M1 4h10M3.5 1.2L1 4l2.5 2.8M8.5 1.2L11 4 8.5 6.8%27 fill=%27none%27 stroke=%27black%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center/contain no-repeat}.seg:not(.lanesg) .rzg{display:none}
 .lanes .seg:has(.rsz) .bar{padding-right:18px}
 .seg.hold.rs .rsz:after,.seg.lift.rs .rsz:after{background:var(--ink)}
-.seg.ghost .bar{background:transparent!important;border:2px dashed var(--ink);box-shadow:none;opacity:.9}
+.seg.ghost .bar{background:transparent!important;border:2px dashed var(--ink);box-shadow:none;opacity:.9}.lanes .seg.ghost .bar{background:var(--card)!important;color:transparent!important}.lanes .seg.ghost.cut .bar{opacity:.85;border-color:var(--sub)}
 .seg.flash .bar{animation:flash 1.2s ease 2}
 @keyframes flash{50%{box-shadow:0 0 0 3px #ffd54a,0 0 12px #ffd54a}}
 .seg .dots{margin-left:auto;padding-left:3px;letter-spacing:-1px;font-size:9px;opacity:.9}
@@ -247,6 +247,8 @@ input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:tex
 .dayts button.fx,.rd .dd button.fx{background:var(--red,#e5534b)!important;color:#fff!important;position:relative;overflow:visible}
 .dayts button.fx::after,.rd .dd button.fx::after{content:'📌';position:absolute;top:-7px;right:-5px;font-size:12px}
 .fxh{color:#e5534b;font-size:12px;font-weight:600;margin-left:8px}
+.rlate{display:block;color:var(--sub);font-size:12px;margin-top:4px}.rlate:empty{display:none}.rd .sum .rlate{display:inline}
+.rd label.rchk,.rchk{display:flex;align-items:center;gap:8px;font-size:14px!important;font-weight:700;color:var(--ink);margin:8px 0 2px;cursor:pointer}.rchk input{width:18px;height:18px;accent-color:var(--brand);margin:0}
 .fxpin{font-size:.85em;margin-right:2px}
 .rd.fold{padding:12px;cursor:pointer}.rd.fold h5{margin:0;white-space:nowrap}.rd.fold h5 .fs{flex:1;min-width:0}.rd .fs{font-size:12.5px;color:var(--sub);font-weight:500;margin-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rd1{font-size:13px;color:var(--sub);margin-top:10px;display:flex;align-items:center;gap:8px}.rd1 em{font-style:normal;font-size:11px;font-weight:800;color:var(--brand);background:var(--brandSoft);border-radius:6px;padding:2px 7px}
@@ -617,7 +619,7 @@ const PRESET={daily:[0,1,2,3,4,5,6],weekday:[1,2,3,4,5],weekend:[0,6]};
 const normDays=v=>Array.isArray(v)?v:(PRESET[v]||PRESET.daily).slice();
 const daysLabel=a=>{const k=[...a].sort().join('');if(k==='0123456')return '매일';if(k==='12345')return '평일';if(k==='06')return '주말';return [1,2,3,4,5,6,0].filter(x=>a.includes(x)).map(x=>DOW[x]).join('')};
 const isStudy=(days,s)=>days.includes(dow(s));
-const fixOn=(s,d)=>!!(s.fix&&s.fix.length&&s.fix.includes(dow(d))&&s.days.includes(dow(d)));
+const fixOn=(s,d)=>!!(s.days.includes(dow(d))&&((s.parent&&s.chain)||(s.fix&&s.fix.length&&s.fix.includes(dow(d)))));
 const studyOn=(s,d)=>s.skip&&s.skip[d]?false:!!(s.add&&s.add[d])||isStudy(s.days,d);
 function textOn(hex){const h=hex.replace('#','');const n=parseInt(h,16);const r=(n>>16&255)/255,g=(n>>8&255)/255,b=(n&255)/255;return (0.299*r+0.587*g+0.114*b)>0.62?'#2b3330':'#fff'}
 
@@ -742,7 +744,7 @@ function projEnd(s){
 }
 const isBehind=s=>{const p=projEnd(s);return !p.done&&p.date>plan(s).end};
 /* restart the remaining amount from today (tomorrow if today is already marked); period subjects keep their end day, so the daily amount goes up */
-function reschedOne(s){const st=(S.checks[s.id]||{})[TODAY]?addD(TODAY,1):TODAY;s.start=st;if(s.parent)s.autoStart=false;
+function reschedOne(s){const st=(S.checks[s.id]||{})[TODAY]?addD(TODAY,1):TODAY;s.start=st;if(s.parent){s.autoStart=false;s.chain=false}
   if(s.mode==='period'&&s.end&&s.end<st)s.end=st;rePeriod(s);PC.delete(s.id)}
 /* overlap: other bands that collide with subject s (placed at start/time) on any shared day */
 function colliders(s,start,time){
@@ -990,9 +992,12 @@ function resizeFrame(s){
     if(n>=1){const before=planRaw(s).before;const daily=Math.max(1e-6,(s.total-before)/n);
       drag.target={start:s.start,time:s.time,daily,end:en,n};
       document.querySelectorAll('.seg.ghost').forEach(e=>e.remove());
-      const t={...s,daily,mode:'period',end:en};const p=planRaw(t);
-      drag.els.forEach(el=>el.style.opacity='.35');
-      document.querySelectorAll('.bands').forEach(layer=>{const ws=layer.dataset.start,ly=LAY[ws];const h=segsHTML(t,p,ws,'ghost',ly?(ly.lane[s.id]!=null?ly.lane[s.id]:ly.occ.length):null);if(h)layer.insertAdjacentHTML('beforeend',h)})}}
+      // dashed preview only for the part that changes: added days (longer) or days that drop off (shorter)
+      const p=planRaw({...s,daily,mode:'period',end:en}),p0=plan(s);
+      const add=p.dates.filter(d=>p0.idx[d]===undefined),cut=p0.dates.filter(d=>p.idx[d]===undefined);
+      const part=ds=>{const idx={};ds.forEach((d,i)=>idx[d]=i);return {dates:ds,idx,end:ds[ds.length-1]}};
+      document.querySelectorAll('.bands').forEach(layer=>{const ws=layer.dataset.start,ly=LAY[ws],ln=ly?(ly.lane[s.id]!=null?ly.lane[s.id]:ly.occ.length):null;
+        [[add,'ghost'],[cut,'ghost cut']].forEach(([ds,c])=>{if(!ds.length)return;const h=segsHTML(s,part(ds),ws,c,ln);if(h)layer.insertAdjacentHTML('beforeend',h)})})}}
   const t=drag.target;
   if(t.end)showTip(drag.x,drag.y,s.name,`${mdw(planRaw(s).dates[0])} ~ ${mdw(t.end)}`,`공부일 ${t.n}일 · 하루 ${perDay(t.daily)}${esc(s.unit||'')}`);
   else showTip(drag.x,drag.y,s.name,`${mdw(planRaw(s).dates[0])} ~ ${mdw(planRaw(s).end)}`,'좌우로 끌어 종료일 조절');
@@ -1072,10 +1077,10 @@ function endDrag(cancel){
   else if(d.rs){if(!cancel&&s&&d.target.end&&Math.abs(d.target.daily-s.daily)>1e-9){s.daily=d.target.daily;s.mode='period';s.end=d.target.end;PC.delete(s.id);save();renderHeader();
       toast(`${mdw(plan(s).end)}까지 · 하루 ${perDay(s.daily)}${s.unit||''}`)}}
   else if(d.moved&&!cancel&&s&&d.pick&&LAY[d.pick.ws]){const ly=LAY[d.pick.ws];
-    if(d.target.start!==s.start){if(s.parent)s.autoStart=false;if(s.mode==='period'&&s.end)s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s);PC.delete(s.id)}
+    if(d.target.start!==s.start){if(s.parent){s.autoStart=false;s.chain=false}if(s.mode==='period'&&s.end)s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s);PC.delete(s.id)}
     const ids=ly.order.filter(x=>ly.lane[x.id]!=null&&x.id!==s.id).map(x=>x.id);let k=ids.indexOf(d.pick.t);k=k<0?ids.length:k+(d.pick.after?1:0);ids.splice(k,0,s.id);
     rechain(ids);save();renderHeader()}
-  else if(d.moved&&!cancel&&s&&(d.target.start!==s.start||d.target.time!==s.time)){if(s.parent&&d.target.start!==s.start)s.autoStart=false;if(s.mode==='period'&&s.end&&d.target.start!==s.start){s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s)}s.start=d.target.start;s.time=d.target.time;PC.delete(s.id);save();renderHeader()}
+  else if(d.moved&&!cancel&&s&&(d.target.start!==s.start||d.target.time!==s.time)){if(s.parent&&d.target.start!==s.start){s.autoStart=false;s.chain=false}if(s.mode==='period'&&s.end&&d.target.start!==s.start){s.end=addD(s.end,diffD(s.start,d.target.start));s.start=d.target.start;rePeriod(s)}s.start=d.target.start;s.time=d.target.time;PC.delete(s.id);save();renderHeader()}
   const rr=()=>{if(S.ui.view==='week'){const sc=V.querySelector('.wscroll'),sl=sc?sc.scrollLeft:0;renderWeek();const n=V.querySelector('.wscroll');if(n)n.scrollLeft=sl}
   else{renderHeader();renderBands()}};rr();
   /* a drop that runs the day past its end: same rule as saving (ask up to the limit, move the last subject beyond it) */
@@ -1284,7 +1289,7 @@ function openSubject(id){
     <div class="fld"><label>하루 분량<b class="atag">자동</b></label><div class="clr"><input class="inp" id="fDaily" type="text" inputmode="decimal" value="" placeholder="예) 5"><button type="button" class="tx" data-clr="daily">✕</button></div></div>
    </div>
    <div class="g2 fq">
-    <div class="fld"><label>시작일</label><input class="inp" id="fStart" type="date" value="${F.start}"></div>
+    <div class="fld"><label>시작일</label><input class="inp" id="fStart" type="date" value="${F.start}"><small class="rlate" id="fReal"></small></div>
     <div class="fld"><label>종료일<b class="atag">자동</b></label><div class="clr"><input class="inp" id="fEnd" type="date" value=""><button type="button" class="tx" data-clr="end">✕</button></div></div>
    </div>
    <div class="g2 fq">
@@ -1319,7 +1324,7 @@ function openSubject(id){
     auto('total','fTotal','');auto('daily','fDaily','');auto('end','fEnd','');
     el.className='preview';el.style.display='none';el.innerHTML='';
   };
-  const updAll=()=>{upd();paintRounds()};SH.oninput=e=>{if(e&&e.target.closest&&e.target.closest('#fRounds'))roundInput(e);else updAll()};
+  const updAll=()=>{upd();paintRounds();const h=document.getElementById('fReal'),o=F.id&&sub(F.id);if(h){const r=o&&fv('fStart')===o.start&&plan(o).dates[0];h.textContent=r&&r>o.start&&studyDaysBetween(o.days,o.start,addD(r,-1))>0?`넘침으로 ${mdw(r)}부터 시작해요`:''}};SH.oninput=e=>{if(e&&e.target.closest&&e.target.closest('#fRounds'))roundInput(e);else updAll()};
   [['fTotal','total'],['fDaily','daily'],['fEnd','end']].forEach(([id,k])=>{const e=document.getElementById(id);
     const on=()=>{if(e.value.trim()){F.src.add(k);e.classList.remove('auto')}else F.src.delete(k);updAll()};e.addEventListener('input',on);e.addEventListener('change',on)});
   SH.querySelectorAll('[data-clr]').forEach(b=>b.onclick=()=>{const k=b.dataset.clr;F.src.delete(k);const e=document.getElementById({total:'fTotal',daily:'fDaily',end:'fEnd'}[k]);e.value='';updAll()});
@@ -1351,23 +1356,26 @@ function fMain(){const v=formVals();if(!v.mode||!(v.total>0&&v.daily>0&&F.days.l
   return {id:F.id||'_new',total:v.total,pre,daily:v.daily,mode:v.mode,end:v.mode==='period'?v.end:'',start:v.st,days:F.days,skip:F.skip,add:F.add,ovm:F.ovm}}
 function rTmp(r,i){const total=num(fv('fTotal'));let daily=r.daily;
   if(r.mode==='period'){const n=studyDaysBetween(r.days,r.start,r.end);daily=n>0?total/n:0}
-  return {id:r.id||'_r'+i,total,pre:0,daily,mode:r.mode,end:r.mode==='period'?r.end:'',start:r.start,days:r.days,skip:r.skip,add:r.add,ovm:r.ovm}}
+  let skip=r.skip;if(r.chain&&skip&&r.askip){skip={...skip};for(const d in r.askip)if(d>=TODAY)delete skip[d]}
+  return {id:r.id||'_r'+i,total,pre:0,daily,mode:r.mode,end:r.mode==='period'?r.end:'',start:r.start,days:r.days,skip,add:r.add,ovm:r.ovm}}
 function roundChain(){let prev=fMain();const out=[];
   FR.forEach((r,i)=>{if(r.autoStart!==false&&prev){const st=addD(planRaw(prev).end,1);if(st!==r.start){if(r.mode==='period'&&r.end&&r.start)r.end=addD(r.end,diffD(r.start,st));r.start=st}}
     const t=rTmp(r,i);const ok=t.total>0&&t.days.length&&t.daily>0&&t.start;const pl=ok?planRaw(t):null;out.push(pl);prev=ok?t:null});return out}
 function rAmt(r,i){return r.mode==='period'?perDay(rTmp(r,i).daily):fmtN(r.daily)}
 function rSum(r,pl,i){if(!pl)return !r.days.length?'공부하는 요일을 골라 주세요':'하루 분량이나 종료일 중 하나를 넣어 주세요';
   return `공부일 <b>${pl.dates.length}일</b> (${daysLabel(r.days)}) · 하루 <b>${rAmt(r,i)}${esc(fv('fUnit'))}</b> · <b>${mdw(pl.dates[0])} ~ ${mdw(pl.end)}</b> · 하루 ${durTxt(r.mins)}${r.time!=null?' · '+hm(r.time)+' 시작':''}`+
-   (r.autoStart!==false?`<br><small>시작일은 ${i+1}회독 끝난 다음 날로 자동으로 들어가요</small>`:`<br><small><a class="rauto" data-r="auto">↺ ${i+1}회독 끝난 다음 날로 맞추기</a></small>`)}
+   (!r.chain&&r.start&&pl.dates[0]>r.start&&studyDaysBetween(r.days,r.start,addD(pl.dates[0],-1))>0?`<br><small class="rlate">넘침으로 ${mdw(pl.dates[0])}부터 시작해요</small>`:'')+
+   (r.chain?`<br><small>${i+1}회독 끝난 다음 날 시작 · 넘쳐도 안 밀려요</small>`:r.autoStart!==false?`<br><small>시작일은 ${i+1}회독 끝난 다음 날로 자동으로 들어가요</small>`:`<br><small><a class="rauto" data-r="auto">↺ ${i+1}회독 끝난 다음 날로 맞추기</a></small>`)}
 function initRounds(s){
-  FR=s?roundsOf(s.id).map(r=>({id:r.id,mode:r.mode||'amount',start:r.start,end:r.mode==='period'?plan(r).end:(r.end||''),daily:r.daily,mins:r.mins,time:r.time,days:[...r.days],fix:[...(r.fix||[])],src:[r.mode==='period'?'end':'daily'],autoStart:r.autoStart!==false,skip:r.skip,add:r.add,ovm:r.ovm,open:false})):[];
+  FR=s?roundsOf(s.id).map(r=>({id:r.id,mode:r.mode||'amount',start:r.start,end:r.mode==='period'?plan(r).end:(r.end||''),daily:r.daily,mins:r.mins,time:r.time,days:[...r.days],fix:[...(r.fix||[])],src:[r.mode==='period'?'end':'daily'],autoStart:r.autoStart!==false,chain:!!r.chain&&r.autoStart!==false,skip:r.skip,askip:r.askip,add:r.add,ovm:r.ovm,open:false})):[];
   const cur=FR.find(r=>plan(sub(r.id)).end>=TODAY);if(cur)cur.open=true;
   renderRounds();const box=document.getElementById('fRounds');if(box)box.onclick=roundClick}
 function renderRounds(){const box=document.getElementById('fRounds');if(!box)return;
   box.innerHTML=`<div class="rd1"><em>1회독</em> <span id="rd1t">위에서 정한 일정</span></div>`+FR.map((r,i)=>r.open?`<div class="rd" data-i="${i}"><h5>${i+2}회독<b data-r="del" title="이 회독 지우기">×</b></h5>
    <div class="r2"><div class="rf" data-k="daily"><label>하루 분량<b class="atag">자동</b></label><div class="clr"><input class="inp" type="text" inputmode="decimal" data-f="daily" value="${r.src.includes('daily')&&r.daily>0?fmtN(r.daily):''}" placeholder="예) 5"><button type="button" class="tx" data-r="clr" data-k="daily">✕</button></div></div><div class="rf" data-k="end"><label>종료일<b class="atag">자동</b></label><div class="clr"><input class="inp" type="date" data-f="end" value="${r.src.includes('end')?r.end||'':''}"><button type="button" class="tx" data-r="clr" data-k="end">✕</button></div></div></div>
-   <div class="r2"><div><label>시작일</label><input class="inp" type="date" data-f="start" value="${r.start||''}"></div><div><label>시작 시각</label><input class="inp" type="time" step="600" data-f="time" value="${r.time==null?'':hmv(r.time)}"></div></div>
+   <div class="r2"><div><label>시작일</label><input class="inp" type="date" data-f="start" value="${r.start||''}"${r.chain?' disabled':''}></div><div><label>시작 시각</label><input class="inp" type="time" step="600" data-f="time" value="${r.time==null?'':hmv(r.time)}"></div></div>
    <div class="r2"><div><label>하루 소요시간</label><div class="hm2"><input class="inp" type="number" inputmode="numeric" min="0" data-f="h" value="${Math.floor((r.mins||0)/60)}"><span>시간</span><input class="inp" type="number" inputmode="numeric" min="0" max="59" step="5" data-f="m" value="${(r.mins||0)%60}"><span>분</span></div></div><div></div></div>
+   <label class="rchk"><input type="checkbox" data-r="chain"${r.chain?' checked':''}> ${i+1}회독 이후 바로 이어서</label>
    <label class="rdl">공부하는 요일<span class="fxh">두 번 누르면 고정 요일이 돼요</span></label><div class="dd">${RDD.map(x=>`<button type="button" data-r="day" data-d="${x}" class="${r.days.includes(x)?'on':''} ${r.days.includes(x)&&(r.fix||[]).includes(x)?'fx':''} ${x===6?'sat':x===0?'sun':''}">${DOW[x]}</button>`).join('')}</div>
    <div class="sum"></div></div>`:`<div class="rd fold" data-i="${i}" data-r="open"><h5>${i+2}회독<span class="fs"></span><b>›</b></h5></div>`).join('')+
   `<button type="button" class="rdbtn" data-r="add">＋ ${FR.length+2}회독 추가</button>`;
@@ -1382,7 +1390,7 @@ function paintRounds(){const box=document.getElementById('fRounds');if(!box)retu
     else el.querySelector('.fs').textContent=pl?`${md(pl.dates[0])} ~ ${md(pl.end)} · 하루 ${rAmt(r,i)}${fv('fUnit')} · ${daysLabel(r.days)}${r.time!=null?' '+hm(r.time):''} · ${durTxt(r.mins)}`:'설정을 확인해 주세요'})}
 function rMode(r){if(r.src.includes('end')&&r.end)r.mode='period';else if(r.src.includes('daily')&&r.daily>0)r.mode='amount';else{r.mode='amount';r.daily=0}}
 function roundInput(e){const t=e.target,el=t.closest('[data-i]');if(!el)return;const r=FR[+el.dataset.i],f=t.dataset.f;if(!r||!f)return;const v=t.value.trim();
-  if(f==='start'){r.start=v;r.autoStart=false}
+  if(f==='start'){r.start=v;r.autoStart=false;r.chain=false}
   else if(f==='end'){if(v){r.end=v;r.src=['end'];r.mode='period'}else{r.src=r.src.filter(x=>x!=='end');rMode(r)}}
   else if(f==='daily'){if(num(v)>0){r.daily=num(v);r.src=['daily'];r.mode='amount'}else{r.src=r.src.filter(x=>x!=='daily');rMode(r)}}
   else if(f==='h'||f==='m'){const q=k=>num((el.querySelector(`[data-f="${k}"]`)||{}).value);r.mins=Math.round(q('h')*60+q('m'))}
@@ -1397,6 +1405,7 @@ function roundClick(e){const b=e.target.closest('[data-r]');if(!b)return;const k
   if(k==='del'){FR.splice(i,1);renderRounds();return}
   if(k==='open'){FR.forEach(x=>x.open=false);r.open=true;renderRounds();return}
   if(k==='auto'){r.autoStart=true;paintRounds();return}
+  if(k==='chain'){r.chain=!!b.checked;if(r.chain)r.autoStart=true;renderRounds();return}
   if(k==='clr'){r.src=r.src.filter(x=>x!==b.dataset.k);rMode(r);const x=el.querySelector(`.rf[data-k="${b.dataset.k}"] input`);if(x)x.value='';paintRounds();return}
   if(k==='mode'){const v=b.dataset.m;if(v===r.mode)return;
     if(v==='period'){if(!r.end&&r.daily>0){const pl=planRaw(rTmp({...r,mode:'amount'},i));if(pl&&pl.end)r.end=pl.end}}
@@ -1406,7 +1415,7 @@ function roundClick(e){const b=e.target.closest('[data-r]');if(!b)return;const k
 function applyRounds(pid){const p=sub(pid);if(!p)return;const keep=new Set();const {dayStart:a,dayEnd:b}=S.cfg;
   FR.forEach((r,i)=>{const mins=clamp(r.mins||0,10,(b-a)*60);const n=studyDaysBetween(r.days,r.start,r.end);const per=r.mode==='period';
     const o={parent:pid,round:i+2,name:p.name+' · '+(i+2)+'회독',color:p.color,total:p.total,unit:p.unit,pre:0,mode:per?'period':'amount',start:r.start,end:per?r.end:'',
-      daily:per?Math.max(1e-6,p.total/Math.max(1,n)):r.daily,mins,time:r.time!=null?clamp(Math.round(r.time/10)*10,a*60,b*60-mins):p.time,days:[...r.days].sort(),fix:(r.fix||[]).filter(x=>r.days.includes(x)).sort(),autoStart:r.autoStart!==false};
+      daily:per?Math.max(1e-6,p.total/Math.max(1,n)):r.daily,mins,time:r.time!=null?clamp(Math.round(r.time/10)*10,a*60,b*60-mins):p.time,days:[...r.days].sort(),fix:(r.fix||[]).filter(x=>r.days.includes(x)).sort(),autoStart:r.autoStart!==false,chain:!!r.chain&&r.autoStart!==false};
     let x=r.id&&sub(r.id);if(x&&x.parent===pid)Object.assign(x,o);else{x={id:uid(),...o};S.subjects.push(x);r.id=x.id}keep.add(x.id)});
   S.subjects=S.subjects.filter(x=>x.parent!==pid||keep.has(x.id));PC.clear()}
 function colorBtns(){const cur=String(F.color).toLowerCase(),on=c=>c.toLowerCase()===cur?'on':'';
@@ -1467,7 +1476,7 @@ function saveSubject(){
   lateGate(id,name,before,()=>{save();closeModal();
   if(isNew&&S.ui.view==='month'){S.ui.month=plan(so).dates[0].slice(0,7)}
   render();if(S.ui.view==='month')renderBands(id);
-  toast(moved?`다른 과목과 겹쳐서 ${hm(so.time)}로 옮겼어요`:isNew?`'${name}' 띠가 생겼어요. 끌어서 옮겨 보세요`:'수정했어요')});
+  toast(moved?'겹치는 과목이 있어 조정했어요':isNew?`'${name}' 띠가 생겼어요. 끌어서 옮겨 보세요`:'수정했어요')});
 }
 /* late-night overflow: days (from today) where this subject's day runs past the day-end time */
 function lateDays(ids){const set=new Set(ids);let last=TODAY;S.subjects.forEach(s=>{if(set.has(s.id)){const e=plan(s).end;if(e>last)last=e}});
@@ -1544,7 +1553,7 @@ function settle(){if(DEC||drag||hold||!M.classList.contains('hidden')||document.
   LASTBAD=key(badDays())}
 function lateGate(id,name,before,fin,onNo,verb){DEC=new Map();ITC.clear();try{return lateGate0(id,name,before,fin,onNo,verb)}finally{DEC=null;ITC.clear()}}
 /* a fixed weekday is never auto-moved: drop older auto skips/splits that landed on one */
-function unfixMoves(){let n=0;S.subjects.forEach(so=>{if(!so.fix||!so.fix.length)return;let ch=false;
+function unfixMoves(){let n=0;S.subjects.forEach(so=>{if(!(so.parent&&so.chain)&&(!so.fix||!so.fix.length))return;let ch=false;
   for(const d in so.askip||{})if(d>=TODAY&&fixOn(so,d)){delete so.askip[d];if(so.skip)delete so.skip[d];ch=true}
   for(const d in so.asplit||{})if(d>=TODAY&&fixOn(so,d)){delete so.asplit[d];if(so.ovm)delete so.ovm[d];ch=true}
   if(ch){rePeriod(so);n++}});if(n){syncRounds();PC.clear()}return n}
@@ -2078,7 +2087,7 @@ function undo(){if(!UNDO)return;let o;try{o=JSON.parse(UNDO.j)}catch(e){return}U
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ds(new Date())!==TODAY)render()});
 S.ui.view='day';S.ui.day=TODAY; // always open on today's daily schedule
 S.ui.seen=1;
-if(fixWildTimes()){save();setTimeout(()=>toast('겹치지 않는 날끼리 쌓였던 시작 시간을 다시 맞췄어요'),600)}
+if(fixWildTimes()){save();setTimeout(()=>toast('겹치는 과목이 있어 조정했어요'),600)}
 {const save0=save;save=function(){save0();if(!UKEEP&&!UNDOING&&!DEC&&!(typeof SILENT!=='undefined'&&SILENT))clearUndo();if(!DEC&&!UNDOING)queueSettle()}}
 {const r0=render;render=function(){r0.apply(this,arguments);paintUndo()}}
 render();
