@@ -326,7 +326,7 @@ input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:tex
 .row.done .nm{text-decoration:line-through;text-decoration-color:var(--faint);color:var(--sub)}
 .memo{margin-top:12px;padding-top:12px;border-top:1px solid var(--line2)}
 .memo .mh{font-size:15px;font-weight:700;margin-bottom:8px}
-.memo .mt{display:block;width:100%;box-sizing:border-box;min-height:64px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px;line-height:1.5;color:inherit;background:var(--bg);resize:none;overflow:hidden;outline:none}
+.memo .mt{display:block;width:100%;box-sizing:border-box;min-height:64px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;font-size:13.5px;line-height:1.5;color:inherit;background:var(--bg);resize:none;overflow:hidden;outline:none}
 .memo .mt:focus{border-color:var(--brand)}
 .foot{display:flex;justify-content:space-between;color:var(--sub);font-size:13px;padding-top:10px;border-top:1px solid var(--line2)}
 .center-hint{text-align:center;color:var(--sub);font-size:12px;margin:-4px 0 14px}
@@ -695,6 +695,8 @@ function saveUI(){stamp();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(
 let MEMOT=null;
 function memoSave(el){clearTimeout(MEMOT);MEMOT=null;const d=el.dataset.date,v=el.value.slice(0,500);S.memo=S.memo||{};
   if(v.trim())S.memo[d]=v;else delete S.memo[d];if(!Object.keys(S.memo).length)delete S.memo;UJ=ubody();saveUI()}
+/* iPhone/iPad Safari zooms the page into any text box under 16px and stays zoomed: keep the page at its size (the app has its own pinch zoom) */
+if(/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)){const vm=document.querySelector('meta[name=viewport]');if(vm&&!/maximum-scale/.test(vm.content))vm.content+=',maximum-scale=1'}
 const memoFit=el=>{el.style.height='auto';el.style.height=el.scrollHeight+3+'px'};
 document.addEventListener('input',e=>{const el=e.target;if(el.id!=='dmemo')return;memoFit(el);clearTimeout(MEMOT);MEMOT=setTimeout(()=>memoSave(el),400)});
 document.addEventListener('focusout',e=>{if(e.target.id==='dmemo'&&MEMOT)memoSave(e.target)});
