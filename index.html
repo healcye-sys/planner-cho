@@ -1085,6 +1085,12 @@ function durFrame(s){
   const tip=document.getElementById('tip');tip.classList.remove('hidden');tip.style.left=drag.x+'px';tip.style.top=(drag.y-18)+'px';
   const sg=spanSegs(t0,nm);showTip(drag.x,drag.y,s.name,`${hm(t0)}~${hm(sg[sg.length-1][1])}`,`${mdw(drag.day)} 이날만 · ${durTxt(nm)}`);
 }
+/* 위클리 놓기: the dropped block takes the spot it was dropped on; that day's blocks it lands on move back just as far as they overlap (a gap stops the push). Those moves are the app's (no ↺) */
+function weekPush(s,day,t0){const pm=MDAY;MDAY=day;let cur;try{cur=spanSegs(t0,dayMins(s,day)).pop()[1]}finally{MDAY=pm}
+  const rest=itemsOn(day).filter(x=>x.s!==s&&!x.oo&&x.end>t0+.5).sort((a,b)=>a.segs[0][0]-b.segs[0][0]);
+  for(const x of rest){if(x.segs[0][0]>=cur-.5)break;const q=x.s;(q.ov||(q.ov={}))[day]=cur;(q.aslide||(q.aslide={}))[day]=true;PC.delete(q.id);
+    const pm2=MDAY;MDAY=day;try{cur=spanSegs(cur,x.mins).pop()[1]}finally{MDAY=pm2}}
+  CH=null;PC.clear()}
 function dayFrame(s){
   const dy=drag.y-drag.y0+(scrollY-drag.sy0);drag.els.forEach(el=>el.style.transform=`translate3d(0,${dy/ZM()}px,0)`);
   const {dayStart:a,dayEnd:b}=S.cfg;
@@ -1153,7 +1159,7 @@ function endDrag(cancel){
   document.querySelectorAll('.seg.rs').forEach(x=>x.classList.remove('rs'));
   if(d.wk&&d.wrs){if(!cancel&&s&&d.target.mins!==dayMins(s,d.day)){s.ovm=s.ovm||{};if(d.target.mins===s.mins)delete s.ovm[d.day];else s.ovm[d.day]=d.target.mins;if(s.asplit)delete s.asplit[d.day];save();
       toast(`${mdw(d.day)} 하루만 ${Math.floor(d.target.mins/60)?Math.floor(d.target.mins/60)+'시간 ':''}${d.target.mins%60?d.target.mins%60+'분':''}`)}}
-  else if(d.wk){if(!cancel&&s&&d.target.time!==dayTime(s,d.day)){s.ov=s.ov||{};if(s.aslide)delete s.aslide[d.day];if(d.target.time===s.time)delete s.ov[d.day];else s.ov[d.day]=d.target.time;save();
+  else if(d.wk){if(!cancel&&s&&d.target.time!==dayTime(s,d.day)){s.ov=s.ov||{};if(s.aslide)delete s.aslide[d.day];if(d.target.time===s.time)delete s.ov[d.day];else s.ov[d.day]=d.target.time;weekPush(s,d.day,d.target.time);save();
       toast(d.target.time===s.time?'원래 시간으로 돌아왔어요':`${mdw(d.day)} 하루만 ${hm(d.target.time)}로 옮겼어요`)}}
   else if(d.rs){if(!cancel&&s&&d.target.end&&Math.abs(d.target.daily-s.daily)>1e-9){clearDayEdits(s);s.daily=d.target.daily;s.mode='period';s.end=d.target.end;PC.delete(s.id);save();renderHeader();
       toast(`${mdw(plan(s).end)}까지 · 하루 ${perDay(s.daily)}${s.unit||''}`)}}
