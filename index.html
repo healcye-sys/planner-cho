@@ -1746,7 +1746,7 @@ function openExam(id){
 function mealRow(m,i){return `<div class="inrow meal-row"><span class="mlab">${esc(m.n)}</span><input class="inp" type="time" step="600" id="mT${i}" value="${m.time==null?'':hmv(m.time)}">
      <input class="inp mmin" type="number" inputmode="numeric" min="5" max="240" step="5" id="mM${i}" value="${m.mins}"><span class="hint">분</span>${m.rest&&S.cfg.meals.filter(x=>x.rest).length>1?`<button class="mdel" data-act="delRest" data-i="${i}" title="이 휴식 지우기">✕</button>`:''}</div>`}
 /* break rows are added/removed inside the open settings sheet: keep what was typed, then redraw that one field */
-function restInner(){return `<label>휴식 시간 <span class="hint" style="font-weight:400">(비워 두면 표시 안 함)</span></label>`+S.cfg.meals.map((m,i)=>m.rest?mealRow(m,i):'').join('')+(S.cfg.meals.filter(m=>m.rest).length<4?'<button class="rdbtn" data-act="addRest">＋ 휴식 추가</button>':'')}
+function restInner(){return `<label>휴식 시간 <span class="hint" style="font-weight:400">(비워 두면 표시 안 함)</span></label>`+S.cfg.meals.map((m,i)=>m.rest?mealRow(m,i):'').join('')+'<button class="rdbtn" data-act="addRest">＋ 휴식 추가</button>'}
 function readMeals(){S.cfg.meals.forEach((m,i)=>{const e=document.getElementById('mT'+i);if(!e)return;m.time=inMin(e.value);const n=Math.round(+fv('mM'+i));if(n>0)m.mins=clamp(n,5,240)})}
 function redrawRest(){const f=document.getElementById('restFld');if(f)f.innerHTML=restInner()}
 function openSettings(){
@@ -2075,7 +2075,7 @@ document.addEventListener('click',e=>{
       if(dA){S.subjects.forEach(s=>{s.time+=dA;if(s.ov)for(const k in s.ov)s.ov[k]+=dA});(S.ones||[]).forEach(o=>{if(o.date>=TODAY)o.time+=dA});CH=null;setTimeout(()=>toast(`하루 시작이 ${durTxt(Math.abs(dA))} ${dA<0?'당겨져서':'늦춰져서'} 과목들도 같이 ${dA<0?'앞당겼어요':'늦췄어요'}`),300)}
       S.cfg.meals.forEach((m,i)=>{const v=fv('mT'+i);m.time=inMin(v);const n=Math.round(+fv('mM'+i));if(n>0)m.mins=clamp(n,5,240)});
       S.subjects.forEach(s=>{s.mins=Math.min(s.mins,(B-A)*60);if(s.time<A*60)s.time=A*60});PC.clear();save();closeModal();render();break}
-    case 'addRest':{readMeals();const rs=S.cfg.meals.filter(m=>m.rest);if(rs.length>=4)break;if(rs.length===1&&rs[0].n==='휴식')rs[0].n='휴식 1';let k=rs.length+1;while(S.cfg.meals.some(m=>m.n==='휴식 '+k))k++;S.cfg.meals.push({n:'휴식 '+k,time:null,mins:15,rest:true});redrawRest();break}
+    case 'addRest':{readMeals();const rs=S.cfg.meals.filter(m=>m.rest);if(rs.length===1&&rs[0].n==='휴식')rs[0].n='휴식 1';let k=rs.length+1;while(S.cfg.meals.some(m=>m.n==='휴식 '+k))k++;S.cfg.meals.push({n:'휴식 '+k,time:null,mins:15,rest:true});redrawRest();break}
     case 'delRest':{readMeals();const i=+el.dataset.i;if(S.cfg.meals[i]&&S.cfg.meals[i].rest&&S.cfg.meals.filter(m=>m.rest).length>1)S.cfg.meals.splice(i,1);const rs=S.cfg.meals.filter(m=>m.rest);if(rs.length===1)rs[0].n='휴식';redrawRest();break}
     case 'export':exportBackup();break;
     case 'restoreMenu':restoreChoice();break;
