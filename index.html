@@ -1769,7 +1769,7 @@ async function startSync(){
     SY.user=u;if(SY.unsub){SY.unsub();SY.unsub=null}
     if(!u){SY.on=false;setSync('로그인하면 폰·탭 연동');queueSettle();return}
     SY.ref=firebase.firestore().collection('planners').doc(u.uid);SY.on=true;SY.live=false;setSync('동기화 중…');
-    SY.unsub=SY.ref.onSnapshot(sn=>{onRemote(sn);if(SY.live)queueSettle()},e=>setSync('동기화 오류 ('+e.code+')',1));
+    SY.unsub=SY.ref.onSnapshot(sn=>onRemote(sn),e=>setSync('동기화 오류 ('+e.code+')',1));
     if(!M.classList.contains('hidden')&&SH.querySelector('#syncBox'))openSettings();
   });
 }
