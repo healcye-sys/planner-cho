@@ -1051,7 +1051,9 @@ function dayFrame(s){
 }
 const shiftS=(s,ns)=>s.mode==='period'&&s.end&&ns!==s.start?{...s,start:ns,end:addD(s.end,diffD(s.start,ns))}:{...s,start:ns};
 /* month drag up/down: the row under the finger says where in the order the band goes */
-function laneTime(s,L){GLANE=null;if(drag)drag.pick=null;const row=[...document.querySelectorAll('.week')].find(r=>L.date>=r.dataset.start&&L.date<=addD(r.dataset.start,6));if(!row)return drag.time0;
+function laneTime(s,L){GLANE=null;if(drag)drag.pick=null;
+  // a sideways move with a little up/down wobble is not a reorder: the finger must travel most of a lane height
+  if(Math.abs(drag.y-drag.y0+(scrollY-drag.sy0))<LANEH()*ZM()*0.7)return drag.time0;const row=[...document.querySelectorAll('.week')].find(r=>L.date>=r.dataset.start&&L.date<=addD(r.dataset.start,6));if(!row)return drag.time0;
   const ws=row.dataset.start,ly=LAY[ws],layer=row.querySelector('.bands');if(!ly||!layer)return drag.time0;
   const li=Math.max(0,Math.floor((drag.y-layer.getBoundingClientRect().top)/(LANEH()*ZM())));GLANE={ws,li};const own=ly.lane[s.id];
   if(li===own)return drag.time0;const col=diffD(ws,L.date);const ids=(ly.occ[Math.min(li,ly.occ.length-1)]||[]).filter(id=>id!==s.id);if(!ids.length)return drag.time0;
