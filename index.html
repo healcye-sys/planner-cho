@@ -1196,7 +1196,7 @@ function renderDay(){
       ${d!==TODAY?'<button class="btn" data-act="dToday">오늘로</button>':''}</div>
     ${overBy(it)?`<div class="ovfbar">🌙 ${lateTxt(Math.max(...it.map(x=>x.end)))} 가요 · ${endH()}보다 <b>${durTxt(overBy(it))}</b> 넘어요<small>공부 시간을 줄이거나 과목을 다른 날로 옮겨 보세요</small></div>`:''}
     <div style="margin-top:10px">${rows||'<div class="empty">이 날은 계획된 공부가 없어요.</div>'}</div>
-    <div class="xrow"><div class="xadd" data-act="xAdd" data-date="${d}">＋ 오늘만 추가</div><div class="xadd" data-act="restOpen" data-date="${d}">☕ 휴식 추가</div></div>
+    <div class="xrow"><div class="xadd" data-act="xAdd" data-date="${d}">📖 공부 추가</div><div class="xadd" data-act="restOpen" data-date="${d}">☕ 휴식 추가</div></div>
     ${(()=>{const a=askipOn(d).length,b=asplitOn(d).length;return a+b?`<div class="restln" data-act="xAdd" data-date="${d}">🌙<span>${a+b}과목을 다른 날로 옮겼어요</span><i>보기 ›</i></div>`:''})()}
     ${skippedOn(d).length?`<div class="xskip">다른 날로 옮김 · ${skippedOn(d).map(s=>`<span>${esc(s.name)} <b data-act="xUnskip" data-id="${s.id}" data-date="${d}">되돌리기</b></span>`).join('')}</div>`:''}
     <div class="foot"><span>${dn} / ${it.length} 완료</span><span>공부 ${hrs(mins)}</span></div>
