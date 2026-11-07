@@ -231,6 +231,7 @@ input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:tex
 .lbox .ld.gr div{background:rgba(47,143,91,.09)}.lbox .ld.gr b{color:#2f8f5b}
 .lbox .ld.mv div{background:rgba(220,90,90,.09)}.lbox .ld.mv b{color:#c0504d}.lbox .ld{max-height:156px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}.lbox .ld div{flex:0 0 auto}.lbox h4,.lbox p,.lbox .lsec{overflow:hidden}.lbox .ld.mv .more{background:none}
 .lbox .lnote{font-size:12.5px;color:var(--sub);margin:-4px 0 6px;line-height:1.5}
+.lbox .exls{display:grid;gap:4px;margin:0 0 10px;font-size:13px;line-height:1.5}
 .mvchip{position:absolute;left:2px;right:2px;z-index:5;border:1.5px dashed #6a5acd;border-radius:7px;background:rgba(91,75,183,.07);color:#6a5acd;font-size:10px;font-weight:800;text-align:center;padding:3px 1px;line-height:1.25;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer}
 .mvban{margin-top:10px;background:rgba(91,75,183,.12);color:#6a5acd;border-radius:12px;padding:11px 12px;font-size:13.5px;font-weight:600;line-height:1.5}
 .mvban .r{display:flex;margin-top:8px}.mvban button{flex:1;padding:8px;border-radius:9px;border:1.5px solid #6a5acd;background:var(--card);color:#6a5acd;font-weight:700;font-size:13px;font-family:inherit}
@@ -333,6 +334,7 @@ th{text-align:left;color:var(--sub);font-weight:600;font-size:13px;padding:8px 8
 td{padding:10px 8px;border-bottom:1px solid var(--line2);white-space:nowrap;vertical-align:middle}
 td.nmc{white-space:normal;min-width:120px;font-weight:600}
 .exw{font-size:12px;font-weight:700;color:var(--red);margin-top:3px}
+.exw mark,.lbox .exl mark{color:var(--red);font-weight:700;background:linear-gradient(transparent 45%,rgba(255,226,64,.75) 45%);padding:0 2px;border-radius:2px}
 .exbadge{font-size:12.5px;font-weight:700;color:var(--red);background:rgba(229,83,75,.1);border-radius:8px;padding:5px 9px}
 .hdl{display:inline-grid;place-items:center;width:40px;height:34px;margin:0 -4px 0 auto;color:var(--sub);opacity:.6;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;vertical-align:middle;border-radius:8px}
 .hdl:active{background:var(--line2)}
@@ -555,6 +557,7 @@ label{white-space:normal;overflow:visible;line-height:1.3}
 /* one size inside the result boxes, and the fixed-day hint matches its label */
 .preview small,.preview b,.rd .sum small,.rd .sum b,.rd .sum .rlate{font-size:inherit!important}.fxh{font-size:inherit!important}.rlate{font-size:var(--t4)!important}
 .hint,.center-hint,.fld .note,.pvn,.lbox p,.lbox .lnote,.exw,.bpick h6,.ovfbar small,.xskip,.foot,.rd label,.rd .sum,.dhd .meta,th,.bpr small,.tip small{font-size:var(--t4)!important;color:var(--sub)!important;font-weight:500!important}
+.exw,.exw mark{color:var(--red)!important;font-weight:700!important}
 th{font-weight:700!important}
 /* T5 tags, chips, badges */
 .chips button,.etag,.ovft,.tdy,.nowtag,.req,.xtag,.ckt em,.lmoon,.mvchip{font-size:var(--t5)!important}
@@ -600,9 +603,12 @@ const KEY='hanui-planner-v1';
 const pad=n=>String(n).padStart(2,'0');
 const ds=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const pd=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d,12)};
-const addD=(s,n)=>{const d=pd(s);d.setDate(d.getDate()+n);return ds(d)};
+const addD0=(s,n)=>{const d=pd(s);d.setDate(d.getDate()+n);return ds(d)};
+/* the schedulers walk day by day thousands of times: remember next-day and weekday lookups (pure, so safe to keep) */
+const ADN=new Map(),DWN=new Map();
+const addD=(s,n)=>{if(n!==1)return addD0(s,n);let r=ADN.get(s);if(r===undefined){r=addD0(s,1);ADN.set(s,r)}return r};
 const diffD=(a,b)=>Math.round((pd(b)-pd(a))/864e5);
-const dow=s=>pd(s).getDay();
+const dow=s=>{let r=DWN.get(s);if(r===undefined){r=pd(s).getDay();DWN.set(s,r)}return r};
 const DOW='일월화수목금토';
 const md=s=>{const d=pd(s);return (d.getMonth()+1)+'/'+d.getDate()};
 const mdw=s=>md(s)+'('+DOW[dow(s)]+')';
@@ -651,7 +657,26 @@ const palVis=()=>PAL[0];
 const PC=new Map();let CH=null,ORDC=null;
 /* list order depends on plans: drop it whenever a plan is dropped */
 let DEC=null,ITC=new Map(); /* day-end / day-items caches, only while the overflow gate runs */
-{const c=PC.clear.bind(PC),dl=PC.delete.bind(PC);PC.clear=()=>{ORDC=null;if(DEC){DEC.clear();ITC.clear()}c()};PC.delete=k=>{ORDC=null;if(DEC){DEC.clear();ITC.clear()}return dl(k)}}
+/* while the gate runs, dropping one subject's plan only drops the days that subject was on (and is on after the change):
+   other days' items don't depend on it, so their cached layout stays (the gate tries hundreds of one-subject changes) */
+let DIRTY=new Map();
+/* change counters for the pull-back memo: per date (its layout changed), per subject (its state changed), EPOCH (anything else).
+   A pull-back try that failed and was undone puts the counters back (TLOG), so the same try isn't repeated while nothing it reads has changed */
+let VER=new Map(),SV=new Map(),EPOCH=0,TLOG=null,PCQUIET=0;
+const vbump=(M,k,lg)=>{const v=M.get(k)||0;if(lg&&!lg.has(k))lg.set(k,v);M.set(k,v+1)};
+{const c=PC.clear.bind(PC),dl=PC.delete.bind(PC);PC.clear=()=>{ORDC=null;if(DEC){DEC.clear();ITC.clear();DIRTY.clear();LASTV=new Map(S.subjects.map(x=>[x.id,snapV(x)]));if(!PCQUIET)EPOCH++}c()};
+ PC.delete=k=>{if(!(DEC&&ORDU))ORDC=null;if(DEC){vbump(SV,k,TLOG&&TLOG.s);const o=PC.get(k);if(!o){if(!DIRTY.has(k)){DEC.clear();ITC.clear();DIRTY.clear();LASTV=new Map(S.subjects.map(x=>[x.id,snapV(x)]));EPOCH++}}
+   else if(!DIRTY.has(k))DIRTY.set(k,{o})}return dl(k)}}
+/* a day's layout only uses which subjects are on it and their time/length that day (not the amounts),
+   so only days the subject joined or left, or whose one-day time/length changed, need laying out again */
+let ORDU=false,LASTV=new Map(); // LASTV: each subject's one-day times/lengths as the cached layouts saw them
+const snapV=s=>({ov:{...s.ov},ovm:{...s.ovm}});
+function flushDirty(){if(!DIRTY.size)return;const m=DIRTY;DIRTY=new Map();
+  m.forEach((r,k)=>{const s=sub(k),ds=new Set();const nd=s?plan(s).dates:[],od=r.o.dates,oi=r.o.idx,ni=s?plan(s).idx:{};
+    od.forEach(d=>{if(ni[d]===undefined)ds.add(d)});nd.forEach(d=>{if(oi[d]===undefined)ds.add(d)});
+    if(!ORDU){od.forEach(d=>ds.add(d));nd.forEach(d=>ds.add(d))} // tied list order: the order inside a day may follow the plan, so redo all its days
+    if(s){const lv=LASTV.get(k)||{ov:{},ovm:{}},dif=(a,b)=>{for(const x in a)if(a[x]!==b[x])ds.add(x);for(const x in b)if(a[x]!==b[x])ds.add(x)};dif(lv.ov,s.ov||{});dif(lv.ovm,s.ovm||{});LASTV.set(k,snapV(s))}
+    ds.forEach(d=>{ITC.delete(d);DEC.delete(d);vbump(VER,d,TLOG&&TLOG.d)})})}
 // everything except S.ui (view/month/etc.) is synced; S.at = time of the last real change
 const bodyJ=()=>{const {ui,at,uat,...r}=S;return JSON.stringify(r)};
 let LASTJ=bodyJ();
@@ -726,7 +751,7 @@ function rePeriod(s){if(s.mode!=='period'||!s.end)return;let n=0,x=s.start,g=0;w
 function setDay(s,d,kind,on){const o=s[kind]||(s[kind]={});if(on)o[d]=true;else delete o[d];if(kind==='skip'&&!on&&s.askip)delete s.askip[d];
   const other=kind==='add'?'skip':'add';if(on&&s[other])delete s[other][d];if(kind==='add'&&on&&s.askip)delete s.askip[d];if(kind==='skip'&&on&&s.asplit&&s.asplit[d]){delete s.asplit[d];if(s.ovm)delete s.ovm[d]}rePeriod(s);PC.clear()}
 /* one day's items, never overlapping: a subject that would start before the previous one ends waits until it ends */
-function itemsOn(date){if(DEC){const c=ITC.get(date);if(c)return c;const r=itemsOn0(date);ITC.set(date,r);return r}return itemsOn0(date)}
+function itemsOn(date){if(DEC){flushDirty();const c=ITC.get(date);if(c)return c;const r=itemsOn0(date);ITC.set(date,r);return r}return itemsOn0(date)}
 function itemsOn0(date){const pm=MDAY;MDAY=date;try{return itemsOn1(date)}finally{MDAY=pm}}
 function itemsOn1(date){
   const ord=ORDC||(ORDC=new Map(listOrder().map((s,i)=>[s.id,i])));
@@ -1262,19 +1287,21 @@ function endList(e){if(!LD||e.pointerId!==LD.pid)return;const d=LD;LD=null;if(d.
   const ids=d.rows.map(r=>r.dataset.id);const [m]=ids.splice(d.idx,1);ids.splice(d.to,0,m);applyOrder(ids);
 }
 document.addEventListener('pointerup',endList);document.addEventListener('pointercancel',endList);
+/* the next exam, and whether a subject (with its △·× delays) ends after it */
+const firstExam=()=>[...S.exams].filter(e=>e.date>=TODAY).sort((a,b)=>a.date.localeCompare(b.date))[0];
+function exLateOf(s,fx){if(!fx)return false;const pe=projEnd(s);if(pe.done)return false;const e=pe.date>plan(s).end?pe.date:plan(s).end;return e>fx.date}
 function setLSort(v){S.ui.lsort=v;saveUI();render()}
 function renderList(){
   const LS=S.ui.lsort||'my',ko=(a,b)=>a.name.localeCompare(b.name,'ko');
   const arr=listOrder();if(LS==='name')arr.sort(ko);else if(LS==='name_d')arr.sort((a,b)=>ko(b,a));else if(LS==='start')arr.sort((a,b)=>plan(a).dates[0].localeCompare(plan(b).dates[0])||a.time-b.time);
   const lateN=arr.filter(isBehind).length;
-  const fx=[...S.exams].filter(e=>e.date>=TODAY).sort((a,b)=>a.date.localeCompare(b.date))[0];
-  const exLate=s=>{if(!fx)return false;const pe=projEnd(s);if(pe.done)return false;const e=pe.date>plan(s).end?pe.date:plan(s).end;return e>fx.date};
+  const fx=firstExam(),exLate=s=>exLateOf(s,fx);
   const exN=arr.filter(exLate).length;
   const rows=arr.map(s=>{
     const p=plan(s),pe=projEnd(s);const done=doneAll(s);const pct=Math.round(done/s.total*100);
     const late=!pe.done&&pe.date>p.end;
     const endTxt=pe.done?`<span class="ok">완료 ✓</span>`:late?`<span class="late">${md(pe.date)} (계획 ${md(p.end)})</span>`:`<span class="ok">${md(p.end)}</span>`;
-    return `<tr data-id="${s.id}"><td class="nmc"><span class="sw" style="background:${s.color}"></span>${esc(s.name)}${exLate(s)?`<div class="exw">⚠ ${esc(fx.name)}(${md(fx.date)})보다 늦게 끝나요</div>`:''}</td>
+    return `<tr data-id="${s.id}"><td class="nmc"><span class="sw" style="background:${s.color}"></span>${esc(s.name)}${exLate(s)?`<div class="exw"><mark>⚠ ${esc(fx.name)}(${md(fx.date)})보다 늦게 끝나요</mark></div>`:''}</td>
       <td class="rem">${Math.round(s.total-done)}${esc(s.unit||'')} <span class="hint">/ ${fmtN(s.total)}</span><div class="minibar"><i style="width:${pct}%;background:${s.color}"></i></div></td>
       <td class="st">${md(p.dates[0])}</td><td class="en">${endTxt}</td>
       <td class="hint cfgc">${s.mode==='period'?perDay(s.daily):fmtN(s.daily)}${esc(s.unit||'')}/일 · ${daysLabel(s.days)} · ${hm(s.time)}~${hm(s.time+s.mins)}</td>
@@ -1531,7 +1558,7 @@ function touch(so){rePeriod(so);PC.delete(so.id);const rid=so.parent||so.id;if(!
 /* chain heads only change with start times/durations: cache, dropped on save/render/gate start */
 const headOf=id=>{if(!CH)CH=chainHeads();return CH[id]};
 const lateOn=(x,d)=>!x.oo&&dayTime(x.s,d)>=S.cfg.dayEnd*60&&x.segs[0][0]>=S.cfg.dayEnd*60&&!(headOf(x.s.id)<spanSegs(x.s.time,1)[0][0]);
-const dayEndOf=d=>{if(DEC&&DEC.has(d))return DEC.get(d);const it=itemsOn(d).filter(y=>!lateOn(y,d));const e=it.length?Math.max(...it.map(y=>y.end)):0;if(DEC)DEC.set(d,e);return e};
+const dayEndOf=d=>{if(DEC){flushDirty();if(DEC.has(d))return DEC.get(d)}const it=itemsOn(d).filter(y=>!lateOn(y,d));const e=it.length?Math.max(...it.map(y=>y.end)):0;if(DEC)DEC.set(d,e);return e};
 /* undo auto-skips/splits that were put on such on-purpose late days by older versions */
 function fixLateSkips(){if(S.cfg.lateFix===2)return 0;S.cfg.lateFix=2;let n=0;S.subjects.forEach(so=>{let ch=false;
   for(const d in so.askip||{}){delete so.askip[d];if(so.skip)delete so.skip[d];ch=true;n++}
@@ -1560,6 +1587,12 @@ function autoMove(L,M){const mv=[],DE=S.cfg.dayEnd*60;
   return mv}
 /* room opened up earlier: bring auto-skipped / auto-split days back (whole if it fits before the day end, else the part that fits),
    only when no day gets later than it was (or goes past the day end) */
+/* d, d+1, … up to `last` (at most n days), from one shared list instead of building dates each time */
+let DRUN=[],DRI=new Map();
+function dayRun(d,last,n){let i=DRI.get(d);if(i===undefined){DRUN=[];DRI=new Map();let x=d;for(let g=0;g<1500;g++){DRI.set(x,DRUN.length);DRUN.push(x);x=addD(x,1)}i=0}
+  const out=[];for(let g=0;g<n&&i+g<DRUN.length;g++){const x=DRUN[i+g];if(x>last)break;out.push(x)}
+  if(out.length===n||out.length===0||out[out.length-1]>=last)return out;
+  const r=[];for(let x=d,g=0;x<=last&&g<n;x=addD(x,1),g++)r.push(x);return r}
 function pullBack(){const DE=S.cfg.dayEnd*60,out=[];const cand=[];
   S.subjects.forEach(so=>{for(const d in so.askip||{})if(d>=TODAY&&so.skip&&so.skip[d])cand.push([d,so,'skip']);for(const d in so.asplit||{})if(d>=TODAY)cand.push([d,so,'split'])});
   cand.sort((a,b)=>a[0].localeCompare(b[0]));
@@ -1567,19 +1600,23 @@ function pullBack(){const DE=S.cfg.dayEnd*60,out=[];const cand=[];
     if(kind==='skip'&&d>(so.mode==='period'&&so.end?so.end:plan(so).end)&&!S.subjects.some(y=>y.parent===(so.parent||so.id))){delete so.skip[d];delete so.askip[d];touch(so);continue}
     const fam=S.subjects.filter(y=>y.id===so.id||y.parent===(so.parent||so.id)||y.id===so.parent);
     let last=d;fam.forEach(y=>{const e=plan(y).end;if(e>last)last=e});
-    const win=[];for(let x=d,g=0;x<=last&&g<500;x=addD(x,1),g++)win.push(x);const e0=win.map(dayEndOf);
-    const snap=JSON.stringify({skip:so.skip||{},askip:so.askip||{},ovm:so.ovm||{},asplit:so.asplit||{}}),prevNm=kind==='split'?so.ovm[d]:0;
-    const back=()=>{Object.assign(so,JSON.parse(snap));touch(so)};
+    const win=dayRun(d,last,500);
+    flushDirty();const mk=so.id+'|'+d+'|'+kind,sig=EPOCH+'|'+fam.map(y=>y.id+':'+(SV.get(y.id)||0)).join(',')+'|'+win.length+'|'+win.reduce((a,x)=>a+(VER.get(x)||0),0);
+    if(FAILM.get(mk)===sig)continue; // tried before, failed, and nothing it depends on has changed since
+    TLOG={d:new Map(),s:new Map()};const e0=win.map(dayEndOf);
+    // a try only touches day d in these four maps: remember those entries and put them back if it fails
+    const KS=['skip','askip','ovm','asplit'],snap=KS.map(o=>so[o]&&d in so[o]?[true,so[o][d]]:[false]),prevNm=kind==='split'?so.ovm[d]:0;
+    const back=()=>{KS.forEach((o,i)=>{if(snap[i][0])(so[o]||(so[o]={}))[d]=snap[i][1];else if(so[o])delete so[o][d]});touch(so);flushDirty();TLOG.d.forEach((v,k)=>VER.set(k,v));TLOG.s.forEach((v,k)=>SV.set(k,v));TLOG=null;FAILM.set(mk,sig)};
     const ok=()=>win.every((x,i)=>{const e=dayEndOf(x);return e<=Math.max(e0[i],DE)});
     if(kind==='skip'){delete so.skip[d];delete so.askip[d]}else{delete so.ovm[d];delete so.asplit[d]}touch(so);
     const it=itemFor(so,d);
-    if(it&&dayEndOf(d)<=DE&&ok()){out.push({d,s:so,full:true});continue}
+    if(it&&dayEndOf(d)<=DE&&ok()){TLOG=null;out.push({d,s:so,full:true});continue}
     // whole day doesn't fit: try the part that fits
     let f=null;if(it&&!(so.ovm&&so.ovm[d]!=null)){const over=dayEndOf(d)-DE;f=splitFit(so,it.mins-over)}
     if(f&&f.nm>prevNm){(so.ovm||(so.ovm={}))[d]=f.nm;(so.asplit||(so.asplit={}))[d]=true;touch(so);
-      if(dayEndOf(d)<=DE&&ok()){out.push({d,s:so,split:f});continue}}
+      if(dayEndOf(d)<=DE&&ok()){TLOG=null;out.push({d,s:so,split:f});continue}}
     back()}
-  PC.clear();return out}
+  TLOG=null;PCQUIET=1;try{PC.clear()}finally{PCQUIET=0}return out}
 /* safety net: any save that leaves a day more than lateMax past the day end (outside a gate) gets pushed back quietly */
 let SILENT=0,SETQ=0,LASTBAD='';
 function badDays(){CH=null;PC.clear();const lim=S.cfg.dayEnd*60+lateMax();return lateDays(S.subjects.map(x=>x.id)).filter(x=>x.end>lim&&!itemsOn(x.d).some(y=>y.s.keep&&y.s.keep[x.d]))}
@@ -1588,7 +1625,8 @@ function settle(){if(DEC||drag||hold||!M.classList.contains('hidden')||document.
   const b=badDays();if(!b.length){LASTBAD='';return}const key=x=>x.map(y=>y.d+':'+y.end).join(',');if(key(b)===LASTBAD)return;
   SILENT=1;try{lateGate(S.subjects[0].id,'',JSON.stringify(S.subjects),()=>{const u0=UNDO;save();if(u0)UNDO=u0;render()},()=>{})}finally{SILENT=0}
   LASTBAD=key(badDays())}
-function lateGate(id,name,before,fin,onNo,verb){DEC=new Map();ITC.clear();try{return lateGate0(id,name,before,fin,onNo,verb)}finally{DEC=null;ITC.clear()}}
+let FAILM=new Map();
+function lateGate(id,name,before,fin,onNo,verb){DEC=new Map();ITC.clear();DIRTY.clear();{const os=S.subjects.map(x=>x.ord);ORDU=os.every(x=>x!=null)&&new Set(os).size===os.length;ORDC=null;LASTV=new Map(S.subjects.map(x=>[x.id,snapV(x)]))}VER.clear();SV.clear();EPOCH=0;TLOG=null;FAILM=new Map();try{return lateGate0(id,name,before,fin,onNo,verb)}finally{DEC=null;ITC.clear()}}
 /* a fixed weekday is never auto-moved: drop older auto skips/splits that landed on one */
 function unfixMoves(){let n=0;S.subjects.forEach(so=>{if(!(so.parent&&so.chain)&&(!so.fix||!so.fix.length))return;let ch=false;
   for(const d in so.askip||{})if(d>=TODAY&&fixOn(so,d)){delete so.askip[d];if(so.skip)delete so.skip[d];ch=true}
@@ -1598,7 +1636,7 @@ function lateGate0(id,name,before,fin,onNo,verb){CH=null;syncRounds();fixLateSki
   const bigOld=()=>lateDays(S.subjects.map(x=>x.id)).some(x=>x.end>S.cfg.dayEnd*60+lateMax()&&!itemsOn(x.d).some(y=>y.s.keep&&y.s.keep[x.d]));
   const pullToast=()=>{};
   if(!L.length&&!bigOld()){pullToast();return fin()}
-  const cur=S.subjects;S.subjects=JSON.parse(before);PC.clear();const pe=new Map(S.subjects.map(x=>[x.id,plan(x).end]));const old=new Map(lateDays(S.subjects.map(x=>x.id).concat(ids)).map(x=>[x.d,x.end]));S.subjects=cur;PC.clear();
+  const cur=S.subjects;S.subjects=JSON.parse(before);PC.clear();const pe=new Map(S.subjects.map(x=>[x.id,plan(x).end]));const FX=firstExam(),exOld=new Set(S.subjects.filter(x=>exLateOf(x,FX)).map(x=>x.id));const old=new Map(lateDays(S.subjects.map(x=>x.id).concat(ids)).map(x=>[x.d,x.end]));S.subjects=cur;PC.clear();
   const isNew=x=>!old.has(x.d)||x.end>old.get(x.d);
   const M=S.cfg.dayEnd*60+lateMax();const chk=new Set(ids);let mv=[];
   // push until no day is past the limit, then pull back what the pushes made room for; repeat until nothing moves
@@ -1617,9 +1655,11 @@ function lateGate0(id,name,before,fin,onNo,verb){CH=null;syncRounds();fixLateSki
   const plRows=pl.slice(0,300).map(x=>`<div><span>${md(x.d)} (${DOW[dow(x.d)]})</span><b>${x.split?part(x):`${esc(x.s.name)} 다시 해요`}</b></div>`).join('');
   const notes=[...new Set(mv.map(x=>x.s))].map(x=>{const e0=pe.get(x.id),e1=plan(x).end;
     return x.mode==='period'&&x.end?`'${esc(x.name)}' 종료일은 그대로, 하루 분량이 조금 늘어요`:e0&&e1!==e0?`'${esc(x.name)}' 종료일 <b>${md(e0)} → ${md(e1)}</b>`:''}).filter(Boolean).slice(0,3).join('<br>');
+  const exNew=FX?S.subjects.filter(x=>!exOld.has(x.id)&&exLateOf(x,FX)):[];
+  const exRows=exNew.slice(0,8).map(x=>`<div class="exl"><mark>⚠ ${esc(x.name)} · ${esc(FX.name)}(${md(FX.date)}) 전에 못 끝나요</mark></div>`).join('')+(exNew.length>8?`<div class="lnote">외 ${exNew.length-8}과목</div>`:'');
   const askRows=ask.slice(0,300).map(x=>`<div><span>${day(x)}</span><b>+${durTxt(x.end-S.cfg.dayEnd*60)}</b></div>`).join('');
   const el=document.createElement('div');el.className='ldim';
-  el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4>   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 ${new Set(mv.map(x=>x.d)).size}일 <small>· 다른 날로 옮겨요</small></div><div class="ld mv">${mvRows}</div>`:''}
+  el.innerHTML=`<div class="lbox"><h4>🌙 하루 끝(${endH()})을 넘기는 날이 있어요</h4>${exRows?`<div class="exls">${exRows}</div>`:''}   ${mv.length?`<div class="lsec">${lm} 넘게 넘치는 날 ${new Set(mv.map(x=>x.d)).size}일 <small>· 다른 날로 옮겨요</small></div><div class="ld mv">${mvRows}</div>`:''}
    ${mv.some(x=>!isNew(x))?`<div class="lnote">이번에 바꾼 것과 상관없이 원래 넘치던 날도 같이 정리했어요</div>`:''}
    ${notes?`<div class="lnote">${notes}</div>`:''}
    ${ask.length?`<div class="lsec">${ask.every(x=>x.end<=M)?lm+' 안으로 넘치는 날':'넘치는 날'} ${ask.length}일 <small>· 그대로 해도 될까요?</small></div><div class="ld">${askRows}</div>`:''}
