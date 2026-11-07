@@ -938,7 +938,7 @@ function segsHTML(s,p,ws,cls,lane){
     const d0=addD(ws,c0),d1=addD(ws,c1);
     const contL=p.idx[d0]>0&&diffD(p.dates[p.idx[d0]-1],d0)===1&&c0===0;
     const contR=p.idx[d1]<p.dates.length-1&&c1===6&&diffD(d1,p.dates[p.idx[d1]+1])===1;
-    const dots='';const fr=!cls&&d0===p.dates[0]&&p.dates[0]>=TODAY;
+    const dots='';const fr=!cls&&d0===p.dates[0]&&p.dates[0]>=TODAY&&!Object.keys(S.checks[s.id]||{}).length;
     return `<div class="seg ${useL?'lanesg':''} ${cls||''} ${contL?'cont-l':''} ${contR?'cont-r':''}" data-id="${s.id}"
       style="left:calc(${c0/7*100}% + 1px);width:calc(${(c1-c0+1)/7*100}% - 2px);${useL?`top:${lane*LH+1}px;height:${LH-2}px;padding:0`:`top:calc(${top}% - 6px);height:calc(${ht}% + 12px)`}">
       <div class="bar" style="background:${s.color};color:${textOn(s.color)};font-size:${fs}px">${useL&&fr?'<b class="rzl"></b>':''}${fs?`<span style="overflow:hidden;text-overflow:ellipsis">${cls?'':esc(s.name)}</span>${dots?`<span class="dots">${dots}</span>`:''}`:''}${useL&&!cls&&d1===p.end?'<b class="rzg"></b>':''}</div>${!cls&&d1===p.end?`<i class="rsz" title="꾹 눌러 끌면 종료일 조절" style="color:${textOn(s.color)}"></i>`:''}${fr?'<i class="rsl" title="꾹 눌러 끌면 시작일 조절"></i>':''}</div>`;
