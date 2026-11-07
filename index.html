@@ -1671,10 +1671,14 @@ function autoMove(L,M){const mv=[],DE=S.cfg.dayEnd*60;
     const c=it.filter(y=>!y.oo&&!(y.s.mode==='period'&&y.s.end&&!periodLeft(y.s,x.d))&&!(y.s.keep&&y.s.keep[x.d])&&!(y.s.asplit&&y.s.asplit[x.d])&&!y.fx).sort((p,q)=>q.end-p.end)[0];if(!c){if(g<7&&S.cfg.pack!==false&&slideDay(x.d))continue;break}
     const so=c.s,d=x.d,userOv=so.ovm&&so.ovm[d]!=null;
     const f=!userOv&&splitFit(so,c.mins-(c.end-DE));
-    if(f){(so.ovm||(so.ovm={}))[d]=f.nm;(so.asplit||(so.asplit={}))[d]=true;touch(so);
+    if(f){(so.ovm||(so.ovm={}))[d]=f.nm;(so.asplit||(so.asplit={}))[d]=S.cfg.pack===false?2:true;touch(so);
       if(dayEndOf(d)<=M){mv.push({d,end:x.end,s:so,split:f});continue}
       delete so.ovm[d];delete so.asplit[d];touch(so)}
-    (so.askip||(so.askip={}))[d]=true;(so.skip||(so.skip={}))[d]=true;if(so.add)delete so.add[d];touch(so);mv.push({d,end:x.end,s:so})}}
+    // 빈자리 채우기 끄기: 뒤 과목이 앞으로 안 당겨지니, 보내도 그날 끝이 안 줄면 보내지 않고 넘친 채 둠 (🌙)
+    const off=S.cfg.pack===false,e0=off?dayEndOf(d):0,ad=so.add&&so.add[d];
+    (so.askip||(so.askip={}))[d]=off?2:true;(so.skip||(so.skip={}))[d]=true;if(so.add)delete so.add[d];touch(so); // 2 = 끄기 동안 보낸 것 (다시 켜면 되돌림)
+    if(off&&dayEndOf(d)>=e0){delete so.askip[d];delete so.skip[d];if(ad)so.add[d]=ad;touch(so);break}
+    mv.push({d,end:x.end,s:so})}}
   return mv}
 /* room opened up earlier: bring auto-skipped / auto-split days back (whole if it fits before the day end, else the part that fits),
    only when no day gets later than it was (or goes past the day end) */
@@ -1685,7 +1689,9 @@ function dayRun(d,last,n){let i=DRI.get(d);if(i===undefined){DRUN=[];DRI=new Map
   if(out.length===n||out.length===0||out[out.length-1]>=last)return out;
   const r=[];for(let x=d,g=0;x<=last&&g<n;x=addD(x,1),g++)r.push(x);return r}
 function pullBack(){const DE=S.cfg.dayEnd*60,out=[];const cand=[];
-  S.subjects.forEach(so=>{for(const d in so.askip||{})if(d>=TODAY&&so.skip&&so.skip[d])cand.push([d,so,'skip']);for(const d in so.asplit||{})if(d>=TODAY)cand.push([d,so,'split'])});
+  // 빈자리 채우기 끄기: 켜기 때 정리해둔 것(true)은 건드리지 않고, 끄기 동안 보낸 것(2)만 되돌려봄 → 다시 켜면 원래대로
+  const offM=S.cfg.pack===false,mine=v=>!offM||v===2;
+  S.subjects.forEach(so=>{for(const d in so.askip||{})if(d>=TODAY&&so.skip&&so.skip[d]&&mine(so.askip[d]))cand.push([d,so,'skip']);for(const d in so.asplit||{})if(d>=TODAY&&mine(so.asplit[d]))cand.push([d,so,'split'])});
   cand.sort((a,b)=>a[0].localeCompare(b[0]));
   for(const [d,so,kind] of cand){if(so.keep&&so.keep[d])continue;
     if(kind==='skip'&&d>(so.mode==='period'&&so.end?so.end:plan(so).end)&&!S.subjects.some(y=>y.parent===(so.parent||so.id))){delete so.skip[d];delete so.askip[d];touch(so);continue}
@@ -2202,7 +2208,12 @@ document.addEventListener('click',e=>{
     case 'pickColor':S.cfg.themeColor=el.dataset.c;saveUI();applyTheme();SH.querySelectorAll('.hive polygon').forEach(b=>b.classList.toggle('on',b===el));hivePreview();break;
     case 'pickTheme':S.cfg.theme=el.dataset.k;saveUI();applyTheme();SH.querySelectorAll('[data-act=pickTheme]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'pickLate':S.cfg.lateMax=+el.dataset.k;save();render();SH.querySelectorAll('[data-act=pickLate]').forEach(b=>b.classList.toggle('on',b===el));break;
-    case 'pickPack':S.cfg.pack=el.dataset.k==='on';save();render();{const pv=document.getElementById('packPrev');if(pv)pv.innerHTML=packPrev(S.cfg.pack)}SH.querySelectorAll('[data-act=pickPack]').forEach(b=>b.classList.toggle('on',b===el));break;
+    case 'pickPack':{const was=S.cfg.pack!==false;S.cfg.pack=el.dataset.k==='on';
+      // 다시 켜면: 끄기 동안 다음 날로 보낸 과목을 자리가 있으면 원래 날로 (넘치는 날이 없어도 한 번 정리)
+      if(!was&&S.cfg.pack&&S.subjects.length){S.subjects.forEach(so=>{let ch=false;
+          for(const d in so.askip||{})if(so.askip[d]===2){delete so.askip[d];if(so.skip)delete so.skip[d];ch=true}
+          for(const d in so.asplit||{})if(so.asplit[d]===2){delete so.asplit[d];if(so.ovm)delete so.ovm[d];ch=true}
+          if(ch)rePeriod(so)});syncRounds();CH=null;PC.clear();SILENT=1;try{lateGate(S.subjects[0].id,'',JSON.stringify(S.subjects),()=>save(),()=>save())}finally{SILENT=0}}else save()}render();{const pv=document.getElementById('packPrev');if(pv)pv.innerHTML=packPrev(S.cfg.pack)}SH.querySelectorAll('[data-act=pickPack]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'pickMode':S.cfg.mode=el.dataset.k;saveUI();applyTheme();SH.querySelectorAll('[data-act=pickMode]').forEach(b=>b.classList.toggle('on',b===el));break;
     case 'saveSettings':{const A=+fv('sA'),B=+fv('sB');if(B-A<4)return toast('시간 범위가 너무 좁아요');const dA=(A-S.cfg.dayStart)*60;S.cfg.dayStart=A;S.cfg.dayEnd=B;
       if(dA){S.subjects.forEach(s=>{s.time+=dA;if(s.ov)for(const k in s.ov)s.ov[k]+=dA});(S.ones||[]).forEach(o=>{if(o.date>=TODAY)o.time+=dA});CH=null;setTimeout(()=>toast(`하루 시작이 ${durTxt(Math.abs(dA))} ${dA<0?'당겨져서':'늦춰져서'} 과목들도 같이 ${dA<0?'앞당겼어요':'늦췄어요'}`),300)}
