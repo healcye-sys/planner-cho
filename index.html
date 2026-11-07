@@ -635,11 +635,11 @@ function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.is
 let S=load();
 S.subjects.forEach(x=>{x.days=normDays(x.days);if(!(x.pre>0))x.pre=0});if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
 if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
-function ensureRest(){S.cfg.meals=S.cfg.meals.filter(m=>!m.rest)}ensureRest();
+function ensureRest(){if(!S.cfg.meals.some(m=>m.rest))S.cfg.meals.push({n:'휴식',time:null,mins:15,rest:true})}ensureRest();
 const mIco=m=>m.rest?'☕':'🍚',mName=m=>m.rest?m.n:m.n+' 식사';
 /* MDAY = the date being laid out; its one-day breaks (S.rests[date]) count like meals: study pauses and continues after */
 let MDAY=null;
-const mealsOn=()=>{const g=(S.cfg.meals||[]).filter(m=>m.time!=null&&!m.rest);const r=MDAY&&S.rests&&S.rests[MDAY];
+const mealsOn=()=>{const g=(S.cfg.meals||[]).filter(m=>m.time!=null);const r=MDAY&&S.rests&&S.rests[MDAY];
   return (r&&r.length?g.concat(r.map(x=>({n:'휴식',time:x.time,mins:x.mins,rest:true,rid:x.id}))):g).sort((a,b)=>a.time-b.time)};
 const mealsAt=d=>{const p=MDAY;MDAY=d;try{return mealsOn()}finally{MDAY=p}};
 /* subject colours: 12 clearly different hues; row 1 = deepest, "+" opens lighter rows below */
@@ -1196,7 +1196,7 @@ function renderDay(){
       ${d!==TODAY?'<button class="btn" data-act="dToday">오늘로</button>':''}</div>
     ${overBy(it)?`<div class="ovfbar">🌙 ${lateTxt(Math.max(...it.map(x=>x.end)))} 가요 · ${endH()}보다 <b>${durTxt(overBy(it))}</b> 넘어요<small>공부 시간을 줄이거나 과목을 다른 날로 옮겨 보세요</small></div>`:''}
     <div style="margin-top:10px">${rows||'<div class="empty">이 날은 계획된 공부가 없어요.</div>'}</div>
-    <div class="xrow"><div class="xadd" data-act="xAdd" data-date="${d}">📖 공부 추가</div><div class="xadd" data-act="restOpen" data-date="${d}">☕ 휴식 추가</div></div>
+    <div class="xrow"><div class="xadd" data-act="xAdd" data-date="${d}">📖 공부 추가</div></div>
     ${(()=>{const a=askipOn(d).length,b=asplitOn(d).length;return a+b?`<div class="restln" data-act="xAdd" data-date="${d}">🌙<span>${a+b}과목을 다른 날로 옮겼어요</span><i>보기 ›</i></div>`:''})()}
     ${skippedOn(d).length?`<div class="xskip">다른 날로 옮김 · ${skippedOn(d).map(s=>`<span>${esc(s.name)} <b data-act="xUnskip" data-id="${s.id}" data-date="${d}">되돌리기</b></span>`).join('')}</div>`:''}
     <div class="foot"><span>${dn} / ${it.length} 완료</span><span>공부 ${hrs(mins)}</span></div>
@@ -1759,7 +1759,7 @@ function openSettings(){
     <div class="hint" style="margin-top:6px;line-height:1.5">이만큼까지는 물어보고 넣어요. 더 넘치면 그 날은 맨 뒤 과목을 쉬고 다음 공부하는 날로 넘겨요.</div></div>
    <div class="fld"><label>식사 시간 <span class="hint" style="font-weight:400">(비워 두면 표시 안 함)</span></label>
     ${S.cfg.meals.map((m,i)=>m.rest?'':mealRow(m,i)).join('')}</div>
-
+   <div class="fld" id="restFld">${restInner()}</div>
    <div class="fld"><label>빈 시간 자동으로 당기기</label><div class="seg3 small">${[['on','켜기'],['off','끄기']].map(([k,v])=>`<button data-act="pickPack" data-k="${k}" class="${(S.cfg.pack!==false)===(k==='on')?'on':''}">${v}</button>`).join('')}</div><div id="packPrev">${packPrev(S.cfg.pack!==false)}</div></div>
    <div class="fld"><label>테마 색상</label><div class="hive">${honeycomb()}<div class="hivePrev" id="hivePrev"></div></div></div>
    <div class="fld"><label>화면 모드</label><div class="seg3 small">${[['system','기기 설정'],['light','밝게'],['dark','어둡게']].map(([k,v])=>`<button data-act="pickMode" data-k="${k}" class="${(S.cfg.mode||'system')===k?'on':''}">${v}</button>`).join('')}</div></div>
