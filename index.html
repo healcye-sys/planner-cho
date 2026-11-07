@@ -1600,6 +1600,7 @@ function saveSubject(){
   const v=formVals(),name=fv('fName');if(!name)return toast('과목명을 입력해 주세요');
   if(!F.days.length)return toast('공부할 요일을 하나 이상 골라 주세요');
   if(!v.mode){if(F.id)return toast('전체 분량 · 하루 분량 · 종료일 중 2개를 채워 주세요');
+    if(v.end&&v.end<v.st)return toast('종료일은 시작일 뒤로 골라 주세요');
     const dd={id:F.draft||uid(),name,color:F.color,unit:fv('fUnit'),total:v.total||'',daily:v.daily||'',end:v.end||'',start:v.st,pre:num(fv('fDone'))||0,mins:Math.max(10,Math.round(num(fv('fH'))*60+num(fv('fM')))),days:[...F.days].sort(),fix:F.fix.filter(x=>F.days.includes(x)).sort(),time:fv('fTime')?inMin(fv('fTime')):null};
     S.drafts=(S.drafts||[]).filter(x=>x.id!==dd.id);S.drafts.push(dd);save();closeModal();render();return toast(`'${name}' 날짜 미정으로 보관했어요 · 과목 리스트 맨 아래에 있어요`)}
   if(v.mode==='period'&&v.n<1)return toast('종료일은 시작일 뒤로, 공부하는 요일이 들어가게 골라 주세요');
