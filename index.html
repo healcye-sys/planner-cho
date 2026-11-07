@@ -347,6 +347,7 @@ tbody tr.lrow{transition:none;position:relative;z-index:5;background:var(--card)
 /* fab */
 .zfab{position:fixed;right:92px;bottom:24px;width:60px;height:60px;z-index:49;display:flex;flex-direction:column;border-radius:20px;overflow:hidden;background:var(--card);border:1.5px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,.15)}
 .zfab button{flex:1;display:grid;place-items:center;border:0;background:none;color:var(--ink);padding:0;font-family:inherit;cursor:pointer}.zfab button+button{border-top:1px solid var(--line)}.zfab button:active{background:var(--line2)}
+.undofab{position:fixed;left:16px;bottom:calc(24px + env(safe-area-inset-bottom));z-index:40;background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:999px;padding:9px 14px;font-size:13.5px;font-weight:700;box-shadow:0 3px 12px rgba(0,0,0,.15);font-family:inherit;white-space:nowrap;cursor:pointer}.undofab.hidden{display:none}body.dragging .undofab{pointer-events:none}
 body.dragging .zfab{pointer-events:none}
 .fab{position:fixed;right:22px;bottom:24px;width:60px;height:60px;border-radius:20px;background:var(--brand);color:var(--onBrand);font-size:32px;
   box-shadow:0 6px 18px rgba(47,90,80,.4);z-index:30;display:grid;place-items:center;line-height:1}
@@ -838,7 +839,7 @@ function renderMonth(){
     <div class="spacer"></div>
     <span class="hint">띠를 꾹 누른 채 끌면 날짜(←→)·순서(↑↓) 이동 · 끝의 ↔를 끌면 종료일 조절 · 두 번 누르면 수정/삭제 · 화면을 옆으로 밀면 다음 달</span>
   </div>
-  <div class="zfab"><button data-act="zoomIn" title="화면 확대 (칸 크게)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20.5 20.5"/><path d="M7.8 10.5h5.4"/><path d="M10.5 7.8v5.4"/></svg></button><button data-act="zoomOut" title="화면 축소 (칸 작게)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20.5 20.5"/><path d="M7.8 10.5h5.4"/></svg></button></div>
+  <div class="zfab"><button data-act="zoomIn" title="칸 높이 늘리기"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h12M3 20h12M6 10h6M6 14h6"/><path d="M19 8v8M17 10l2-2 2 2M17 14l2 2 2-2"/></svg></button><button data-act="zoomOut" title="칸 높이 줄이기"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h12M3 16h12"/><path d="M19 3v5M17 6l2 2 2-2M19 21v-5M17 18l2-2 2 2"/></svg></button></div>
   ${S.subjects.length>1?`<div class="chips"><button data-act="focusSub" data-id="" class="all">전체</button>${listOrder().map(s=>`<button data-act="focusSub" data-id="${s.id}"><i style="background:${s.color}"></i>${esc(s.name)}</button>`).join('')}</div>`:''}
   ${LM.length?`<div class="lban" data-act="gotoDay" data-date="${LM[0]}">🌙 이번 달 ${LM.length}일이 ${S.cfg.dayEnd>=24?'새벽까지':'늦게까지'} 가요<b>보기 ›</b></div>`:''}
   <div class="mwrap lanes" style="--rowH:${S.cfg.rowH}px">
@@ -1052,7 +1053,8 @@ window.addEventListener('pointermove',e=>{
 function endDrag(cancel){
   if(!drag)return;GLANE=null;const d=drag;drag=null;clearInterval(autoT);if(raf){cancelAnimationFrame(raf);raf=0}
   document.body.classList.remove('dragging');document.getElementById('tip').classList.add('hidden');
-  const s=sub(d.id);const before0=JSON.stringify(S.subjects);
+  const s=sub(d.id);const before0=JSON.stringify(S.subjects);const uj0=UJ;UKEEP=1;
+  const pushU=()=>{if(ubody()!==uj0){UST.push(uj0);if(UST.length>10)UST.shift()}paintUndo()};
   document.querySelectorAll('.seg.rs').forEach(x=>x.classList.remove('rs'));
   if(d.wk&&d.wrs){if(!cancel&&s&&d.target.mins!==dayMins(s,d.day)){s.ovm=s.ovm||{};if(d.target.mins===s.mins)delete s.ovm[d.day];else s.ovm[d.day]=d.target.mins;if(s.asplit)delete s.asplit[d.day];save();
       toast(`${mdw(d.day)} 하루만 ${Math.floor(d.target.mins/60)?Math.floor(d.target.mins/60)+'시간 ':''}${d.target.mins%60?d.target.mins%60+'분':''}`)}}
@@ -1068,7 +1070,8 @@ function endDrag(cancel){
   const rr=()=>{if(S.ui.view==='week'){const sc=V.querySelector('.wscroll'),sl=sc?sc.scrollLeft:0;renderWeek();const n=V.querySelector('.wscroll');if(n)n.scrollLeft=sl}
   else{renderHeader();renderBands()}};rr();
   /* a drop that runs the day past its end: same rule as saving (ask up to the limit, move the last subject beyond it) */
-  if(s&&!cancel&&JSON.stringify(S.subjects)!==before0)lateGate(s.id,s.name,before0,()=>{save();rr()},()=>{save();rr();toast('옮기기 전으로 돌렸어요')},'바꾸면');
+  if(s&&!cancel&&JSON.stringify(S.subjects)!==before0)lateGate(s.id,s.name,before0,()=>{UKEEP=1;save();UKEEP=0;rr();pushU()},()=>{UKEEP=1;save();UKEEP=0;rr();toast('옮기기 전으로 돌렸어요')},'바꾸면');
+  UKEEP=0;
   setTimeout(applyPending,0);
 }
 window.addEventListener('pointerup',e=>{
@@ -1691,7 +1694,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button><button class="btn" data-act="restoreMenu">↺ 이전 내용 되살리기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.3<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.4<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
@@ -1815,7 +1818,7 @@ function onRemote(snap){
   markSynced();
   if(!SY.writing)setSync('☁ 동기화됨');
 }
-function adopt(d){try{const x=JSON.parse(d.json);const b=defState();const ui=S.ui;S={...b,...x,cfg:{...b.cfg,...x.cfg},ui,at:d.at};fixWildTimes();
+function adopt(d){UST=[];try{const x=JSON.parse(d.json);const b=defState();const ui=S.ui;S={...b,...x,cfg:{...b.cfg,...x.cfg},ui,at:d.at};fixWildTimes();
   S.subjects.forEach(v=>{v.days=normDays(v.days);if(!(v.pre>0))v.pre=0});
   if(!Array.isArray(S.cfg.customColors))S.cfg.customColors=[];if(!Array.isArray(S.cfg.hiddenColors))S.cfg.hiddenColors=[];if(!Array.isArray(S.cfg.meals))S.cfg.meals=[{n:'아침',time:null,mins:30},{n:'점심',time:null,mins:60},{n:'저녁',time:null,mins:60}];
   PC.clear();LASTJ=bodyJ();UJ=ubody();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
@@ -1922,7 +1925,7 @@ function setZoom(z){const box=V.querySelector('.zbox');if(!box)return;const zin=
   box.classList.toggle('zd',z!==1);zin.style.width=z===1?'':(100/z)+'%';zin.style.transform=z===1?'':`scale(${z})`;
   const fit=()=>{box.style.height=z===1?'':(zin.offsetHeight*z)+'px'};fit();
   if(ZRO){ZRO.disconnect();ZRO=null}if(z!==1&&window.ResizeObserver){ZRO=new ResizeObserver(fit);ZRO.observe(zin)}
-  const r=V.querySelector('.zreset');if(z!==1){if(!r)V.insertAdjacentHTML('beforeend','<button class="zreset" data-act="zReset">원래 크기</button>')}else if(r)r.remove()}
+  const r=V.querySelector('.zreset');if(z!==1){if(!r)V.insertAdjacentHTML('beforeend','<button class="zreset" data-act="zReset">원래 크기</button>')}else if(r)r.remove();paintUndo()}
 {let pz=null;const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
  const midY=t=>(t[0].clientY+t[1].clientY)/2;
  document.addEventListener('touchstart',e=>{if(e.touches.length!==2||drag||!M.classList.contains('hidden'))return;
@@ -2016,6 +2019,7 @@ document.addEventListener('click',e=>{
     case 'reset':ask('모든 과목·D-day·체크 기록을 지울까요? 로그인한 다른 기기에서도 지워지고 되돌릴 수 없어요.','전체 삭제',()=>{S=defState();save();closeModal();render()});break;
     case 'mPrev':case 'mNext':go(()=>{const {y,mo}=monthWeeks();const d=new Date(y,mo-1+(a==='mNext'?1:-1),1,12);S.ui.month=ds(d).slice(0,7)});break;
     case 'mToday':go(()=>S.ui.month=TODAY.slice(0,7));break;
+    case 'undoStep':undoStep();break;
     case 'zReset':S.ui[ZK()]=1;saveUI();setZoom(1);break;
     case 'zoomIn':go(()=>S.cfg.rowH=Math.min(700,S.cfg.rowH+50));break;
     case 'zoomOut':go(()=>S.cfg.rowH=Math.max(150,S.cfg.rowH-50));break;
@@ -2050,6 +2054,15 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();if(e.ke
 let toastT;function toast(t){const el=document.getElementById('toast');const u=UNDO&&Date.now()-UNDO.t<1500;
   if(u){el.innerHTML=`<span>${esc(t)}</span><button class="undo" data-act="undo">되돌리기</button>`}else el.textContent=t;
   el.classList.toggle('u',!!u);el.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on','u'),u?5000:2200)}
+/* ↩ 되돌리기: the last 10 bar moves / resizes (month & week). Any other edit clears it, so it never undoes something else */
+let UST=[],UKEEP=0;
+function paintUndo(){let b=document.getElementById('undofab');if(!b){b=document.createElement('button');b.id='undofab';b.className='undofab hidden';b.dataset.act='undoStep';b.textContent='↩ 되돌리기';document.body.appendChild(b)}
+  const on=UST.length&&(S.ui.view==='month'||S.ui.view==='week');b.classList.toggle('hidden',!on);if(!on)return;
+  const z=V.querySelector('.zreset');const r=z&&z.getBoundingClientRect();b.style.left=(r&&r.width?Math.round(r.right+8):16)+'px'}
+function clearUndo(){if(UST.length){UST=[];paintUndo()}}
+function undoStep(){const j=UST.pop();if(!j)return paintUndo();let o;try{o=JSON.parse(j)}catch(e){return}UNDO=null;
+  Object.keys(S).forEach(k=>{if(k!=='ui'&&k!=='at'&&k!=='uat')delete S[k]});Object.assign(S,o);
+  UNDOING=1;save();UNDOING=0;render();toast(UST.length?`되돌렸어요 · ${UST.length}번 더 되돌릴 수 있어요`:'되돌렸어요')}
 function undo(){if(!UNDO)return;let o;try{o=JSON.parse(UNDO.j)}catch(e){return}UNDO=null;
   Object.keys(S).forEach(k=>{if(k!=='ui'&&k!=='at')delete S[k]});Object.assign(S,o);
   UNDOING=1;save();UNDOING=0;render();const el=document.getElementById('toast');el.classList.remove('u');toast('되돌렸어요')}
@@ -2057,7 +2070,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ds(new Da
 S.ui.view='day';S.ui.day=TODAY; // always open on today's daily schedule
 S.ui.seen=1;
 if(fixWildTimes()){save();setTimeout(()=>toast('겹치지 않는 날끼리 쌓였던 시작 시간을 다시 맞췄어요'),600)}
-{const save0=save;save=function(){save0();if(!DEC&&!UNDOING)queueSettle()}}
+{const save0=save;save=function(){save0();if(!UKEEP&&!UNDOING&&!DEC&&!(typeof SILENT!=='undefined'&&SILENT))clearUndo();if(!DEC&&!UNDOING)queueSettle()}}
+{const r0=render;render=function(){r0.apply(this,arguments);paintUndo()}}
 render();
 startSync();
 // "앱 설치" button: Chrome hands us the install prompt only when the page is installable and not installed yet
