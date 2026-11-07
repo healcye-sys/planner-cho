@@ -1769,7 +1769,7 @@ async function startSync(){
     SY.user=u;if(SY.unsub){SY.unsub();SY.unsub=null}
     if(!u){SY.on=false;setSync('로그인하면 폰·탭 연동');queueSettle();return}
     SY.ref=firebase.firestore().collection('planners').doc(u.uid);SY.on=true;SY.live=false;setSync('동기화 중…');
-    SY.unsub=SY.ref.onSnapshot(sn=>onRemote(sn),e=>setSync('동기화 오류 ('+e.code+')',1));
+    SY.unsub=SY.ref.onSnapshot({includeMetadataChanges:true},sn=>onRemote(sn),e=>setSync('동기화 오류 ('+e.code+')',1));
     if(!M.classList.contains('hidden')&&SH.querySelector('#syncBox'))openSettings();
   });
 }
@@ -1804,7 +1804,7 @@ function onRemote(snap){
   if(!live&&!SY.live){if(snap.exists&&syncedUid()===SY.user.uid){const d=snap.data(),b=getBase();if(b!=null&&d.at!==b&&(S.at||0)<=b&&!syBusy()){adopt(d);setBase(d.at)}}return}
   const first=!SY.live;SY.live=true;
   if(!snap.exists){if(S.subjects.length||S.exams.length)pushNow();else setSync('☁ 동기화됨');markSynced();return}
-  const d=snap.data();SY.lastJson=d.json;SY.lastAt=d.at;if(d.prev){SY.prevJson=d.prev;SY.prevAt=d.prevAt}
+  const d=snap.data();SY.lastJson=d.json;SY.lastAt=d.at;if(d.prev){SY.prevJson=d.prev;SY.prevAt=d.prevAt}SY.hist=d.hist||[];
   let cloudN=0;try{cloudN=(JSON.parse(d.json).subjects||[]).length}catch(e){}
   if(first&&syncedUid()!==SY.user.uid){ // first sync of this device with this account: cloud wins
     const {ui,...rest}=S;if((S.subjects.length||S.exams.length)&&JSON.stringify(rest)!==d.json){keepLocalCopy();setTimeout(()=>toast('클라우드 내용을 불러왔어요 · 이 기기에 있던 내용은 따로 보관했어요'),500)}
@@ -1821,15 +1821,24 @@ function adopt(d){try{const x=JSON.parse(d.json);const b=defState();const ui=S.u
   PC.clear();LASTJ=bodyJ();UJ=ubody();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
   if(typeof applyTheme==='function')applyTheme();const y=scrollY;render();scrollTo({top:y});setSync('☁ 동기화됨')}catch(e){}}
 function applyPending(){if(SY.pending&&!syBusy()){const d=SY.pending;SY.pending=null;takeRemote(d);markSynced()}}
+/* cloud history: the doc keeps up to 12 older versions (gzip, at least 30 min apart) so any version can be brought back */
+const canGz=typeof CompressionStream==='function'&&typeof DecompressionStream==='function';
+async function gz(s){const b=await new Response(new Blob([s]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();const u=new Uint8Array(b);let bin='';for(let i=0;i<u.length;i+=8192)bin+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(bin)}
+async function gunz(z){const u=Uint8Array.from(atob(z),c=>c.charCodeAt(0));return new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).text()}
+const HMAX=12,HGAP=()=>window.__HGAP??30*60e3;
 async function pushNow(){
   if(!SY.on||!SY.live)return;if(SY.writing){SY.again=true;return}
   {let n=0;try{n=(JSON.parse(SY.lastJson||'{}').subjects||[]).length}catch(e){}if(!S.subjects.length&&n)return}
   SY.writing=true;setSync(navigator.onLine?'저장 중…':'오프라인 · 연결되면 올라가요');
   const {ui,...rest}=S;const json=JSON.stringify(rest),at=S.at||Date.now(),base=getBase();let res='ok';
+  const old=SY.lastJson,oldAt=SY.lastAt||0,hs=SY.hist||[];let hz=null;
+  if(canGz&&old&&old!==json&&(!hs.length||oldAt-hs[hs.length-1].at>=HGAP()))try{hz=await gz(old)}catch(e){hz=null}
   try{await firebase.firestore().runTransaction(async tx=>{const cur=await tx.get(SY.ref);
       if(cur.exists){const c=cur.data();if(base!=null&&c.at!==base&&c.at!==at){res='stale';return}
         if(c.json===json){res='same';return}
-        tx.set(SY.ref,{json,at,uat:S.uat||at,dev:DEV,prev:c.json,prevAt:c.at||0})}
+        let hist=Array.isArray(c.hist)?c.hist.slice():[];
+        if(hz&&c.json===old&&(!hist.length||(c.at||0)-hist[hist.length-1].at>=HGAP())){hist.push({at:c.at||0,z:hz});hist=hist.slice(-HMAX)}
+        SY.hist=hist;tx.set(SY.ref,{json,at,uat:S.uat||at,dev:DEV,prev:c.json,prevAt:c.at||0,hist})}
       else tx.set(SY.ref,{json,at,uat:S.uat||at,dev:DEV})});
     if(res==='stale'){setSync('☁ 다른 기기 내용 받는 중…')}
     else{if(res==='ok'){SY.prevJson=SY.lastJson;SY.prevAt=SY.lastAt}SY.lastJson=json;SY.lastAt=at;setBase(at);markSynced();setSync('☁ 동기화됨')}}
@@ -1991,6 +2000,7 @@ document.addEventListener('click',e=>{
       S.subjects.forEach(s=>{s.mins=Math.min(s.mins,(B-A)*60);if(s.time<A*60)s.time=A*60});PC.clear();save();closeModal();render();break}
     case 'export':exportBackup();break;
     case 'restoreMenu':restoreChoice();break;
+    case 'restoreHist':{const h=(SY.hist||[])[+el.dataset.i];if(!h)break;gunz(h.z).then(j=>{const d=JSON.parse(j);ask(`이 기록(과목 ${(d.subjects||[]).length}개)으로 되돌릴까요?`,'되돌리기',()=>restoreData(d))}).catch(()=>toast('불러올 수 없어요'));break}
     case 'restorePrev':ask('직전 클라우드 버전으로 되돌릴까요?','되돌리기',()=>{try{restoreData(JSON.parse(SY.prevJson))}catch(e){toast('되돌릴 수 없어요')}});break;
     case 'restoreLocal':{const k=el.dataset.k;ask('따로 보관한 내용으로 바꿀까요?','바꾸기',()=>{try{restoreData(JSON.parse(localStorage.getItem(k)))}catch(e){toast('불러올 수 없어요')}});break}
     case 'resetOv':{const so=sub(id);if(so&&(so.ov||so.ovm)){if(so.ov)delete so.ov[el.dataset.date];if(so.ovm)delete so.ovm[el.dataset.date];if(so.asplit)delete so.asplit[el.dataset.date];save();render();toast('원래 시간으로 돌렸어요')}break}
@@ -2026,6 +2036,7 @@ function restoreData(d){const b=defState();S={...b,...d,cfg:{...b.cfg,...d.cfg},
 const localCopies=()=>{const o=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(KEY+'-local-'))o.push(k)}}catch(e){}return o.sort().reverse()};
 function restoreChoice(){const L=localCopies();let prevN=0;try{prevN=SY.prevJson?(JSON.parse(SY.prevJson).subjects||[]).length:0}catch(e){}
   const rows=[];if(SY.prevJson)rows.push(`<button class="lbtn" data-act="restorePrev">☁ 직전 클라우드 버전 (${SY.prevAt?md(new Date(SY.prevAt).toISOString().slice(0,10))+' '+new Date(SY.prevAt).toTimeString().slice(0,5):''} · 과목 ${prevN}개)</button>`);
+  (SY.hist||[]).slice().reverse().forEach((h,i)=>{const dt=new Date(h.at);rows.push(`<button class="lbtn" data-act="restoreHist" data-i="${(SY.hist.length-1-i)}">☁ 클라우드 기록 (${md(ds(dt))} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')})</button>`)});
   L.forEach(k=>{let n=0;try{n=(JSON.parse(localStorage.getItem(k)).subjects||[]).length}catch(e){}const ts=k.slice(KEY.length+7);rows.push(`<button class="lbtn" data-act="restoreLocal" data-k="${esc(k)}">📱 이 기기에 따로 보관한 내용 (${md(ts.slice(0,10))}${ts.slice(10)} · 과목 ${n}개)</button>`)});
   openModal(`<h3>이전 내용 되살리기</h3><div class="hint" style="margin-bottom:10px">고른 내용으로 바뀌고, 다른 기기에도 같이 반영돼요</div>${rows.join('')||'<div class="empty">되살릴 이전 내용이 없어요</div>'}<div class="sheet-acts"><div class="spacer"></div><button class="btn" data-act="close">닫기</button></div>`)}
 document.getElementById('importFile').addEventListener('change',e=>{
