@@ -1133,7 +1133,7 @@ function renderWeek(){
     const lanes=[];it.forEach(x=>{let l=lanes.findIndex(e=>e<=x.time);if(l<0){l=lanes.length;lanes.push(0)}lanes[l]=x.end;x.lane=l});
     const L=Math.max(1,lanes.length);
     const meals=mealsAt(d).filter(m=>m.time<b*60&&m.time+m.mins>a*60).map(m=>{const t0=Math.max(m.time,a*60),t1=Math.min(m.time+m.mins,b*60);
-      return `<div class="wmeal" data-act="${m.rid?'restTap':'mealTap'}" data-n="${esc(m.n)}" data-date="${d}" data-id="${m.rid||''}" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">${mIco(m)} ${esc(m.n)}</div>`}).join('');
+      return `<div class="wmeal" data-act="${m.rid?'restTap':'mealTap'}" data-n="${esc(m.n)}" data-date="${d}" data-id="${m.rid||''}" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">${m.rest?'':mIco(m)+' '+esc(m.n)}</div>`}).join('');
     const nwl=d===TODAY?`<div class="wnow" style="top:${(nowMin()-a*60)/60*HP}px;${nowMin()<a*60||nowMin()>b*60?'display:none':''}"><span>${hm(nowMin())}</span></div>`:'';
     cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H2}px;background-image:${bg}">`+meals+nwl+(ob?`<div class="lnight" style="top:${(b-a)*HP}px;height:${ob/60*HP}px"><span>🌙 +${Math.floor(ob/60)}:${pad(ob%60)}</span></div>`:'')+(MV[i]?MV[i].am.map((s,j)=>{const n=nextStudy(s,d);return `<div class="mvchip" data-act="gotoDay" data-date="${d}" style="top:${MV[i].top+j*36}px">${esc(s.name)}<br>${n?md(n)+'로':''}</div>`}).join(''):'')+it.map(x=>x.segs.map(([t0,t1],si)=>{
       const first=si===0,last=si===x.segs.length-1;
