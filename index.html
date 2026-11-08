@@ -1349,18 +1349,20 @@ function insertChain(ids,sid,pull,date,keep){
   const set=(x,t)=>{let sg=spanSegs(t,x.mins);const lim=S.cfg.dayEnd*60;
     if(sg[sg.length-1][1]>lim){const t2=Math.max(S.cfg.dayStart*60,lim-Math.min(x.mins,(S.cfg.dayEnd-S.cfg.dayStart)*60));if(t2<sg[0][0])sg=spanSegs(t2,x.mins)}
     x.time=sg[0][0];if(x.ov)x.ov={};clearDayEdits(x);PC.clear()};
+  const prev=act.slice(0,k).reverse().find(x=>share(x,s)),next=act.slice(k+1).find(x=>share(x,s));
+  if(!keep){const want=prev?eff(prev,s)[1]:next?eff(next,s)[0]:s.time;if(Math.abs(want-eff(s,null)[0])<.5)return act.length} // already sits there: nothing to move
   if(pull&&!keep){const [o0,o1]=eff(s,null);let cur=o0,ce=o1,gOld=-1,gNew=0;
     const rest=act.filter(x=>x!==s&&share(x,s)).map(x=>[x,eff(x,s)]).filter(([x,[a]])=>a>=o1-.5).sort((a,b)=>a[1][0]-b[1][0]);
     for(const [x,[a,e]] of rest){if(Math.abs(a-gOld)>.5){if(a>ce+.5)break;gOld=a;gNew=cur}set(x,gNew);cur=Math.max(cur,own(x,s)[1]);ce=Math.max(ce,e)}}
-  const prev=act.slice(0,k).reverse().find(x=>share(x,s)),next=act.slice(k+1).find(x=>share(x,s));
   if(!keep)set(s,prev?eff(prev,s)[1]:next?eff(next,s)[0]:s.time);
   const done=[s];
   act.slice(k+1).forEach(x=>{let t=-1;const x0=own(x,null)[0];done.forEach(p=>{if(share(x,p)){const e=own(p,x)[1];if(x0<e-.5)t=Math.max(t,e)}});if(t>=0){set(x,t);done.push(x)}});
   PC.clear();return act.length}
-function applyOrder(ids){
-  ids.forEach((id,i)=>{const s=sub(id);if(s)s.ord=i});
-  const before=JSON.stringify(S.subjects);if(!rechain(ids)){save();render();return}
-  lateGate(ids[0],'',before,()=>{save();render();toast('순서대로 시작 시간을 다시 맞췄어요')},()=>{save();render()},'바꾸면');
+/* list drag = same rule as the month view: the moved subject slots in after the one above it, the ones below move only as far as they overlap, the rest keep their times (빈자리 채우기 on: the gap it left is pulled closed) */
+function applyOrder(ids,mid){
+  ids.forEach((id,i)=>{const s=sub(id);if(s)s.ord=i});const s=sub(mid);
+  const before=JSON.stringify(S.subjects);if(!s||!insertChain(ids,mid,S.cfg.pack!==false)){save();render();return}
+  lateGate(mid,'',before,()=>{save();render();toast(`${s.name} 시간을 순서에 맞췄어요`)},()=>{save();render()},'바꾸면');
 }
 /* older versions chained every subject one after another regardless of dates (start times up to 80h): redo the chain once */
 function fixWildTimes(){if(!S.subjects.some(s=>s.time>28*60))return false;rechain(listOrder().map(s=>s.id));
@@ -1385,7 +1387,7 @@ document.addEventListener('pointermove',e=>{if(!LD||e.pointerId!==LD.pid)return;
 function endList(e){if(!LD||e.pointerId!==LD.pid)return;const d=LD;LD=null;if(d.raf)cancelAnimationFrame(d.raf);
   d.rows.forEach(r=>{r.style.transform='';r.classList.remove('lrow')});
   if(e.type==='pointercancel'||d.to===d.idx)return;
-  const ids=d.rows.map(r=>r.dataset.id);const [m]=ids.splice(d.idx,1);ids.splice(d.to,0,m);applyOrder(ids);
+  const ids=d.rows.map(r=>r.dataset.id);const [m]=ids.splice(d.idx,1);ids.splice(d.to,0,m);applyOrder(ids,m);
 }
 document.addEventListener('pointerup',endList);document.addEventListener('pointercancel',endList);
 /* the next exam, and whether a subject (with its △·× delays) ends after it */
@@ -1413,7 +1415,7 @@ function renderList(){
       ${(()=>{const O=[['my','내 순서'],['name','이름 ㄱ→ㅎ'],['name_d','이름 ㅎ→ㄱ'],['start','시작일순']];return `<label class="btn lsortb" title="정렬"><span>${(O.find(o=>o[0]===LS)||O[0])[1]}</span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 3.5l3.5 3.5 3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><select class="lsort" onchange="setLSort(this.value)">${O.map(([k,v])=>`<option value="${k}" ${LS===k?'selected':''}>${v}</option>`).join('')}</select></label>`})()}</div>
     ${exN||lateN?`<div class="lsub">${exN?`<span class="exbadge">⚠ 첫 시험 전에 못 끝나는 과목 ${exN}개</span>`:''}${lateN?`<div class="rban" data-act="reschedAll">⏰ 밀린 과목 ${lateN}개<b>전부 오늘부터 다시 시작 ›</b></div>`:''}</div>`:''}
     ${arr.length?`<div class="tblwrap"><table><thead><tr><th>과목</th><th>남은 양</th><th>시작</th><th>종료일</th><th>설정</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="hint lhint" style="margin-top:10px">${LS==='my'?'≡ 를 끌어 순서를 바꾸면 그 순서대로 시작 시간이 다시 맞춰져요':'≡ 로 순서를 바꾸려면 정렬을 "내 순서"로 바꿔 주세요'}</div><div class="hint lhint"><span class="late">빨간색</span> = 밀린 예정 일자 · <span class="ok">초록색</span> = 원래 계획</div>`
+    <div class="hint lhint" style="margin-top:10px">${LS==='my'?'≡ 를 끌어 순서를 바꾸면 그 과목이 그 자리 시간으로 들어가요':'≡ 로 순서를 바꾸려면 정렬을 "내 순서"로 바꿔 주세요'}</div><div class="hint lhint"><span class="late">빨간색</span> = 밀린 예정 일자 · <span class="ok">초록색</span> = 원래 계획</div>`
     :'<div class="empty">과목이 없어요. 오른쪽 아래 <b>+</b> 버튼으로 시작해 보세요.</div>'}
     ${(S.drafts||[]).length?`<div class="drafts"><div class="sec-title">📝 날짜 미정 <span class="hint">2개를 더 채우면 달력에 나와요</span></div>${S.drafts.map(x=>`<div class="drow" data-act="editDraft" data-id="${x.id}"><i style="background:${x.color}"></i><b>${esc(x.name)}</b><span>${[x.total?'전체 '+fmtN(+x.total)+esc(x.unit||''):'',x.daily?'하루 '+fmtN(+x.daily)+esc(x.unit||''):'',x.end?'종료일 '+md(x.end):''].filter(Boolean).join(' · ')||'분량 · 날짜 미정'}</span><em>채우기 ›</em></div>`).join('')}</div>`:''}
   </div>`;
