@@ -1237,21 +1237,25 @@ function renderWeek(){
     const meals=mealsAt(d).filter(m=>m.time<b*60&&m.time+m.mins>a*60).map(m=>{const t0=Math.max(m.time,a*60),t1=Math.min(m.time+m.mins,b*60);
       return `<div class="wmeal" data-act="${m.rid?'restTap':'mealTap'}" data-n="${esc(m.n)}" data-date="${d}" data-id="${m.rid||''}" style="top:${(t0-a*60)/60*HP}px;height:${(t1-t0)/60*HP}px">${m.rest?'':mIco(m)+' '+esc(m.n)}</div>`}).join('');
     const nwl=d===TODAY?`<div class="wnow" style="top:${(nowMin()-a*60)/60*HP}px;${nowMin()<a*60||nowMin()>b*60?'display:none':''}"><span>${hm(nowMin())}</span></div>`:'';
-    cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H2}px;background-image:${bg}">`+meals+nwl+(ob?`<div class="lnight" style="top:${(b-a)*HP}px;height:${ob/60*HP}px"><span>🌙 +${Math.floor(ob/60)}:${pad(ob%60)}</span></div>`:'')+(MV[i]?MV[i].am.map((s,j)=>{const n=nextStudy(s,d);return `<div class="mvchip" data-act="gotoDay" data-date="${d}" style="top:${MV[i].top+j*36}px">${esc(s.name)}<br>${n?md(n)+'로':''}</div>`}).join(''):'')+it.map(x=>{const oi=x.segs.findIndex(([a0,a1])=>Math.min(a1-a0,(b+XH)*60-a0)/60*HP-2>=18);return x.segs.map(([t0,t1],si)=>{
+    cols+=`<div class="wcol ${d===TODAY?'today':''}" data-date="${d}" style="height:${H2}px;background-image:${bg}">`+meals+nwl+(ob?`<div class="lnight" style="top:${(b-a)*HP}px;height:${ob/60*HP}px"><span>🌙 +${Math.floor(ob/60)}:${pad(ob%60)}</span></div>`:'')+(MV[i]?MV[i].am.map((s,j)=>{const n=nextStudy(s,d);return `<div class="mvchip" data-act="gotoDay" data-date="${d}" style="top:${MV[i].top+j*36}px">${esc(s.name)}<br>${n?md(n)+'로':''}</div>`}).join(''):'')+it.map(x=>{const oi=x.segs.findIndex(([a0,a1])=>Math.min(a1-a0,(b+XH)*60-a0)/60*HP-2>=18);const li=x.segs.length-1,gi=oi>=0&&oi<li&&Math.min(x.segs[li][1]-x.segs[li][0],(b+XH)*60-x.segs[li][0])/60*HP-2<18?oi:li; // 길이 손잡이: 마지막 조각이 너무 얇으면(식사 뒤 꼬리) 제일 먼저 글자가 들어가는 조각에
+return x.segs.map(([t0,t1],si)=>{
       const first=si===0,last=si===x.segs.length-1;
       const top=(clamp(t0,a*60,(b+XH)*60)-a*60)/60*HP,ht=Math.max(4,Math.min(t1-t0,(b+XH)*60-t0)/60*HP-2),thin=ht<18; // drawn at its true length so short pieces never cover the next block; too thin for text = colour only
       if(x.oo)return `<div class="wone ${x.mark==='o'?'done':''}${thin?' thin':''}" data-lp="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.30)};border-color:${x.s.color}">${thin?'':`<div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${ht>34&&first?'<div class="rg">오늘만</div>':''}</div>`}</div>`;
       return `<div class="wblk ${x.ov?'ov':''} ${first?'':'cont'}${thin?' thin':''}" data-id="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.38)};border-color:${x.s.color}">
-        ${thin?'':`<div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${first&&ht>34?`<div class="rg">${esc(x.label)}</div>`:''}${ht>(first?50:34)?`<div class="rg">${hm(t0)}~${hm(t1)}</div>`:''}</div>`}${si===oi&&x.ov?`<span class="ovr" data-act="resetOv" data-id="${x.s.id}" data-date="${d}" title="원래 시간으로">↺</span>`:''}${last?'<i class="wrsz"></i>':''}</div>`}).join('')}).join('')+`</div>`;
+        ${thin?'':`<div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${first&&ht>34?`<div class="rg">${esc(x.label)}</div>`:''}${ht>(first?50:34)?`<div class="rg">${hm(t0)}~${hm(t1)}</div>`:''}</div>`}${si===oi&&x.ov?`<span class="ovr" data-act="resetOv" data-id="${x.s.id}" data-date="${d}" title="원래 시간으로">↺</span>`:''}${si===gi?'<i class="wrsz"></i>':''}</div>`}).join('')}).join('')+`</div>`;
   }
   V.innerHTML=`<div class="toolbar">
     <button class="btn sq" data-act="wPrev">‹</button><div class="ttl">${md(ws)} ~ ${md(addD(ws,6))}</div><button class="btn sq" data-act="wNext">›</button>
     <button class="btn" data-act="wToday">이번 주</button><div class="spacer"></div>
     <span class="hint">블록 꾹 눌러 위아래 = 그날 시간 이동 · 아래 손잡이 = 그날 공부량 늘이기/줄이기 · ↺ 원래대로 · 빈 칸 꾹 = 오늘만 추가</span></div>
   <div class="wwrap"><div class="wscroll"><div class="whead">${head}</div><div class="wbody"><div class="wgut" style="height:${H2}px">${gut}</div>${cols}</div></div></div>`;
-  const sc=V.querySelector('.wscroll'),tc=V.querySelector('.wcol.today');
-  if(sc&&tc&&sc.scrollWidth>sc.clientWidth)sc.scrollLeft=Math.max(0,tc.offsetLeft-44-tc.offsetWidth);
 }
+/* 위클리 가로 스크롤: 같은 주를 다시 그릴 땐(되돌리기·띠 이동·체크) 보던 위치 그대로, 다른 주로 왔을 때만 오늘이 보이게. 확대 상자(applyZoom) 뒤에 맞춰야 함 */
+let WSL={ws:null,sl:0};
+function wScroll(){const ws=S.ui.week||monday(TODAY),sc=V.querySelector('.wscroll'),tc=V.querySelector('.wcol.today');
+  if(sc&&sc.scrollWidth>sc.clientWidth){if(WSL.ws===ws)sc.scrollLeft=WSL.sl;else if(tc)sc.scrollLeft=Math.max(0,tc.offsetLeft-44-tc.offsetWidth);WSL={ws,sl:sc.scrollLeft}}}
+document.addEventListener('scroll',e=>{const el=e.target;if(el&&el.classList&&el.classList.contains('wscroll'))WSL={ws:S.ui.week||monday(TODAY),sl:el.scrollLeft}},true);
 const overBy=it=>it.length?Math.max(0,Math.max(...it.map(x=>x.end))-S.cfg.dayEnd*60):0;
 const durTxt=m=>`${Math.floor(m/60)?Math.floor(m/60)+'시간 ':''}${m%60?m%60+'분':''}`.trim();
 const nowMin=()=>{const n=new Date();return n.getHours()*60+n.getMinutes()};
@@ -2149,7 +2153,7 @@ V.addEventListener('touchend',e=>{
 },{passive:true});
 
 /* re-rendering the week alone (after a drag) must keep the zoom wrapper, or pinch stops working */
-{const rw=renderWeek;renderWeek=function(){const r=rw.apply(this,arguments);if(S.ui.view==='week')applyZoom();return r}}
+{const rw=renderWeek;renderWeek=function(){const r=rw.apply(this,arguments);if(S.ui.view==='week'){applyZoom();wScroll()}return r}}
 /* whole-view pinch zoom (month/week): two fingers shrink/enlarge the calendar like a photo; cells keep their size */
 const ZK=()=>S.ui.view==='week'?'zw':S.ui.view==='day'?'zdy':'zm';
 const ZM=()=>S.ui.view==='month'||S.ui.view==='week'||S.ui.view==='day'?Math.min(1,S.ui[ZK()]||1):1;
@@ -2274,7 +2278,7 @@ document.addEventListener('click',e=>{
     case 'zoomIn':go(()=>S.cfg.rowH=Math.min(700,S.cfg.rowH+50));break;
     case 'zoomOut':go(()=>S.cfg.rowH=Math.max(150,S.cfg.rowH-50));break;
     case 'wPrev':case 'wNext':go(()=>S.ui.week=addD(S.ui.week||monday(TODAY),a==='wNext'?7:-7));break;
-    case 'wToday':go(()=>S.ui.week=monday(TODAY));break;
+    case 'wToday':WSL={ws:null,sl:0};go(()=>S.ui.week=monday(TODAY));break;
     case 'gotoDay':go(()=>{S.ui.day=el.dataset.date;S.ui.view='day'});break;
     case 'dPrev':case 'dNext':go(()=>S.ui.day=addD(S.ui.day||TODAY,a==='dNext'?1:-1));break;
     case 'dToday':go(()=>S.ui.day=TODAY);break;
