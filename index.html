@@ -1313,7 +1313,7 @@ function renderDay(){
    <div class="card"><div class="sec-title">⏰ 밀린 공부 <span class="hint">(최근 3주, △·× 친 항목)</span></div>
     ${od.length?od.map(x=>`<div class="row"><div class="tm">${md(x.date)}<br>${DOW[dow(x.date)]}</div><div class="cb" style="background:${x.s.color}"></div>
       <div class="tx"><div class="nm" style="font-size:15px">${esc(x.s.name)}</div><div class="rg">${esc(x.label)}</div></div>
-      <button class="mk ${x.mark}" data-act="mark" data-id="${x.s.id}" data-date="${x.date}">${markSym(x.mark)}</button></div>`).join('')
+      <button class="mk ${x.mark}" data-act="odDone" data-id="${x.s.id}" data-date="${x.date}" title="했어요 → ○">${markSym(x.mark)}</button></div>`).join('')
       +`<div class="hint" style="padding-top:8px">밀린 만큼 종료일이 늦어져요. 과목 리스트에서 <b>오늘부터 재배치</b>를 누르면 남은 분량으로 띠가 다시 그려져요.</div>`
       :'<div class="hint" style="padding:8px 0">밀린 공부가 없어요 👍</div>'}
    </div></div>`;
@@ -2284,6 +2284,8 @@ document.addEventListener('click',e=>{
     case 'dToday':go(()=>S.ui.day=TODAY);break;
     case 'mark':{const c=chk(id);const dd=el.dataset.date;const so=sub(id);if(so&&!c[dd])freezeMark(so,dd);const n=nextMark(c[dd]);if(n)c[dd]=n;else{delete c[dd];if(so&&so.ma)delete so.ma[dd]}
       const y=scrollY;save();render();scrollTo({top:y});break}
+    // 밀린 공부 칸: 한 번 누르면 그 원래 날짜가 바로 ○ (△·× 어느 쪽이든)
+    case 'odDone':{const c=chk(id);const dd=el.dataset.date;const so=sub(id);if(so&&!c[dd])freezeMark(so,dd);c[dd]='o';const y=scrollY;save();render();scrollTo({top:y});break}
     case 'resched':{const s=sub(id),before=JSON.stringify(S.subjects);reschedOne(s);PC.clear();
       lateGate(s.id,s.name,before,()=>{save();render();toast(`'${s.name}' 남은 분량을 오늘부터 다시 배치했어요`)},()=>{save();render()},'다시 배치하면');break}
     case 'reschedAll':{const L=S.subjects.filter(isBehind);if(!L.length)break;const before=JSON.stringify(S.subjects);L.forEach(reschedOne);PC.clear();
