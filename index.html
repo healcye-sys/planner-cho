@@ -1746,8 +1746,10 @@ function pullBack(){const DE=S.cfg.dayEnd*60,out=[];const cand=[];
     back()}
   TLOG=null;PCQUIET=1;try{PC.clear()}finally{PCQUIET=0}return out}
 /* safety net: any save that leaves a day more than lateMax past the day end (outside a gate) gets pushed back quietly */
+/* 그날을 지키는 날: 데일리에서 과목을 골라 오늘만 추가했거나(keep) 직접 적은 공부가 있는 날은 넘쳐도 다른 과목을 안 옮김 (🌙 표시만) */
+function keptDay(d){return itemsOn(d).some(y=>y.oo||(y.s.keep&&y.s.keep[d]))}
 let SILENT=0,SETQ=0,LASTBAD='';
-function badDays(){CH=null;PC.clear();const lim=S.cfg.dayEnd*60+lateMax();return lateDays(S.subjects.map(x=>x.id)).filter(x=>x.end>lim&&!itemsOn(x.d).some(y=>y.s.keep&&y.s.keep[x.d]))}
+function badDays(){CH=null;PC.clear();const lim=S.cfg.dayEnd*60+lateMax();return lateDays(S.subjects.map(x=>x.id)).filter(x=>x.end>lim&&!keptDay(x.d))}
 function queueSettle(){if(SETQ)return;SETQ=setTimeout(()=>{SETQ=0;settle()},30)}
 function settle(){if(DEC||drag||hold||!M.classList.contains('hidden')||document.querySelector('.ldim')||!S.subjects.length)return;
   const b=badDays();if(!b.length){LASTBAD='';return}const key=x=>x.map(y=>y.d+':'+y.end).join(',');if(key(b)===LASTBAD)return;
@@ -1761,7 +1763,7 @@ function unfixMoves(){let n=0;S.subjects.forEach(so=>{if(!(so.parent&&so.chain)&
   for(const d in so.asplit||{})if(d>=TODAY&&fixOn(so,d)){delete so.asplit[d];if(so.ovm)delete so.ovm[d];ch=true}
   if(ch){rePeriod(so);n++}});if(n){syncRounds();PC.clear()}return n}
 function lateGate0(id,name,before,fin,onNo,verb){CH=null;syncRounds();fixLateSkips();unfixMoves();PC.clear();const pl=pullBack();const ids=[id,...S.subjects.filter(x=>x.parent===id).map(x=>x.id)];const L=lateDays(ids);
-  const bigOld=()=>lateDays(S.subjects.map(x=>x.id)).some(x=>x.end>S.cfg.dayEnd*60+lateMax()&&!itemsOn(x.d).some(y=>y.s.keep&&y.s.keep[x.d]));
+  const bigOld=()=>lateDays(S.subjects.map(x=>x.id)).some(x=>x.end>S.cfg.dayEnd*60+lateMax()&&!keptDay(x.d));
   const pullToast=()=>{};
   if(!L.length&&!bigOld()){pullToast();return fin()}
   const cur=S.subjects;S.subjects=JSON.parse(before);PC.clear();const pe=new Map(S.subjects.map(x=>[x.id,plan(x).end]));const FX=firstExam(),exOld=new Set(S.subjects.filter(x=>exLateOf(x,FX)).map(x=>x.id));const old=new Map(lateDays(S.subjects.map(x=>x.id).concat(ids)).map(x=>[x.d,x.end]));S.subjects=cur;PC.clear();
@@ -1769,7 +1771,7 @@ function lateGate0(id,name,before,fin,onNo,verb){CH=null;syncRounds();fixLateSki
   const M=S.cfg.dayEnd*60+lateMax();const chk=new Set(ids);let mv=[];
   // push until no day is past the limit, then pull back what the pushes made room for; repeat until nothing moves
   for(let k=0;k<8;k++){
-  for(let r=0;r<80;r++){const big=lateDays(S.subjects.map(x=>x.id)).filter(x=>x.end>M&&(isNew(x)||!itemsOn(x.d).some(y=>y.s.keep&&y.s.keep[x.d])));if(!big.length)break;
+  for(let r=0;r<80;r++){const big=lateDays(S.subjects.map(x=>x.id)).filter(x=>x.end>M&&(isNew(x)||!keptDay(x.d)));if(!big.length)break;
     const m=autoMove(big,M);if(!m.length)break;mv=mv.concat(m);m.forEach(x=>chk.add(x.s.id))}
   const p2=pullBack();if(!p2.length)break;const key=x=>x.s.id+'|'+x.d;const k2=new Set(p2.map(key));
     mv=mv.filter(x=>!(k2.has(key(x))&&!(x.s.askip&&x.s.askip[x.d])&&!(x.s.asplit&&x.s.asplit[x.d])));
