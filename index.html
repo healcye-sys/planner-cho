@@ -813,11 +813,11 @@ function packDay(it,date){const head=CH||(CH=chainHeads()),g={};
     for(let k=0;k<50;k++){const a0=sg[0][0],a1=sg[sg.length-1][1],f=fx.find(([f0,f1])=>f0<a1&&f1>a0);if(!f)break;cur=Math.max(cur,f[1]);sg=spanSegs(cur,x.mins)}
     x.segs=sg;x.time=x.segs[0][0];cur=x.end});prev=prev==null?cur:Math.max(prev,cur)}
   it.sort((a,b)=>a.time-b.time)}
-/* projected end: the plan's end, pushed later only by days marked △ or × (unmarked days are not "late") */
+/* projected end: the plan's end, pushed later only by days marked △ or × (unmarked days are not "late"); today's marks count from tomorrow, like the 밀린 공부 list */
 function projEnd(s){
   const rem=s.total-doneAll(s); if(rem<=1e-9) return {done:true};
   const p=plan(s),ch=S.checks[s.id]||{};let short=0;
-  for(const d in ch){const k=p.idx[d];if(k===undefined||d<s.start||(s.pz&&d<s.pz)||(ch[d]!=='t'&&ch[d]!=='x'))continue;
+  for(const d in ch){const k=p.idx[d];if(k===undefined||d>=TODAY||d<s.start||(s.pz&&d<s.pz)||(ch[d]!=='t'&&ch[d]!=='x'))continue;
     const a=s.mode==='period'&&s.end?p.amt[k]:dayAmt(s,d);short+=a-markAmt(ch[d],a)}
   if(short<=1e-9)return {date:p.end,rem};
   let d=addD(p.end,1),c=0,g=0,last=p.end;const per=s.mode==='period'&&s.end?Math.max(1,Math.round(s.daily)):0;
@@ -1936,7 +1936,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow bkrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button><button class="btn" data-act="restoreMenu">↺ 이전 내용 되살리기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.5<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.6<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
