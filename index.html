@@ -76,6 +76,8 @@ textarea.inp{height:auto;padding:8px 12px;font-size:13px;font-family:ui-monospac
 .prog{display:flex;justify-content:space-between;font-size:13px;margin-top:12px;opacity:.9}
 .bar{height:6px;background:var(--hdrChip);border-radius:6px;margin-top:6px;overflow:hidden}
 .bar i{display:block;height:100%;background:#bfe3d4;border-radius:6px;width:0}
+.pgrow{display:flex;align-items:flex-end;gap:8px;margin-top:12px}.pgrow .pcol{flex:1;min-width:0}.pgrow .prog{margin-top:0}
+#plant{width:34px;height:34px;flex:none;margin-bottom:-4px}#plant svg{display:block;width:100%;height:100%}
 
 /* tabs */
 .tabs{position:sticky;top:0;z-index:20;display:flex;gap:6px;background:var(--bg);padding:10px 14px;justify-content:center}
@@ -471,6 +473,7 @@ html.mopen,html.mopen body{overflow:hidden!important;overscroll-behavior:none}
   .dchip .n{font-size:11px}.dchip .d{font-size:18px}.dchip .dt{font-size:10px}
   .dchip.add{flex:0 0 40px;font-size:20px}
   .prog{margin-top:8px;font-size:12px}
+  .pgrow{margin-top:8px}
   .tabs{padding:8px 10px}
   .tab{font-size:13px;padding:8px 2px}
   main{padding:0 10px}
@@ -589,8 +592,9 @@ th{font-weight:700!important}
     <button class="icon-btn" data-act="settings" title="설정">⚙</button>
   </div>
   <div class="ddays" id="ddays"></div>
+  <div class="pgrow"><div id="plant" aria-hidden="true"></div><div class="pcol">
   <div class="prog"><span id="progTxt"></span><span id="progPct"></span></div>
-  <div class="bar"><i id="progBar"></i></div>
+  <div class="bar"><i id="progBar"></i></div></div></div>
 </header>
 <nav class="tabs"><div class="tabs-in">
   <button class="tab" data-view="month">먼슬리</button>
@@ -886,7 +890,22 @@ function renderHeader(){
   document.getElementById('progTxt').textContent=`전체 ${Math.round(done)} / ${fmtN(tot)} 완료`;
   document.getElementById('progPct').textContent=pct+'%';
   document.getElementById('progBar').style.width=pct+'%';
+  {const pl=document.getElementById('plant'),st=plantStage(pct);if(pl&&pl.dataset.st!==''+st){pl.dataset.st=st;pl.innerHTML=PLANT[st]}}
 }
+/* 전체 진행률 옆 식물: 씨앗 → 새싹 → 식물 → 꽃봉오리 → 꽃 (20%마다 한 단계) */
+const PLANT=[
+ // 0 씨앗: little mound with a seed
+ `<svg viewBox="0 0 32 32"><ellipse cx="16" cy="28" rx="11" ry="4" fill="#8a6a4f"/><ellipse cx="16" cy="25.5" rx="3.2" ry="2.4" fill="#d9a86c" transform="rotate(-20 16 25.5)"/><path d="M14.6 24.6q1.6-.8 2.6.4" stroke="#b07f45" stroke-width=".8" fill="none"/></svg>`,
+ // 1 새싹: two tiny leaves
+ `<svg viewBox="0 0 32 32"><ellipse cx="16" cy="28" rx="11" ry="4" fill="#8a6a4f"/><path d="M16 27V19" stroke="#5fae6b" stroke-width="1.8" stroke-linecap="round"/><path d="M16 20.5c-1-3.5-4.5-4.5-6.5-3.5 1 3 4 4.5 6.5 3.5z" fill="#7ccc84"/><path d="M16 20.5c1-3.5 4.5-4.5 6.5-3.5-1 3-4 4.5-6.5 3.5z" fill="#9adb9f"/></svg>`,
+ // 2 식물: taller stem, four leaves
+ `<svg viewBox="0 0 32 32"><ellipse cx="16" cy="28" rx="11" ry="4" fill="#8a6a4f"/><path d="M16 27V10" stroke="#5fae6b" stroke-width="2" stroke-linecap="round"/><path d="M16 22c-1.5-4-6-5-8.5-3.8 1.4 3.6 5.6 5 8.5 3.8z" fill="#6cc277"/><path d="M16 18c1.5-4 6-5 8.5-3.8-1.4 3.6-5.6 5-8.5 3.8z" fill="#86d58d"/><path d="M16 13c-1-3-4.5-4-6.5-3 1 2.8 4 3.8 6.5 3z" fill="#9adb9f"/><path d="M16 11.5c.8-2.6 3.6-3.4 5.2-2.6-.8 2.3-3.2 3.1-5.2 2.6z" fill="#7ccc84"/></svg>`,
+ // 3 꽃봉오리: closed pink bud on top
+ `<svg viewBox="0 0 32 32"><ellipse cx="16" cy="28" rx="11" ry="4" fill="#8a6a4f"/><path d="M16 27V9" stroke="#5fae6b" stroke-width="2" stroke-linecap="round"/><path d="M16 22c-1.5-4-6-5-8.5-3.8 1.4 3.6 5.6 5 8.5 3.8z" fill="#6cc277"/><path d="M16 17c1.5-4 6-5 8.5-3.8-1.4 3.6-5.6 5-8.5 3.8z" fill="#86d58d"/><path d="M16 3.5c3 2 3.6 5.2 2.4 6.8-1 1.2-3.8 1.2-4.8 0-1.2-1.6-.6-4.8 2.4-6.8z" fill="#f59ab5"/><path d="M13.4 9.6q2.6 2 5.2 0l-.6 1.8h-4z" fill="#6cc277"/></svg>`,
+ // 4 꽃: open flower with a face-free yellow centre
+ `<svg viewBox="0 0 32 32"><ellipse cx="16" cy="28" rx="11" ry="4" fill="#8a6a4f"/><path d="M16 27V12" stroke="#5fae6b" stroke-width="2" stroke-linecap="round"/><path d="M16 22c-1.5-4-6-5-8.5-3.8 1.4 3.6 5.6 5 8.5 3.8z" fill="#6cc277"/><path d="M16 18c1.5-4 6-5 8.5-3.8-1.4 3.6-5.6 5-8.5 3.8z" fill="#86d58d"/><g fill="#f7a8c0"><circle cx="16" cy="3.6" r="3.2"/><circle cx="20.6" cy="7" r="3.2"/><circle cx="18.8" cy="12" r="3.2"/><circle cx="13.2" cy="12" r="3.2"/><circle cx="11.4" cy="7" r="3.2"/></g><circle cx="16" cy="8" r="2.8" fill="#ffd66b"/></svg>`
+];
+const plantStage=p=>p>=80?4:p>=60?3:p>=40?2:p>=20?1:0;
 const examsOn=d=>S.exams.filter(e=>e.date===d);
 
 /* ========== views ========== */
@@ -1946,7 +1965,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow bkrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button><button class="btn" data-act="restoreMenu">↺ 이전 내용 되살리기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.7<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.8<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
