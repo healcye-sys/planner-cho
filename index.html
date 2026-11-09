@@ -1874,8 +1874,16 @@ function openAddDay(d,tm){
    <div class="sheet-acts xacts"><div class="spacer"></div><button class="btn" data-act="close">닫기</button><button class="btn pri" id="xOk" data-act="xSaveNew" hidden>추가</button><button class="btn pri" id="xSel" data-act="xAddSel" hidden>추가</button></div>`);
   SH.dataset.xd=d;SH.dataset.xt=tm!=null?tm:'';
 }
+/* 직접 적은 공부(S.ones): 꾹 누르면 추가할 때와 같은 칸으로 수정·삭제 */
+function openOneEdit(o,d){const h=Math.floor(o.mins/60),m=o.mins%60;
+  openModal(`<h3>직접 적은 공부</h3><p class="xsub">${dTitle(d)}</p>
+   <div class="fld"><label>이름</label><input class="inp" id="xName" value="${esc(o.name)}"></div>
+   <div class="fld"><label>시작 시각 · 소요시간</label><div class="xrow"><input class="inp" id="xTime" type="time" value="${hm(o.time).replace('+','')}"><div class="xhm"><input class="inp" id="xH" type="number" min="0" value="${h}"><span>시간</span><input class="inp" id="xM" type="number" min="0" step="10" value="${m}"><span>분</span></div></div></div>
+   <div class="sheet-acts"><button class="btn" style="color:var(--red)" data-act="xDelOneAsk" data-id="${o.id}">삭제</button><div class="spacer"></div><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="xSaveOne" data-id="${o.id}">저장</button></div>`);
+  SH.dataset.xd=d}
 function openDayMenu(id,d){
   const o=(S.ones||[]).find(x=>x.id===id),s=sub(id);if(!o&&!s)return;
+  if(o)return openOneEdit(o,d);
   const added=s&&s.add&&s.add[d];
   openModal(`<h3>${esc((o||s).name)}</h3><p class="xsub">${dTitle(d)}</p>
    ${o?`<button class="xit" data-act="xDelOne" data-id="${id}">🗑 지우기</button>`:
@@ -1936,7 +1944,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow bkrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button><button class="btn" data-act="restoreMenu">↺ 이전 내용 되살리기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.6<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.7<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
@@ -2215,6 +2223,9 @@ document.addEventListener('click',e=>{
     case 'mealSave':{const m=(S.cfg.meals||[]).find(x=>x.n===el.dataset.n);if(!m)break;const t=SH.querySelector('#mlT').value,mm=+SH.querySelector('#mlM').value;
       if(t){const [h,mi]=t.split(':').map(Number);m.time=h*60+mi}if(mm>=5)m.mins=Math.min(240,mm);PC.clear();save();closeModal();render();toast(`${m.n} ${hm(m.time)}부터 ${durTxt(m.mins)}`);break}
     case 'xUnskip':{const s=sub(id),d=el.dataset.date;setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 다시 공부하는 날이에요`);break}
+    case 'xSaveOne':{const o=(S.ones||[]).find(x=>x.id===id);if(!o)break;const name=fv('xName');if(!name)return toast('이름을 적어 주세요');const tv=fv('xTime');let mins=Math.round(num(fv('xH'))*60+num(fv('xM')));if(mins<10)mins=10;
+      o.name=name;if(tv)o.time=inMin(tv);o.mins=mins;CH=null;PC.clear();save();closeModal();render();toast(`'${name}' 고쳤어요`);break}
+    case 'xDelOneAsk':{const o=(S.ones||[]).find(x=>x.id===id);if(!o)break;ask(`'${esc(o.name)}'을(를) 지울까요?`,'삭제',()=>{S.ones=(S.ones||[]).filter(x=>x.id!==id);delete S.checks[id];save();closeModal();render();toast('지웠어요')});break}
     case 'xDelOne':{S.ones=(S.ones||[]).filter(o=>o.id!==id);delete S.checks[id];save();closeModal();render();toast('지웠어요');break}
     case 'saveSub':saveSubject();break;
     case 'delSub':delSubject(id);break;
