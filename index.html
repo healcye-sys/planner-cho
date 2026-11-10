@@ -875,7 +875,8 @@ function freeTime(s){const a=S.cfg.dayStart*60,b=S.cfg.dayEnd*60;PC.clear();
   const busy=it.flatMap(x=>x.segs);const free=t=>spanSegs(t,s.mins).every(([p,q])=>busy.every(([u,v])=>q<=u||p>=v));
   const cands=[...new Set(it.map(x=>x.end).concat(mealsOn().map(m=>m.time+m.mins)))].map(t=>spanSegs(t,1)[0][0]).filter(t=>t>=it[0].time).sort((x,y)=>x-y);
   for(const t of cands){const sg=spanSegs(t,s.mins);if(sg[sg.length-1][1]<=b&&free(t))return Math.round(t/10)*10}
-  return Math.round(spanSegs(Math.max(...it.map(x=>x.end)),1)[0][0]/10)*10}
+  // 빈 자리가 없으면 하루 끝 안쪽 마지막 자리 (하루 끝을 넘겨 새벽에 붙이지 않음; 넘치는 건 넘침 규칙이 다른 날로 보냄)
+  return Math.max(a,Math.floor((b-s.mins)/10)*10)}
 
 /* ========== header ========== */
 function renderHeader(){
@@ -1388,9 +1389,9 @@ function applyOrder(ids,mid){
   const before=JSON.stringify(S.subjects);if(!s||!insertChain(ids,mid,S.cfg.pack!==false)){save();render();return}
   lateGate(mid,'',before,()=>{save();render();toast(`${s.name} 시간을 순서에 맞췄어요`)},()=>{save();render()},'바꾸면');
 }
-/* older versions chained every subject one after another regardless of dates (start times up to 80h): redo the chain once */
-function fixWildTimes(){if(!S.subjects.some(s=>s.time>28*60))return false;rechain(listOrder().map(s=>s.id));
-  S.subjects.forEach(s=>{if(s.time>28*60)s.time=28*60-Math.min(s.mins,120)});PC.clear();return true}
+/* a start time past 28:00 (새벽 4시, the latest day end) can't be right: put only that subject back inside the day; the others keep their times */
+function fixWildTimes(){const bad=S.subjects.filter(s=>s.time>28*60);if(!bad.length)return false;
+  bad.forEach(s=>{clearDayEdits(s);s.time=freeTime(s)});PC.clear();CH=null;return true}
 let LD=null;
 document.addEventListener('pointerdown',e=>{
   const h=e.target.closest&&e.target.closest('.hdl');if(!h)return;
@@ -1965,7 +1966,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow bkrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button><button class="btn" data-act="restoreMenu">↺ 이전 내용 되살리기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.8<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.9<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }

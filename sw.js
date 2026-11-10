@@ -1,5 +1,5 @@
 // 한의대 편입 플래너 - 오프라인 캐시
-const C = 'hanui-planner-v73';
+const C = 'hanui-planner-v74';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './fonts/PretendardVariable.woff2'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(C).then(c => c.addAll(SHELL)));
