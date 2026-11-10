@@ -1966,7 +1966,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow bkrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button><button class="btn" data-act="restoreMenu">↺ 이전 내용 되살리기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.9<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.10<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
@@ -2070,7 +2070,10 @@ function takeRemote(d){const b=getBase(),la=S.at||0;
   const dirty=b==null?la>d.at:la>b;
   if(d.at===b){if(dirty)schedulePush();return}
   if(syBusy()){SY.pending=d;return 'wait'}
-  if(dirty&&(S.uat||0)>(d.uat||d.at)){setBase(d.at);schedulePush();return} // this device has the newer real edit: it wins
+  // 백업 불러오기는 특별 취급: 이 기기가 아직 못 받은 불러오기가 클라우드에 있으면 클라우드가 이기고, 이 기기가 불러온 걸 아직 못 올렸으면 이 기기가 이김
+  const ri=d.imp||0,li=S.imp||0,seen=b!=null&&ri<=b;
+  if(dirty&&li>ri&&(b==null||li>b)){setBase(d.at);schedulePush();return}
+  if(dirty&&!(ri&&!seen)&&(S.uat||0)>(d.uat||d.at)){setBase(d.at);schedulePush();return} // this device has the newer real edit: it wins
   if(dirty){const {ui,...rest}=S;if(JSON.stringify(rest)!==d.json){keepLocalCopy();setTimeout(()=>toast('다른 기기에서 바꾼 내용을 불러왔어요 · 이 기기에서 바꾼 건 설정 > 이전 내용 되살리기에 보관했어요'),500)}}
   if(d.at!==la||dirty)adopt(d);setBase(d.at)}
 function onRemote(snap){
@@ -2113,8 +2116,8 @@ async function pushNow(){
         if(c.json===json){res='same';return}
         let hist=Array.isArray(c.hist)?c.hist.slice():[];
         if(hz&&c.json===old&&(!hist.length||(c.at||0)-hist[hist.length-1].at>=HGAP())){hist.push({at:c.at||0,z:hz});hist=hist.slice(-HMAX)}
-        SY.hist=hist;tx.set(SY.ref,{json,at,uat:S.uat||at,dev:DEV,prev:c.json,prevAt:c.at||0,hist})}
-      else tx.set(SY.ref,{json,at,uat:S.uat||at,dev:DEV})});
+        SY.hist=hist;tx.set(SY.ref,{json,at,uat:S.uat||at,imp:S.imp||0,dev:DEV,prev:c.json,prevAt:c.at||0,hist})}
+      else tx.set(SY.ref,{json,at,uat:S.uat||at,imp:S.imp||0,dev:DEV})});
     if(res==='stale'){setSync('☁ 다른 기기 내용 받는 중…')}
     else{if(res==='ok'){SY.prevJson=SY.lastJson;SY.prevAt=SY.lastAt}SY.lastJson=json;SY.lastAt=at;setBase(at);markSynced();setSync('☁ 동기화됨')}}
   catch(e){setSync(navigator.onLine?'동기화 오류 · 이 기기엔 저장됨':'오프라인 · 연결되면 올라가요',1);clearTimeout(SY.retry);SY.retry=setTimeout(schedulePush,8000)}
@@ -2327,7 +2330,8 @@ document.addEventListener('click',e=>{
       lateGate(L[0].id,L[0].name,before,()=>{save();render();toast(`${L.length}과목을 오늘부터 다시 배치했어요`)},()=>{save();render()},'다시 배치하면');break}
   }
 });
-function restoreData(d){const b=defState();S={...b,...d,cfg:{...b.cfg,...d.cfg},ui:{...b.ui,...(d.ui||S.ui)}};S.subjects.forEach(x=>{x.days=normDays(x.days);if(!(x.pre>0))x.pre=0});fixWildTimes();PC.clear();save();closeModal();render();toast('불러왔어요')}
+function restoreData(d){const b=defState();S={...b,...d,cfg:{...b.cfg,...d.cfg},ui:{...b.ui,...(d.ui||S.ui)}};S.imp=Date.now(); // 불러오기 시각: 이걸 아직 못 받은 기기에서 고친 건 이 백업을 못 이김
+  S.subjects.forEach(x=>{x.days=normDays(x.days);if(!(x.pre>0))x.pre=0});fixWildTimes();PC.clear();save();closeModal();render();toast('불러왔어요')}
 const localCopies=()=>{const o=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(KEY+'-local-'))o.push(k)}}catch(e){}return o.sort().reverse()};
 function restoreChoice(){const L=localCopies();let prevN=0;try{prevN=SY.prevJson?(JSON.parse(SY.prevJson).subjects||[]).length:0}catch(e){}
   const rows=[];if(SY.prevJson)rows.push(`<button class="lbtn" data-act="restorePrev">☁ 직전 클라우드 버전 (${SY.prevAt?md(new Date(SY.prevAt).toISOString().slice(0,10))+' '+new Date(SY.prevAt).toTimeString().slice(0,5):''} · 과목 ${prevN}개)</button>`);
