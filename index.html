@@ -174,8 +174,8 @@ main{padding:0 14px}
 .wblk .rg{color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wblk.done{opacity:.55}.wblk.thin,.wone.thin{padding:0!important;border-top-width:0!important;border-bottom-width:0!important;border-right-width:0!important;min-height:0!important}.thin .wrsz:after{display:none}
 .wblk.ov{border-style:dashed;border-left-style:solid}
-.wblk .wrsz{pointer-events:auto;position:absolute;left:0;right:0;bottom:-4px;height:16px;cursor:ns-resize;touch-action:none}
-.wblk .wrsz:after{content:"";position:absolute;left:50%;bottom:6px;width:22px;height:4px;transform:translateX(-50%);border-radius:2px;background:rgba(0,0,0,.28)}
+.wblk .wrsz,.wone .wrsz{pointer-events:auto;position:absolute;left:0;right:0;bottom:-4px;height:16px;cursor:ns-resize;touch-action:none}
+.wblk .wrsz:after,.wone .wrsz:after{content:"";position:absolute;left:50%;bottom:6px;width:22px;height:4px;transform:translateX(-50%);border-radius:2px;background:rgba(0,0,0,.28)}
 .wblk.lift.wr .wrsz:after{background:var(--ink)}
 .wblk .ovr{pointer-events:auto;position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:var(--card);color:var(--ink);font-size:12px;font-weight:800;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer}
 .wblk:not(.ghost){cursor:grab;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -1136,6 +1136,18 @@ function startFrame(s){
   if(t.end)showTip(drag.x,drag.y,s.name,`${mdw(t.start)} ~ ${mdw(t.end)}`,`공부일 ${t.n}일 · 하루 ${perDay(t.daily)}${esc(s.unit||'')}`);
   else showTip(drag.x,drag.y,s.name,`${mdw(f0)} ~ ${mdw(p0.end)}`,'좌우로 끌어 시작일 조절');
 }
+/* 위클리: 하루만 넣은 띠(새로 적기·한 번 더)도 아래 손잡이로 길이 조절 — 시간만(분량 그대로), 그날 안에서만, ↩ 되돌리기 됨 */
+{let OR=null;
+ document.addEventListener('pointerdown',e=>{const g=e.target.closest&&e.target.closest('.wone .wrsz');if(!g||drag||hold||e.button>0)return;
+   const el=g.closest('.wone'),id=el.dataset.lp,d=el.dataset.date,o=(S.ones||[]).find(x=>x.id===id),it=o&&itemsOn(d).find(x=>x.s.id===id);if(!it)return;
+   e.preventDefault();e.stopPropagation();OR={id,name:it.s.name,d,t0:it.time,m0:o.mins,nm:o.mins,y0:e.clientY,sy0:scrollY,pid:e.pointerId};try{g.setPointerCapture(e.pointerId)}catch(_){}
+   document.querySelectorAll(`.wone[data-lp="${id}"]`).forEach(x=>x.style.opacity='.35');wGhost(d,OR.t0,OR.m0)},true);
+ document.addEventListener('pointermove',e=>{if(!OR||e.pointerId!==OR.pid)return;e.preventDefault();
+   const dy=e.clientY-OR.y0+(scrollY-OR.sy0),nm=clamp(Math.round((OR.m0+dy/ZM()/56*60)/10)*10,10,Math.max(10,S.cfg.dayEnd*60-OR.t0));
+   if(nm!==OR.nm){OR.nm=nm;wGhost(OR.d,OR.t0,nm)}const sg=spanSegs(OR.t0,nm);showTip(e.clientX,e.clientY,OR.name,`${hm(OR.t0)}~${hm(sg[sg.length-1][1])}`,`${mdw(OR.d)} · ${durTxt(nm)}`,1)},{passive:false});
+ const end=e=>{if(!OR||e.pointerId!==OR.pid)return;const r=OR;OR=null;hideTip();document.querySelectorAll('.wblk.ghost').forEach(x=>x.remove());
+   if(e.type==='pointerup'&&r.nm!==r.m0){oneEdit(()=>{const q=(S.ones||[]).find(x=>x.id===r.id);if(q)q.mins=r.nm},r.id);render();toast(`${mdw(r.d)} ${r.name} ${durTxt(r.nm)}`)}else render()};
+ document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',end,true)}
 function wGhost(day,t,m){const a=S.cfg.dayStart*60,b=S.cfg.dayEnd*60;
   document.querySelectorAll('.wblk.ghost').forEach(e=>e.remove());
   const col=document.querySelector(`.wcol[data-date="${day}"]`);if(!col)return;
@@ -1272,7 +1284,7 @@ function renderWeek(){
 return x.segs.map(([t0,t1],si)=>{
       const first=si===0,last=si===x.segs.length-1;
       const top=(clamp(t0,a*60,(b+XH)*60)-a*60)/60*HP,ht=Math.max(4,Math.min(t1-t0,(b+XH)*60-t0)/60*HP-2),thin=ht<18; // drawn at its true length so short pieces never cover the next block; too thin for text = colour only
-      if(x.oo)return `<div class="wone ${x.mark==='o'?'done':''}${thin?' thin':''}" data-lp="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.30)};border-color:${x.s.color}">${thin?'':`<div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${ht>34&&first?`<div class="rg">${x.again?esc(x.label||'한 번 더'):'오늘만'}</div>`:''}</div>`}</div>`;
+      if(x.oo)return `<div class="wone ${x.mark==='o'?'done':''}${thin?' thin':''}" data-lp="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.30)};border-color:${x.s.color}">${thin?'':`<div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${ht>34&&first?`<div class="rg">${x.again?esc(x.label||'한 번 더'):'오늘만'}</div>`:''}</div>`}${si===gi?'<i class="wrsz"></i>':''}</div>`;
       return `<div class="wblk ${x.ov?'ov':''} ${first?'':'cont'}${thin?' thin':''}" data-id="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.38)};border-color:${x.s.color}">
         ${thin?'':`<div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${first&&ht>34?`<div class="rg">${esc(x.label)}</div>`:''}${ht>(first?50:34)?`<div class="rg">${hm(t0)}~${hm(t1)}</div>`:''}</div>`}${si===oi&&x.ov?`<span class="ovr" data-act="resetOv" data-id="${x.s.id}" data-date="${d}" title="원래 시간으로">↺</span>`:''}${si===gi?'<i class="wrsz"></i>':''}</div>`}).join('')}).join('')+`</div>`;
   }
