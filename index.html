@@ -715,6 +715,8 @@ const markAmt=(m,daily)=>m==='o'?daily:m==='t'?daily/2:0;
 /* the amount a checked day was worth is kept with the subject (s.ma[date]) so later changes (재배치, 종료일, 하루 분량) never change what was already done */
 const mAmt=(s,d,fb)=>s.ma&&s.ma[d]!=null?s.ma[d]:fb;
 
+/* '한 번 더': 그날 이미 있는 과목을 한 번 더 (S.ones에 sid·amt가 있는 항목). 다음 분량을 당겨와 그 과목 바로 뒤에 두 번째 칸으로 */
+const againOf=s=>(S.ones||[]).filter(o=>o.sid===s.id);
 /* plan: which dates a subject occupies */
 function plan(s){
   let p=PC.get(s.id); if(p) return p;
@@ -725,15 +727,17 @@ function planRaw(s){let p;
   const SO=x=>x<s.start?!!(s.add&&s.add[x])&&!(s.skip&&s.skip[x]):studyOn(s,x);
   const ch=S.checks[s.id]||{}; let before=0;
   for(const d in ch) if(d<st0&&!(s.pz&&d<s.pz)) before+=markAmt(ch[d],mAmt(s,d,dayAmt(s,d)));
+  const XA={};for(const o of againOf(s)){if(o.date<st0){if(!(s.pz&&o.date<s.pz))before+=markAmt((S.checks[o.id]||{})[o.date],o.amt)}else XA[o.date]=(XA[o.date]||0)+o.amt}
   before+=s.pre||0;
   before=Math.min(before,s.total);
   before=Math.floor(before+1e-9); // a half-done (△) unit before the start isn't counted: the new start begins again from that unit
   const rem=Math.max(0,s.total-before);
-  const dates=[],idx={},cum=[],amt=[]; let d=st0,g=0,acc=0;let part=null;
+  const dates=[],idx={},cum=[],amt=[],ex={}; let d=st0,g=0,acc=0;let part=null;
   if(s.mode==='period'&&s.end){let N=0,x=st0,g2=0;while(x<=s.end&&g2<4000){if(SO(x))N++;x=addD(x,1);g2++}
     const r=Math.round(rem);part=N===0?()=>Math.max(1,r):r>=N?k=>Math.round((k+1)*r/N)-Math.round(k*r/N):()=>1}
-  while((dates.length===0||acc<rem-1e-9)&&g<3000){if(SO(d)){const a=part?part(dates.length):Math.max(1e-6,dayAmt(s,d));idx[d]=dates.length;dates.push(d);cum.push(acc);amt.push(a);acc+=a}d=addD(d,1);g++}
-  p={before,dates,idx,cum,amt,end:dates[dates.length-1]};return p;
+  while((dates.length===0||acc<rem-1e-9)&&g<3000){if(SO(d)){const a=part?part(dates.length):Math.max(1e-6,dayAmt(s,d));idx[d]=dates.length;dates.push(d);cum.push(acc);amt.push(a);acc+=a}
+    if(XA[d]&&acc<rem-1e-9){ex[d]=acc;acc+=XA[d]}d=addD(d,1);g++}
+  p={before,dates,idx,cum,amt,ex,end:dates[dates.length-1]};return p;
 }
 /* rounds (2회독, 3회독…): separate subjects with parent+round; they follow the parent's name/colour/total,
    and an auto round starts the day after the previous round ends */
@@ -749,7 +753,8 @@ function freezeMark(s,d){const it=itemFor(s,d);(s.ma||(s.ma={}))[d]=it?Math.max(
 function freezeOld(){let n=0;S.subjects.forEach(s=>{const ch=S.checks[s.id];if(!ch)return;const pp=s.mode==='period'&&s.end?plan(s):null;
   for(const d in ch){if(s.ma&&s.ma[d]!=null)continue;const k=pp&&d>=s.start?pp.idx[d]:undefined;(s.ma||(s.ma={}))[d]=k!==undefined?pp.amt[k]:dayAmt(s,d);n++}});return n}
 function doneAll(s){const ch=S.checks[s.id]||{};let t=s.pre||0;const pp=s.mode==='period'&&s.end?plan(s):null;
-  for(const d in ch){if(s.pz&&d<s.pz)continue;const k=pp&&d>=s.start?pp.idx[d]:undefined;t+=markAmt(ch[d],mAmt(s,d,k!==undefined?pp.amt[k]:dayAmt(s,d)))}return Math.min(t,s.total)}
+  for(const d in ch){if(s.pz&&d<s.pz)continue;const k=pp&&d>=s.start?pp.idx[d]:undefined;t+=markAmt(ch[d],mAmt(s,d,k!==undefined?pp.amt[k]:dayAmt(s,d)))}
+  for(const o of againOf(s)){if(s.pz&&o.date<s.pz)continue;t+=markAmt((S.checks[o.id]||{})[o.date],o.amt)}return Math.min(t,s.total)}
 function rangeTxt(s,from,to){
   const a=Math.floor(from)+1,b=Math.ceil(to);const r=a>=b?String(b):a+'~'+b;const u=(s.unit||'').trim();
   if(/^p\.?$/i.test(u))return 'p.'+r; return r+u;
@@ -767,7 +772,9 @@ function itemFor1(s,date){
   return {s,date,k,from,to,label:rangeTxt(s,from,to),time:dayTime(s,date),ov:!!(s.ov&&s.ov[date]!=null&&!(s.aslide&&s.aslide[date])||s.ovm&&s.ovm[date]!=null&&!(s.asplit&&s.asplit[date])),mins:dayMins(s,date),segs:spanSegs(dayTime(s,date),dayMins(s,date)),get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[s.id]||{})[date]||''};
 }
 /* one-off items: a single day only (not in month bands or subject list) */
-function onesOn(date){return (S.ones||[]).filter(o=>o.date===date).map(o=>{const sg=spanSegs(o.time,o.mins);
+function onesOn(date){return (S.ones||[]).filter(o=>o.date===date&&(!o.sid||sub(o.sid))).map(o=>{const sg=spanSegs(o.time,o.mins);
+  if(o.sid){const s=sub(o.sid),p=plan(s),e=p.ex&&p.ex[date];const from=e!=null?p.before+e:0,to=e!=null?Math.min(s.total,from+o.amt):0;
+    return {s:{id:o.id,name:s.name,color:s.color,oneoff:true,link:s.id},date,k:0,from,to,label:e!=null?rangeTxt(s,from,to):'',time:o.time,mins:o.mins,oo:true,again:true,segs:sg,get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[o.id]||{})[date]||''}}
   return {s:{id:o.id,name:o.name,color:o.color,oneoff:true},date,k:0,from:0,to:0,label:'',time:o.time,mins:o.mins,oo:true,segs:sg,get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[o.id]||{})[date]||''}})}
 function rePeriod(s){if(s.mode!=='period'||!s.end)return;let n=0,x=s.start,g=0;while(x<=s.end&&g<4000){if(studyOn(s,x))n++;x=addD(x,1);g++}
   if(n>0)s.daily=Math.max(1e-6,(s.total-Math.min(s.pre||0,s.total))/n)}
@@ -778,8 +785,10 @@ function itemsOn(date){if(DEC){flushDirty();const c=ITC.get(date);if(c)return c;
 function itemsOn0(date){const pm=MDAY;MDAY=date;try{return itemsOn1(date)}finally{MDAY=pm}}
 function itemsOn1(date){
   const ord=ORDC||(ORDC=new Map(listOrder().map((s,i)=>[s.id,i])));
-  const it=S.subjects.map(s=>itemFor(s,date)).filter(Boolean).concat(onesOn(date)).sort((a,b)=>a.time-b.time||(ord.get(a.s.id)??1e9)-(ord.get(b.s.id)??1e9));
+  const all=S.subjects.map(s=>itemFor(s,date)).filter(Boolean).concat(onesOn(date)),ag=all.filter(x=>x.again);
+  const it=all.filter(x=>!x.again).sort((a,b)=>a.time-b.time||(ord.get(a.s.id)??1e9)-(ord.get(b.s.id)??1e9));
   if(S.cfg.pack!==false)packDay(it,date);
+  if(ag.length){ag.forEach(x=>{const pa=it.find(y=>y.s.id===x.s.link);if(pa){x.segs=spanSegs(pa.end,x.mins);x.time=x.segs[0][0]}it.push(x)});it.sort((a,b)=>a.time-b.time||(b.again?1:0)-(a.again?1:0))}
   let cur=-1;it.forEach(x=>{x.fx=!x.oo&&fixOn(x.s,date);if(x.time<cur){x.segs=spanSegs(cur,x.mins);x.time=x.segs[0][0];x.pushed=true}cur=x.end});
   return it}
 /* auto pull-up: subjects whose usual times run back-to-back form a chain; on a day when some of the chain is
@@ -823,6 +832,7 @@ function projEnd(s){
   const p=plan(s),ch=S.checks[s.id]||{};let short=0;
   for(const d in ch){const k=p.idx[d];if(k===undefined||d>=TODAY||d<s.start||(s.pz&&d<s.pz)||(ch[d]!=='t'&&ch[d]!=='x'))continue;
     const a=s.mode==='period'&&s.end?p.amt[k]:dayAmt(s,d);short+=a-markAmt(ch[d],a)}
+  for(const o of againOf(s)){const m=(S.checks[o.id]||{})[o.date];if(o.date>=TODAY||o.date<s.start||(s.pz&&o.date<s.pz)||(m!=='t'&&m!=='x'))continue;short+=o.amt-markAmt(m,o.amt)}
   if(short<=1e-9)return {date:p.end,rem};
   let d=addD(p.end,1),c=0,g=0,last=p.end;const per=s.mode==='period'&&s.end?Math.max(1,Math.round(s.daily)):0;
   while(c<short-1e-9&&g<3000){if(studyOn(s,d)){c+=per||Math.max(1e-6,dayAmt(s,d));last=d}d=addD(d,1);g++}
@@ -1261,7 +1271,7 @@ function renderWeek(){
 return x.segs.map(([t0,t1],si)=>{
       const first=si===0,last=si===x.segs.length-1;
       const top=(clamp(t0,a*60,(b+XH)*60)-a*60)/60*HP,ht=Math.max(4,Math.min(t1-t0,(b+XH)*60-t0)/60*HP-2),thin=ht<18; // drawn at its true length so short pieces never cover the next block; too thin for text = colour only
-      if(x.oo)return `<div class="wone ${x.mark==='o'?'done':''}${thin?' thin':''}" data-lp="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.30)};border-color:${x.s.color}">${thin?'':`<div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${ht>34&&first?'<div class="rg">오늘만</div>':''}</div>`}</div>`;
+      if(x.oo)return `<div class="wone ${x.mark==='o'?'done':''}${thin?' thin':''}" data-lp="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.30)};border-color:${x.s.color}">${thin?'':`<div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${ht>34&&first?`<div class="rg">${x.again?esc(x.label||'한 번 더'):'오늘만'}</div>`:''}</div>`}</div>`;
       return `<div class="wblk ${x.ov?'ov':''} ${first?'':'cont'}${thin?' thin':''}" data-id="${x.s.id}" data-date="${d}" style="top:${top}px;height:${ht}px;left:calc(${x.lane/L*100}% + 2px);width:calc(${100/L}% - 4px);background:${rgba(x.s.color,.38)};border-color:${x.s.color}">
         ${thin?'':`<div class="tx"><div class="nm">${esc(x.s.name)}${first?'':' <span class="ctn">이어서</span>'}</div>${first&&ht>34?`<div class="rg">${esc(x.label)}</div>`:''}${ht>(first?50:34)?`<div class="rg">${hm(t0)}~${hm(t1)}</div>`:''}</div>`}${si===oi&&x.ov?`<span class="ovr" data-act="resetOv" data-id="${x.s.id}" data-date="${d}" title="원래 시간으로">↺</span>`:''}${si===gi?'<i class="wrsz"></i>':''}</div>`}).join('')}).join('')+`</div>`;
   }
@@ -1300,7 +1310,7 @@ function renderDay(){
   const nowLine=`<div class="nowline"><span>${hm(nowM||0)}</span></div>`;
   const rowsA=it.map((x,i)=>[x.time,(i===nextI&&i>0?nowLine:'')+`<div class="row one ${x.mark==='o'?'done':''} ${x===active?'now':''}" data-lp="${x.s.id}" data-date="${d}">
       <div class="tm">${hm(x.segs[0][0])}~${hm(x.segs[0][1])}</div><div class="cb" style="background:${x.s.color}"></div>
-      <div class="tx"><div class="nm">${esc(x.s.name)}${x.oo||(x.s.add&&x.s.add[d])?'<span class="xtag">오늘만</span>':''}${x.end>S.cfg.dayEnd*60?'<span class="lmoon">🌙</span>':''}</div>${x.label?`<div class="rg">${esc(x.label)}</div>`:''}</div>
+      <div class="tx"><div class="nm">${esc(x.s.name)}${x.again?'<span class="xtag">한 번 더</span>':x.oo||(x.s.add&&x.s.add[d])?'<span class="xtag">오늘만</span>':''}${x.end>S.cfg.dayEnd*60?'<span class="lmoon">🌙</span>':''}</div>${x.label?`<div class="rg">${esc(x.label)}</div>`:''}</div>
       <div class="hr">${hrs(x.mins)}</div>
       <button class="mk ${x.mark}" data-act="mark" data-id="${x.s.id}" data-date="${d}">${markSym(x.mark)}</button></div>`]);
   it.forEach(x=>x.segs.slice(1).forEach(([t0,t1])=>rowsA.push([t0,`<div class="row one ${x.mark==='o'?'done':''} ${x===active&&nowM>=t0&&nowM<t1?'now':''}">
@@ -1889,7 +1899,9 @@ function openAddDay(d,tm){
    <div id="xpick">${(()=>{const it=s=>`<button class="xit xsel" data-act="xTog" data-id="${s.id}" data-date="${d}"><i style="background:${s.color}"></i><span class="xnm">${esc(s.name)}</span><b class="xck">✓</b><small>${(()=>{const p=plan(s),n=p.dates.find(x=>x>d);return s.asplit&&s.asplit[d]?'':p.end<d?md(p.end):s.askip&&s.askip[d]?'':n?md(n):''})()}</small></button>`;
      const g1=[...asplitOn(d).filter(s=>!cand.includes(s)),...cand.filter(s=>s.askip&&s.askip[d])],g2=cand.filter(s=>!g1.includes(s)).sort((a,b)=>(plan(a).dates.find(x=>x>d)||a.start).localeCompare(plan(b).dates.find(x=>x>d)||b.start)||a.time-b.time),g3=[];
      const sec=(t,h,a)=>a.length?`<div class="xlab">${t} <small>${h}</small></div><div class="xlist ${a.length>5?'long':''}">${a.map(it).join('')}</div>`:'';
-     return sec('이날에서 옮긴 과목','',g1)+sec('다른 과목 당겨오기','',g2)+sec('그 밖의 과목',g3.length+'개',g3)})()}
+     const g0=itemsOn(d).filter(x=>!x.oo&&!projEnd(x.s).done&&!againOf(x.s).some(o=>o.date===d)).map(x=>x.s).filter(s=>plan(s).dates.some(y=>y>d));
+     const ia=s=>`<button class="xit xsel" data-act="xTog" data-again="1" data-id="${s.id}" data-date="${d}"><i style="background:${s.color}"></i><span class="xnm">${esc(s.name)}</span><b class="xck">✓</b><small>${md(plan(s).dates.find(x=>x>d))} 분량</small></button>`;
+     return (g0.length?`<div class="xlab">오늘 한 번 더 <small>다음 분량을 오늘로 당겨와요</small></div><div class="xlist ${g0.length>5?'long':''}">${g0.map(ia).join('')}</div>`:'')+sec('이날에서 옮긴 과목','',g1)+sec('다른 과목 당겨오기','',g2)+sec('그 밖의 과목',g3.length+'개',g3)})()}
    <button class="xit xnewb" data-act="xNew">＋ 새로 적기</button></div>
    <div id="xnew" hidden>${cand.length?'<button class="xback" data-act="xBack">‹ 과목에서 고르기</button>':''}<div class="fld"><label>이름</label><input class="inp" id="xName" placeholder="예) 스터디 모임"></div>
     <div class="fld"><label>시작 시각 · 소요시간</label><div class="xrow"><input class="inp" id="xTime" type="time" value="${tm!=null?(hm(tm).replace('+','')):''}"><div class="xhm"><input class="inp" id="xH" type="number" min="0" value="1"><span>시간</span><input class="inp" id="xM" type="number" min="0" step="10" value="0"><span>분</span></div></div></div></div>
@@ -1897,7 +1909,12 @@ function openAddDay(d,tm){
   SH.dataset.xd=d;SH.dataset.xt=tm!=null?tm:'';
 }
 /* 직접 적은 공부(S.ones): 꾹 누르면 추가할 때와 같은 칸으로 수정·삭제 */
-function openOneEdit(o,d){const h=Math.floor(o.mins/60),m=o.mins%60;
+function addAgain(s,d){if((S.ones||[]).some(o=>o.sid===s.id&&o.date===d))return false;const n=plan(s).dates.find(x=>x>d);const nx=n&&itemFor(s,n);const amt=nx?Math.max(0,nx.to-nx.from):0;if(amt<=0)return false;
+  const it=itemsOn(d).find(x=>x.s===s);(S.ones||(S.ones=[])).push({id:uid(),date:d,sid:s.id,name:s.name,color:s.color,amt,time:it?it.end:s.time,mins:dayMins(s,n)});PC.clear();CH=null;return true}
+function openOneEdit(o,d){if(o.sid){const x=onesOn(d).find(y=>y.s.id===o.id);
+    openModal(`<h3>${esc(x?x.s.name:o.name)}</h3><p class="xsub">${dTitle(d)} · 한 번 더${x&&x.label?' · '+esc(x.label):''}</p>
+     <div class="sheet-acts"><button class="btn" style="color:var(--red)" data-act="xDelOneAsk" data-id="${o.id}">한 번 더 취소</button><div class="spacer"></div><button class="btn" data-act="close">닫기</button></div>`);SH.dataset.xd=d;return}
+  const h=Math.floor(o.mins/60),m=o.mins%60;
   openModal(`<h3>직접 적은 공부</h3><p class="xsub">${dTitle(d)}</p>
    <div class="fld"><label>이름</label><input class="inp" id="xName" value="${esc(o.name)}"></div>
    <div class="fld"><label>시작 시각 · 소요시간</label><div class="xrow"><input class="inp" id="xTime" type="time" value="${hm(o.time).replace('+','')}"><div class="xhm"><input class="inp" id="xH" type="number" min="0" value="${h}"><span>시간</span><input class="inp" id="xM" type="number" min="0" step="10" value="${m}"><span>분</span></div></div></div>
@@ -2228,7 +2245,8 @@ document.addEventListener('click',e=>{
     case 'pickFocus':{closePick();S.ui.focus=[id];S.ui.flast=id;saveUI();applyFocus();const s=sub(id);if(s)toast(`'${s.name}'만 보여요 · 꾹 눌러 끌 수 있어요 · 다시 보려면 "전체"`);break}
     case 'xAdd':openAddDay(el.dataset.date,null);break;
     case 'xTog':{el.classList.toggle('on');const n=SH.querySelectorAll('.xsel.on').length,b=document.getElementById('xSel');b.hidden=!n;b.textContent=`${n}과목 추가`;break}
-    case 'xAddSel':{const d=SH.dataset.xd,tm=SH.dataset.xt,sel=[...SH.querySelectorAll('.xsel.on')].map(e=>sub(e.dataset.id)).filter(Boolean);if(!sel.length)break;
+    case 'xAddSel':{const d=SH.dataset.xd,tm=SH.dataset.xt,ag=[...SH.querySelectorAll('.xsel.on[data-again]')].map(e=>sub(e.dataset.id)).filter(Boolean),sel=[...SH.querySelectorAll('.xsel.on:not([data-again])')].map(e=>sub(e.dataset.id)).filter(Boolean);if(!sel.length&&!ag.length)break;
+      if(ag.length){const ok=[];oneEdit(()=>ag.forEach(s=>{if(addAgain(s,d))ok.push(s.name)}));if(!sel.length){closeModal();render();toast(ok.length?(ok.length===1?`'${ok[0]}' 한 번 더 넣었어요`:`${ok.length}과목 한 번 더 넣었어요`):'남은 분량이 없어요');break}}
       const msgs=[];let fail=0;sel.forEach(s=>{if(s.askip&&s.askip[d]||s.asplit&&s.asplit[d]){keepDay(s,d);msgs.push(s.name)}else{const r=pickDay(s,d,tm);if(r.ok)msgs.push(r.moved?`${s.name}(${md(r.moved)} 분량)`:s.name);else fail++}});
       save();closeModal();render();toast(msgs.length?(msgs.length===1?`'${msgs[0]}' 오늘만 추가했어요`:`${msgs.length}과목 오늘만 추가했어요`)+(fail?` · ${fail}과목은 남은 분량이 없어요`:''):'남은 분량이 없어요');break}
     case 'xNew':{document.getElementById('xpick').hidden=true;document.getElementById('xnew').hidden=false;document.getElementById('xOk').hidden=false;document.getElementById('xName').focus();break}
