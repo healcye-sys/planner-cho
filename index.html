@@ -1966,7 +1966,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow bkrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button><button class="btn" data-act="restoreMenu">↺ 이전 내용 되살리기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.10<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.11<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
@@ -2235,8 +2235,8 @@ document.addEventListener('click',e=>{
     case 'xBack':{document.getElementById('xpick').hidden=false;document.getElementById('xnew').hidden=true;document.getElementById('xOk').hidden=true;break}
     case 'xSaveNew':{const name=fv('xName');if(!name)return toast('이름을 적어 주세요');const tv=fv('xTime');let mins=Math.round(num(fv('xH'))*60+num(fv('xM')));if(mins<10)mins=10;
       const d=SH.dataset.xd;const used=(S.ones||[]).length+S.subjects.length;
-      (S.ones||(S.ones=[])).push({id:uid(),date:d,name,time:tv?inMin(tv):(SH.dataset.xt?+SH.dataset.xt:S.cfg.dayStart*60),mins,color:palVis()[used%palVis().length]});
-      save();closeModal();render();toast(`'${name}' 오늘만 추가했어요`);break}
+      oneEdit(()=>(S.ones||(S.ones=[])).push({id:uid(),date:d,name,time:tv?inMin(tv):(SH.dataset.xt?+SH.dataset.xt:S.cfg.dayStart*60),mins,color:palVis()[used%palVis().length]}));
+      closeModal();render();toast(`'${name}' 오늘만 추가했어요`);break}
     case 'xSkip':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'skip',true);save();closeModal();render();toast(`'${s.name}' 다른 날로 옮겼어요`);break}
     case 'xUnadd':{const s=sub(id),d=SH.dataset.xd;setDay(s,d,'add',false);if(s.ov)delete s.ov[d];save();closeModal();render();toast('오늘만 추가를 취소했어요');break}
     case 'xKeep':{const s=sub(id),d=el.dataset.date;if(!s)break;(s.keep||(s.keep={}))[d]=true;if(s.asplit&&s.asplit[d]){delete s.asplit[d];if(s.ovm)delete s.ovm[d]}setDay(s,d,'skip',false);save();closeModal();render();toast(`'${s.name}' 오늘 해요`);break}
@@ -2249,9 +2249,9 @@ document.addEventListener('click',e=>{
       if(t){const [h,mi]=t.split(':').map(Number);m.time=h*60+mi}if(mm>=5)m.mins=Math.min(240,mm);PC.clear();save();closeModal();render();toast(`${m.n} ${hm(m.time)}부터 ${durTxt(m.mins)}`);break}
     case 'xUnskip':{const s=sub(id),d=el.dataset.date;setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 다시 공부하는 날이에요`);break}
     case 'xSaveOne':{const o=(S.ones||[]).find(x=>x.id===id);if(!o)break;const name=fv('xName');if(!name)return toast('이름을 적어 주세요');const tv=fv('xTime');let mins=Math.round(num(fv('xH'))*60+num(fv('xM')));if(mins<10)mins=10;
-      o.name=name;if(tv)o.time=inMin(tv);o.mins=mins;CH=null;PC.clear();save();closeModal();render();toast(`'${name}' 고쳤어요`);break}
-    case 'xDelOneAsk':{const o=(S.ones||[]).find(x=>x.id===id);if(!o)break;ask(`'${esc(o.name)}'을(를) 지울까요?`,'삭제',()=>{S.ones=(S.ones||[]).filter(x=>x.id!==id);delete S.checks[id];save();closeModal();render();toast('지웠어요')});break}
-    case 'xDelOne':{S.ones=(S.ones||[]).filter(o=>o.id!==id);delete S.checks[id];save();closeModal();render();toast('지웠어요');break}
+      oneEdit(()=>{o.name=name;if(tv)o.time=inMin(tv);o.mins=mins});closeModal();render();toast(`'${name}' 고쳤어요`);break}
+    case 'xDelOneAsk':{const o=(S.ones||[]).find(x=>x.id===id);if(!o)break;ask(`'${esc(o.name)}'을(를) 지울까요?`,'삭제',()=>{oneEdit(()=>{S.ones=(S.ones||[]).filter(x=>x.id!==id);delete S.checks[id]});closeModal();render();toast('지웠어요')});break}
+    case 'xDelOne':{oneEdit(()=>{S.ones=(S.ones||[]).filter(o=>o.id!==id);delete S.checks[id]});closeModal();render();toast('지웠어요');break}
     case 'saveSub':saveSubject();break;
     case 'delSub':delSubject(id);break;
     case 'close':{const g=ASKNO;ASK=null;ASKNO=null;closeModal();if(g)g();break}
@@ -2351,6 +2351,11 @@ let toastT;function toast(t){const el=document.getElementById('toast');const u=U
   el.classList.toggle('u',!!u);el.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on','u'),u?5000:2200)}
 /* ↩ 되돌리기: the last 10 bar moves / resizes (month & week). Any other edit clears it, so it never undoes something else */
 let UST=[],UKEEP=0;
+/* 직접 적은 공부(1회성) 추가·수정·삭제: 바로 넘침 정리(자리가 나면 옮겨졌던 과목을 원래 날로)까지 하고, ↩ 되돌리기 한 번에 전부 되돌림 */
+function oneEdit(fn){const uj0=UJ,before=JSON.stringify(S.subjects);UKEEP=1;
+  try{fn();CH=null;PC.clear();save();if(S.subjects.length){SILENT=1;try{lateGate(S.subjects[0].id,'',before,()=>save(),()=>{})}finally{SILENT=0}}}
+  finally{UKEEP=0}
+  if(ubody()!==uj0){UST.push(uj0);if(UST.length>10)UST.shift()}paintUndo()}
 function paintUndo(){let b=document.getElementById('undofab');if(!b){b=document.createElement('button');b.id='undofab';b.className='undofab hidden';b.dataset.act='undoStep';b.textContent='↩ 되돌리기';document.body.appendChild(b)}
   const on=UST.length&&(S.ui.view==='month'||S.ui.view==='week');b.classList.toggle('hidden',!on);if(!on)return;
   const z=V.querySelector('.zreset');const r=z&&z.getBoundingClientRect();b.style.left=(r&&r.width?Math.round(r.right+8):16)+'px'}
