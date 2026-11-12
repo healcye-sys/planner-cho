@@ -209,7 +209,7 @@ main{padding:0 14px}
 .xsel{border-radius:10px;padding-left:10px;padding-right:10px;transition:background .12s}.xsel .xck{order:9;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line2);color:transparent;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;margin-left:8px}.xsel small{order:8}
 .xsel.on{background:color-mix(in srgb,var(--brand) 14%,var(--card))}.xsel.on .xck{background:var(--brand);border-color:var(--brand);color:#fff}.xnewb{color:var(--brand)}
 .xrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.xhm{display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px;align-items:center}.xhm span{font-size:13px;color:var(--sub)}
-.wone{position:absolute;border-radius:7px;padding:3px 5px;overflow:hidden;font-size:11px;line-height:1.25;border:1.5px dashed;border-left:4px solid;display:flex}
+.wone{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:grab;position:absolute;border-radius:7px;padding:3px 5px;overflow:hidden;font-size:11px;line-height:1.25;border:1.5px dashed;border-left:4px solid;display:flex}
 .wone .tx{flex:1;min-width:0}.wone .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wone .rg{color:var(--brand);font-weight:700}.wone.done{opacity:.55}
 html,body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
@@ -774,7 +774,7 @@ function itemFor1(s,date){
 /* one-off items: a single day only (not in month bands or subject list) */
 function onesOn(date){return (S.ones||[]).filter(o=>o.date===date&&(!o.sid||sub(o.sid))).map(o=>{const sg=spanSegs(o.time,o.mins);
   if(o.sid){const s=sub(o.sid),p=plan(s),e=p.ex&&p.ex[date];const from=e!=null?p.before+e:0,to=e!=null?Math.min(s.total,from+o.amt):0;
-    return {s:{id:o.id,name:s.name,color:s.color,oneoff:true,link:s.id},date,k:0,from,to,label:e!=null?rangeTxt(s,from,to):'',time:o.time,mins:o.mins,oo:true,again:true,segs:sg,get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[o.id]||{})[date]||''}}
+    return {s:{id:o.id,name:s.name,color:s.color,oneoff:true,link:s.id},date,k:0,from,to,label:e!=null?rangeTxt(s,from,to):'',time:o.time,mins:o.mins,oo:true,again:true,pin:!!o.pin,segs:sg,get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[o.id]||{})[date]||''}}
   return {s:{id:o.id,name:o.name,color:o.color,oneoff:true},date,k:0,from:0,to:0,label:'',time:o.time,mins:o.mins,oo:true,segs:sg,get end(){return this.segs[this.segs.length-1][1]},mark:(S.checks[o.id]||{})[date]||''}})}
 function rePeriod(s){if(s.mode!=='period'||!s.end)return;let n=0,x=s.start,g=0;while(x<=s.end&&g<4000){if(studyOn(s,x))n++;x=addD(x,1);g++}
   if(n>0)s.daily=Math.max(1e-6,(s.total-Math.min(s.pre||0,s.total))/n)}
@@ -788,7 +788,7 @@ function itemsOn1(date){
   const all=S.subjects.map(s=>itemFor(s,date)).filter(Boolean).concat(onesOn(date)),ag=all.filter(x=>x.again);
   const it=all.filter(x=>!x.again).sort((a,b)=>a.time-b.time||(ord.get(a.s.id)??1e9)-(ord.get(b.s.id)??1e9));
   if(S.cfg.pack!==false)packDay(it,date);
-  if(ag.length){ag.forEach(x=>{const pa=it.find(y=>y.s.id===x.s.link);if(pa){x.segs=spanSegs(pa.end,x.mins);x.time=x.segs[0][0]}it.push(x)});it.sort((a,b)=>a.time-b.time||(b.again?1:0)-(a.again?1:0))}
+  if(ag.length){ag.forEach(x=>{const pa=!x.pin&&it.find(y=>y.s.id===x.s.link);if(pa){x.segs=spanSegs(pa.end,x.mins);x.time=x.segs[0][0]}it.push(x)});it.sort((a,b)=>a.time-b.time||(b.again?1:0)-(a.again?1:0))}
   let cur=-1;it.forEach(x=>{x.fx=!x.oo&&fixOn(x.s,date);if(x.time<cur){x.segs=spanSegs(cur,x.mins);x.time=x.segs[0][0];x.pushed=true}cur=x.end});
   return it}
 /* auto pull-up: subjects whose usual times run back-to-back form a chain; on a day when some of the chain is
@@ -1136,17 +1136,37 @@ function startFrame(s){
   if(t.end)showTip(drag.x,drag.y,s.name,`${mdw(t.start)} ~ ${mdw(t.end)}`,`공부일 ${t.n}일 · 하루 ${perDay(t.daily)}${esc(s.unit||'')}`);
   else showTip(drag.x,drag.y,s.name,`${mdw(f0)} ~ ${mdw(p0.end)}`,'좌우로 끌어 시작일 조절');
 }
-/* 위클리: 하루만 넣은 띠(새로 적기·한 번 더)도 아래 손잡이로 길이 조절 — 시간만(분량 그대로), 그날 안에서만, ↩ 되돌리기 됨 */
-{let OR=null;
- document.addEventListener('pointerdown',e=>{const g=e.target.closest&&e.target.closest('.wone .wrsz');if(!g||drag||hold||e.button>0)return;
-   const el=g.closest('.wone'),id=el.dataset.lp,d=el.dataset.date,o=(S.ones||[]).find(x=>x.id===id),it=o&&itemsOn(d).find(x=>x.s.id===id);if(!it)return;
-   e.preventDefault();e.stopPropagation();OR={id,name:it.s.name,d,t0:it.time,m0:o.mins,nm:o.mins,y0:e.clientY,sy0:scrollY,pid:e.pointerId};try{g.setPointerCapture(e.pointerId)}catch(_){}
-   document.querySelectorAll(`.wone[data-lp="${id}"]`).forEach(x=>x.style.opacity='.35');wGhost(d,OR.t0,OR.m0)},true);
- document.addEventListener('pointermove',e=>{if(!OR||e.pointerId!==OR.pid)return;e.preventDefault();
-   const dy=e.clientY-OR.y0+(scrollY-OR.sy0),nm=clamp(Math.round((OR.m0+dy/ZM()/56*60)/10)*10,10,Math.max(10,S.cfg.dayEnd*60-OR.t0));
-   if(nm!==OR.nm){OR.nm=nm;wGhost(OR.d,OR.t0,nm)}const sg=spanSegs(OR.t0,nm);showTip(e.clientX,e.clientY,OR.name,`${hm(OR.t0)}~${hm(sg[sg.length-1][1])}`,`${mdw(OR.d)} · ${durTxt(nm)}`,1)},{passive:false});
- const end=e=>{if(!OR||e.pointerId!==OR.pid)return;const r=OR;OR=null;hideTip();document.querySelectorAll('.wblk.ghost').forEach(x=>x.remove());
-   if(e.type==='pointerup'&&r.nm!==r.m0){oneEdit(()=>{const q=(S.ones||[]).find(x=>x.id===r.id);if(q)q.mins=r.nm},r.id);render();toast(`${mdw(r.d)} ${r.name} ${durTxt(r.nm)}`)}else render()};
+/* 위클리: 하루만 넣은 띠(새로 적기·한 번 더)도 일반 띠처럼 — 꾹 눌러 끌기(그날 안 위치, 겹치면 그날만 겹친 만큼 밀기),
+   아래 손잡이(길이 = 시간만, 분량 그대로), 두 번 누르기(수정 창). ↩ 되돌리기 됨. 한 번 더를 직접 옮기면 그 시각 고정(pin) */
+function onePush(o,day){let cur;{const pm=MDAY;MDAY=day;try{cur=spanSegs(o.time,o.mins).pop()[1]}finally{MDAY=pm}}const t0=o.time;
+  const rest=itemsOn(day).filter(x=>!x.oo&&x.end>t0+.5).sort((a,b)=>a.segs[0][0]-b.segs[0][0]);
+  for(const x of rest){if(x.segs[0][0]>=cur-.5)break;const q=x.s;(q.ov||(q.ov={}))[day]=cur;(q.aslide||(q.aslide={}))[day]=true;PC.delete(q.id);
+    const pm=MDAY;MDAY=day;try{cur=spanSegs(cur,x.mins).pop()[1]}finally{MDAY=pm}}
+  CH=null;PC.clear()}
+{let OR=null,OT=null;
+ const els=id=>document.querySelectorAll(`.wone[data-lp="${id}"]`);
+ const lift=()=>{OR.mode='move';OR.nt=OR.t0;sw=null;try{navigator.vibrate&&navigator.vibrate(12)}catch(_){}els(OR.id).forEach(x=>x.style.opacity='.35');wGhost(OR.d,OR.t0,OR.m0);tipM(OR.x0,OR.y0)};
+ const tipM=(x,y)=>{const t=OR.mode==='move'?OR.nt:OR.t0,m=OR.mode==='move'?OR.m0:OR.nm,sg=spanSegs(t,m);showTip(x,y,OR.name,`${hm(t)}~${hm(sg[sg.length-1][1])}`,`${mdw(OR.d)} · ${durTxt(m)}`,1)};
+ document.addEventListener('pointerdown',e=>{const el=e.target.closest&&e.target.closest('.wone');if(!el||drag||hold||e.button>0||OR)return;
+   const id=el.dataset.lp,d=el.dataset.date,o=(S.ones||[]).find(x=>x.id===id),it=o&&itemsOn(d).find(x=>x.s.id===id);if(!it)return;
+   e.stopPropagation();const rs=!!e.target.closest('.wrsz');
+   OR={mode:rs?'rs':'wait',id,name:it.s.name,d,t0:it.time,m0:o.mins,nm:o.mins,x0:e.clientX,y0:e.clientY,sy0:scrollY,pid:e.pointerId,mouse:e.pointerType==='mouse'};
+   if(rs){e.preventDefault();try{e.target.setPointerCapture(e.pointerId)}catch(_){}els(id).forEach(x=>x.style.opacity='.35');wGhost(d,OR.t0,OR.m0);return}
+   if(OR.mouse)e.preventDefault();else OR.tm=setTimeout(()=>{if(OR&&OR.mode==='wait')lift()},HOLD_MS)},true);
+ document.addEventListener('pointermove',e=>{if(!OR||e.pointerId!==OR.pid)return;const dy=e.clientY-OR.y0+(scrollY-OR.sy0);
+   if(OR.mode==='wait'){if(Math.hypot(e.clientX-OR.x0,e.clientY-OR.y0)>(OR.mouse?4:9)){if(OR.mouse)lift();else{clearTimeout(OR.tm);OR=null}}return}
+   e.preventDefault();
+   if(OR.mode==='rs'){const nm=clamp(Math.round((OR.m0+dy/ZM()/56*60)/10)*10,10,Math.max(10,S.cfg.dayEnd*60-OR.t0));if(nm!==OR.nm){OR.nm=nm;wGhost(OR.d,OR.t0,nm)}}
+   else{const nt=clamp(Math.round((OR.t0+dy/ZM()/56*60)/10)*10,S.cfg.dayStart*60,S.cfg.dayEnd*60-10);if(nt!==OR.nt){OR.nt=nt;wGhost(OR.d,nt,OR.m0)}}
+   tipM(e.clientX,e.clientY)},{passive:false});
+ document.addEventListener('touchmove',e=>{if(OR&&OR.mode!=='wait')e.preventDefault()},{passive:false});
+ const end=e=>{if(!OR||e.pointerId!==OR.pid)return;const r=OR;OR=null;clearTimeout(r.tm);
+   if(r.mode==='wait'){if(e.type!=='pointerup')return;const now=Date.now(); // 두 번 누르기 = 수정 창
+     if(OT&&OT.id===r.id&&now-OT.t<400){OT=null;const o=(S.ones||[]).find(x=>x.id===r.id);if(o)openOneEdit(o,r.d)}else OT={id:r.id,t:now};return}
+   hideTip();document.querySelectorAll('.wblk.ghost').forEach(x=>x.remove());const ok=e.type==='pointerup';
+   if(ok&&r.mode==='rs'&&r.nm!==r.m0){oneEdit(()=>{const q=(S.ones||[]).find(x=>x.id===r.id);if(q)q.mins=r.nm},r.id);render();toast(`${mdw(r.d)} ${r.name} ${durTxt(r.nm)}`)}
+   else if(ok&&r.mode==='move'&&r.nt!==r.t0){oneEdit(()=>{const q=(S.ones||[]).find(x=>x.id===r.id);if(!q)return;q.time=r.nt;if(q.sid)q.pin=1;onePush(q,r.d)},r.id);render();toast(`${r.name} ${hm(r.nt)}로 옮겼어요`)}
+   else render()};
  document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',end,true)}
 function wGhost(day,t,m){const a=S.cfg.dayStart*60,b=S.cfg.dayEnd*60;
   document.querySelectorAll('.wblk.ghost').forEach(e=>e.remove());
@@ -1926,7 +1946,8 @@ function addAgain(s,d){if((S.ones||[]).some(o=>o.sid===s.id&&o.date===d))return 
   const it=itemsOn(d).find(x=>x.s===s);(S.ones||(S.ones=[])).push({id:uid(),date:d,sid:s.id,name:s.name,color:s.color,amt,time:it?it.end:s.time,mins:dayMins(s,n)});PC.clear();CH=null;return true}
 function openOneEdit(o,d){if(o.sid){const x=onesOn(d).find(y=>y.s.id===o.id);
     openModal(`<h3>${esc(x?x.s.name:o.name)}</h3><p class="xsub">${dTitle(d)} · 한 번 더${x&&x.label?' · '+esc(x.label):''}</p>
-     <div class="sheet-acts"><button class="btn" style="color:var(--red)" data-act="xDelOneAsk" data-id="${o.id}">한 번 더 취소</button><div class="spacer"></div><button class="btn" data-act="close">닫기</button></div>`);SH.dataset.xd=d;return}
+     <div class="fld"><label>시작 시각 · 소요시간</label><div class="xrow"><input class="inp" id="xTime" type="time" value="${o.pin?hm(o.time).replace('+',''):''}"><div class="xhm"><input class="inp" id="xH" type="number" min="0" value="${Math.floor(o.mins/60)}"><span>시간</span><input class="inp" id="xM" type="number" min="0" step="10" value="${o.mins%60}"><span>분</span></div></div><p class="xsub">시작 시각을 비우면 ${esc(x?x.s.name:o.name)} 바로 뒤에 붙어요</p></div>
+     <div class="sheet-acts"><button class="btn" style="color:var(--red)" data-act="xDelOneAsk" data-id="${o.id}">한 번 더 취소</button><div class="spacer"></div><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="xSaveAgain" data-id="${o.id}">저장</button></div>`);SH.dataset.xd=d;return}
   const h=Math.floor(o.mins/60),m=o.mins%60;
   openModal(`<h3>직접 적은 공부</h3><p class="xsub">${dTitle(d)}</p>
    <div class="fld"><label>이름</label><input class="inp" id="xName" value="${esc(o.name)}"></div>
@@ -1949,7 +1970,7 @@ function openDayMenu(id,d){
  const cancel=()=>{if(lp){clearTimeout(lp.t);lp=null}};
  document.addEventListener('pointerdown',e=>{cancel();if(drag||hold)return;
    const row=e.target.closest('[data-lp]');const col=!row&&S.ui.view==='week'&&e.target.closest('.wcol');
-   if(e.target.closest('.mk,.wblk,button:not([data-lp])'))return;
+   if(e.target.closest('.mk,.wblk,.wone,button:not([data-lp])'))return;
    if(!row&&!col)return;
    const x=e.clientX,y=e.clientY;
    lp={x,y,t:setTimeout(()=>{lp=null;try{navigator.vibrate&&navigator.vibrate(12)}catch(_){}
@@ -2279,6 +2300,8 @@ document.addEventListener('click',e=>{
     case 'mealSave':{const m=(S.cfg.meals||[]).find(x=>x.n===el.dataset.n);if(!m)break;const t=SH.querySelector('#mlT').value,mm=+SH.querySelector('#mlM').value;
       if(t){const [h,mi]=t.split(':').map(Number);m.time=h*60+mi}if(mm>=5)m.mins=Math.min(240,mm);PC.clear();save();closeModal();render();toast(`${m.n} ${hm(m.time)}부터 ${durTxt(m.mins)}`);break}
     case 'xUnskip':{const s=sub(id),d=el.dataset.date;setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 다시 공부하는 날이에요`);break}
+    case 'xSaveAgain':{const o=(S.ones||[]).find(x=>x.id===id);if(!o)break;const tv=fv('xTime');let mins=Math.round(num(fv('xH'))*60+num(fv('xM')));if(mins<10)mins=10;
+      oneEdit(()=>{o.mins=mins;if(tv){o.time=inMin(tv);o.pin=1}else delete o.pin},o.id);closeModal();render();toast('고쳤어요');break}
     case 'xSaveOne':{const o=(S.ones||[]).find(x=>x.id===id);if(!o)break;const name=fv('xName');if(!name)return toast('이름을 적어 주세요');const tv=fv('xTime');let mins=Math.round(num(fv('xH'))*60+num(fv('xM')));if(mins<10)mins=10;
       oneEdit(()=>{o.name=name;if(tv)o.time=inMin(tv);o.mins=mins},o.id);closeModal();render();toast(`'${name}' 고쳤어요`);break}
     case 'xDelOneAsk':{const o=(S.ones||[]).find(x=>x.id===id);if(!o)break;ask(`'${esc(o.name)}'을(를) 지울까요?`,'삭제',()=>{oneEdit(()=>{S.ones=(S.ones||[]).filter(x=>x.id!==id);delete S.checks[id]},id);closeModal();render();toast('지웠어요')});break}
