@@ -2267,9 +2267,9 @@ document.addEventListener('click',e=>{
       if(t){const [h,mi]=t.split(':').map(Number);m.time=h*60+mi}if(mm>=5)m.mins=Math.min(240,mm);PC.clear();save();closeModal();render();toast(`${m.n} ${hm(m.time)}부터 ${durTxt(m.mins)}`);break}
     case 'xUnskip':{const s=sub(id),d=el.dataset.date;setDay(s,d,'skip',false);save();render();toast(`'${s.name}' 다시 공부하는 날이에요`);break}
     case 'xSaveOne':{const o=(S.ones||[]).find(x=>x.id===id);if(!o)break;const name=fv('xName');if(!name)return toast('이름을 적어 주세요');const tv=fv('xTime');let mins=Math.round(num(fv('xH'))*60+num(fv('xM')));if(mins<10)mins=10;
-      oneEdit(()=>{o.name=name;if(tv)o.time=inMin(tv);o.mins=mins});closeModal();render();toast(`'${name}' 고쳤어요`);break}
-    case 'xDelOneAsk':{const o=(S.ones||[]).find(x=>x.id===id);if(!o)break;ask(`'${esc(o.name)}'을(를) 지울까요?`,'삭제',()=>{oneEdit(()=>{S.ones=(S.ones||[]).filter(x=>x.id!==id);delete S.checks[id]});closeModal();render();toast('지웠어요')});break}
-    case 'xDelOne':{oneEdit(()=>{S.ones=(S.ones||[]).filter(o=>o.id!==id);delete S.checks[id]});closeModal();render();toast('지웠어요');break}
+      oneEdit(()=>{o.name=name;if(tv)o.time=inMin(tv);o.mins=mins},o.id);closeModal();render();toast(`'${name}' 고쳤어요`);break}
+    case 'xDelOneAsk':{const o=(S.ones||[]).find(x=>x.id===id);if(!o)break;ask(`'${esc(o.name)}'을(를) 지울까요?`,'삭제',()=>{oneEdit(()=>{S.ones=(S.ones||[]).filter(x=>x.id!==id);delete S.checks[id]},id);closeModal();render();toast('지웠어요')});break}
+    case 'xDelOne':{oneEdit(()=>{S.ones=(S.ones||[]).filter(o=>o.id!==id);delete S.checks[id]},id);closeModal();render();toast('지웠어요');break}
     case 'saveSub':saveSubject();break;
     case 'delSub':delSubject(id);break;
     case 'close':{const g=ASKNO;ASK=null;ASKNO=null;closeModal();if(g)g();break}
@@ -2370,8 +2370,19 @@ let toastT;function toast(t){const el=document.getElementById('toast');const u=U
 /* ↩ 되돌리기: the last 10 bar moves / resizes (month & week). Any other edit clears it, so it never undoes something else */
 let UST=[],UKEEP=0;
 /* 직접 적은 공부(1회성) 추가·수정·삭제: 바로 넘침 정리(자리가 나면 옮겨졌던 과목을 원래 날로)까지 하고, ↩ 되돌리기 한 번에 전부 되돌림 */
-function oneEdit(fn){const uj0=UJ,before=JSON.stringify(S.subjects);UKEEP=1;
-  try{fn();CH=null;PC.clear();save();if(S.subjects.length){SILENT=1;try{lateGate(S.subjects[0].id,'',before,()=>save(),()=>{})}finally{SILENT=0}}}
+/* 넣을 때 그것 때문에 앱이 바꾼 것(옮기기·나누기 등)만 o.fx에 기억 → 지우거나 고칠 때 딱 그것만 되돌림 (그 뒤 다른 수정으로 바뀐 칸은 안 건드림) */
+const AFK=['askip','skip','asplit','ovm','aslide','ov','add','keep'];
+function afSnap(){const m=new Map();S.subjects.forEach(s=>{const o={};AFK.forEach(k=>{if(s[k])o[k]={...s[k]}});m.set(s.id,o)});return m}
+function afDiff(a,b){const out=[];b.forEach((ob,id)=>{const oa=a.get(id)||{};AFK.forEach(k=>{const x=oa[k]||{},y=ob[k]||{};
+  new Set([...Object.keys(x),...Object.keys(y)]).forEach(d=>{const hx=d in x,hy=d in y;if(hx!==hy||JSON.stringify(x[d])!==JSON.stringify(y[d]))out.push([id,k,d,hx?1:0,hx?x[d]:null,hy?1:0,hy?y[d]:null])})})});return out}
+function afUndo(fx){if(!fx||!fx.length)return;for(let i=fx.length-1;i>=0;i--){const [id,k,d,h0,v0,h1,v1]=fx[i];const s=sub(id);if(!s)continue;
+    const m=s[k]||{},has=d in m;if(has!==!!h1||(has&&JSON.stringify(m[d])!==JSON.stringify(v1)))continue;
+    if(h0)(s[k]||(s[k]={}))[d]=v0;else if(s[k])delete s[k][d];touch(s)}CH=null;PC.clear()}
+function oneEdit(fn,rid){const uj0=UJ,ids0=new Set((S.ones||[]).map(o=>o.id));UKEEP=1;
+  try{const ro=rid&&(S.ones||[]).find(x=>x.id===rid);if(ro){afUndo(ro.fx);delete ro.fx}
+    const before=JSON.stringify(S.subjects),a0=afSnap();fn();CH=null;PC.clear();save();
+    if(S.subjects.length&&badDays().length){SILENT=1;try{lateGate(S.subjects[0].id,'',before,()=>save(),()=>{})}finally{SILENT=0}}
+    const fx=afDiff(a0,afSnap()),tg=(S.ones||[]).find(o=>o.id===rid)||(S.ones||[]).find(o=>!ids0.has(o.id));if(tg&&fx.length){tg.fx=fx;save()}}
   finally{UKEEP=0}
   if(ubody()!==uj0){UST.push(uj0);if(UST.length>10)UST.shift()}paintUndo()}
 function paintUndo(){let b=document.getElementById('undofab');if(!b){b=document.createElement('button');b.id='undofab';b.className='undofab hidden';b.dataset.act='undoStep';b.textContent='↩ 되돌리기';document.body.appendChild(b)}
