@@ -924,7 +924,7 @@ const V=document.getElementById('view');
 function render(){CH=null;
   TODAY=ds(new Date());if(typeof applyTheme==='function')applyTheme();
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===S.ui.view));
-  {const fb=document.querySelector('.fab');if(fb)fb.hidden=S.ui.view==='week'} // 위클리엔 과목 추가(+) 없음: 하루 넣기는 빈칸 꾹
+  {const fb=document.querySelector('.fab');if(fb)fb.hidden=S.ui.view==='week'||S.ui.view==='day'} // 과목 추가(+)는 먼슬리·과목 리스트에만: 하루 넣기는 위클리 빈칸 꾹 / 데일리 공부 추가
   renderHeader();
   ({month:renderMonth,week:renderWeek,day:renderDay,list:renderList})[S.ui.view]();
   if(S.ui.view==='month'||S.ui.view==='week'||S.ui.view==='day')applyZoom();
