@@ -1354,7 +1354,7 @@ function renderDay(){
   const rows=rowsA.sort((p,q)=>p[0]-q[0]).map(r=>r[1]).join('');
   // overdue
   // 밀린 공부: 최근 3주 △·× + 이 날짜의 밀린 공부 칸에서 ○ 처리한 것(흔적으로 남김, S.odd[과목][원래날짜]={on:처리한 날,was:이전 표시})
-  const od=[];for(let i=1;i<=21;i++){const x=addD(TODAY,-i);itemsOn(x).forEach(t=>{const o=S.odd&&S.odd[t.s.id]&&S.odd[t.s.id][x];if(t.oo||(t.s.rz&&x<t.s.rz))return;if(t.mark==='t'||t.mark==='x')od.push(t);else if(t.mark==='o'&&o&&o.on===d)od.push({...t,odDone:true})})}
+  const od=[];for(let i=1;i<=21;i++){const x=addD(TODAY,-i);itemsOn(x).forEach(t=>{const o=S.odd&&S.odd[t.s.id]&&S.odd[t.s.id][x],ps=t.again?sub(t.s.link):t.s;if((t.oo&&!t.again)||!ps||(ps.rz&&x<ps.rz))return;if(t.mark==='t'||t.mark==='x')od.push(t);else if(t.mark==='o'&&o&&o.on===d)od.push({...t,odDone:true})})}
   const exs=examsOn(d);
   V.innerHTML=`<div class="dwrap">
    <div class="strip" id="strip">${strip}</div>
@@ -1376,7 +1376,7 @@ function renderDay(){
    </div>
    <div class="card"><div class="sec-title">⏰ 밀린 공부 <span class="hint">(최근 3주, △·× 친 항목)</span></div>
     ${od.length?od.map(x=>`<div class="row ${x.odDone?'done':''}"><div class="tm">${md(x.date)}<br>${DOW[dow(x.date)]}</div><div class="cb" style="background:${x.s.color}"></div>
-      <div class="tx"><div class="nm" style="font-size:15px">${esc(x.s.name)}</div><div class="rg">${esc(x.label)}${x.odDone?' · 이날 했어요':''}</div></div>
+      <div class="tx"><div class="nm" style="font-size:15px">${esc(x.s.name)}</div><div class="rg">${esc(x.label)}${x.again?' · 한 번 더':''}${x.odDone?' · 이날 했어요':''}</div></div>
       <button class="mk ${x.mark}" data-act="${x.odDone?'odUndo':'odDone'}" data-id="${x.s.id}" data-date="${x.date}" data-day="${d}" title="${x.odDone?'다시 밀린 공부로':'했어요 → ○'}">${markSym(x.mark)}</button></div>`).join('')
       +`<div class="hint" style="padding-top:8px">밀린 만큼 종료일이 늦어져요. 과목 리스트에서 <b>오늘부터 재배치</b>를 누르면 남은 분량으로 띠가 다시 그려져요.</div>`
       :'<div class="hint" style="padding:8px 0">밀린 공부가 없어요 👍</div>'}
