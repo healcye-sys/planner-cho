@@ -1340,9 +1340,10 @@ function renderDay(){
   const pct=it.length?dn/it.length:0;const C=2*Math.PI*22;
   const nd=new Date(),nowM=d===TODAY?nd.getHours()*60+nd.getMinutes():null;
   const active=nowM==null?null:it.find(x=>x.segs.some(([p,q])=>nowM>=p&&nowM<q));
-  const nextI=nowM==null||active?-1:it.findIndex(x=>x.time>nowM);
+  // 지금 시각 선: 과목에 붙이지 않고 식사·이어서 줄처럼 시각 순서대로 끼움 (어느 과목 칸에도 안 들어갈 때만, 앞뒤로 과목이 있을 때)
+  const showNow=nowM!=null&&!active&&it.some(x=>x.segs[0][0]<nowM)&&it.some(x=>x.segs.some(([p])=>p>nowM));
   const nowLine=`<div class="nowline"><span>${hm(nowM||0)}</span></div>`;
-  const rowsA=it.map((x,i)=>[x.time,(i===nextI&&i>0?nowLine:'')+`<div class="row one ${x.mark==='o'?'done':''} ${x===active?'now':''}" data-lp="${x.s.id}" data-date="${d}">
+  const rowsA=it.map((x,i)=>[x.time,`<div class="row one ${x.mark==='o'?'done':''} ${x===active?'now':''}" data-lp="${x.s.id}" data-date="${d}">
       <div class="tm">${hm(x.segs[0][0])}~${hm(x.segs[0][1])}</div><div class="cb" style="background:${x.s.color}"></div>
       <div class="tx"><div class="nm">${esc(x.s.name)}${x.again?'<span class="xtag">한 번 더</span>':x.oo||(x.s.add&&x.s.add[d])?'<span class="xtag">오늘만</span>':''}${x.end>S.cfg.dayEnd*60?'<span class="lmoon">🌙</span>':''}</div>${x.label?`<div class="rg">${esc(x.label)}</div>`:''}</div>
       <div class="hr">${hrs(x.mins)}</div>
@@ -1352,6 +1353,7 @@ function renderDay(){
       <div class="tx"><div class="nm">${esc(x.s.name)} <span class="ctn">이어서</span></div><div class="rg">${esc(x.label)}</div></div>
       <div class="hr"></div><span class="mk" style="visibility:hidden"></span></div>`])));
   if(it.length)mealsAt(d).forEach(m=>rowsA.push([m.time-.5,`<div class="row meal one${m.rid?' drest':''}"${m.rid?` data-act="restOpen" data-date="${d}" data-id="${m.rid}"`:''}><div class="tm">${hm(m.time)}</div><div class="cb">${mIco(m)}</div><div class="tx"><div class="nm" style="font-size:15px">${esc(mName(m))}</div></div></div>`]));
+  if(showNow)rowsA.push([nowM,nowLine]);
   const rows=rowsA.sort((p,q)=>p[0]-q[0]).map(r=>r[1]).join('');
   // overdue
   // 밀린 공부: 최근 3주 △·× + 이 날짜의 밀린 공부 칸에서 ○ 처리한 것(흔적으로 남김, S.odd[과목][원래날짜]={on:처리한 날,was:이전 표시})
