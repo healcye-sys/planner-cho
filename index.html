@@ -711,7 +711,7 @@ const ymd=d=>d?d.slice(2).replace(/-/g,'/'):''; // 26/11/08 (과목 리스트)
 const chk=id=>S.checks[id]||(S.checks[id]={});
 const dayAmt=(s,d)=>s.mode!=='period'&&s.ovm&&s.ovm[d]!=null&&s.asplit&&s.asplit[d]&&s.mins>0?Math.max(1,Math.round(s.daily*s.ovm[d]/s.mins)):s.daily;
 /* 과목 리스트 하루 분량: 기간 과목은 지금 계획에 잡힌 분량(오늘 이후 남은 공부일 분량, 날마다 다르면 최소~최대). 밀려서 늘어난 분량이 그대로 보임 */
-function curDay(s){const p=plan(s),k=p.dates.findIndex(d=>d>=TODAY);if(k<0||!p.amt)return perDay(s.daily);const a=p.amt.slice(k).filter(x=>x>0);if(!a.length)return perDay(s.daily);
+function curDay(s){const p=plan(s),k=p.dates.findIndex(d=>d>=TODAY);if(k<0||!p.amt)return perDay(s.daily);const ch=S.checks[s.id]||{},a=p.amt.slice(k).filter((x,i)=>x>0&&!ch[p.dates[k+i]]);if(!a.length)return perDay(s.daily);
   const lo=Math.min(...a),hi=Math.max(...a);return lo===hi?fmtN(lo):fmtN(lo)+'~'+fmtN(hi)}
 const perDay=v=>{const f=Math.floor(v+1e-6),c=Math.ceil(v-1e-6);return f===c?String(c):f<1?'1':f+'~'+c};
 const markAmt=(m,daily)=>m==='o'?daily:m==='t'?daily/2:0;
@@ -736,10 +736,12 @@ function planRaw(s){let p;
   before=Math.floor(before+1e-9); // a half-done (△) unit before the start isn't counted: the new start begins again from that unit
   const rem=Math.max(0,s.total-before);
   if(rem<=1e-9){const y=addD(st0,-1);p={before,dates:[y],idx:{[y]:0},cum:[0],amt:[0],ex:{},end:y,none:1};return p} // 이미 다 함(이미 진행한 양=전체): 띠 없음, 다음 회독은 시작일부터
-  const dates=[],idx={},cum=[],amt=[],ex={}; let d=st0,g=0,acc=0;let part=null;
-  if(s.mode==='period'&&s.end){let N=0,x=st0,g2=0;while(x<=s.end&&g2<4000){if(SO(x))N++;x=addD(x,1);g2++}
-    const r=Math.round(rem);part=N===0?()=>Math.max(1,r):r>=N?k=>Math.round((k+1)*r/N)-Math.round(k*r/N):()=>1}
-  while((dates.length===0||acc<rem-1e-9)&&g<3000){if(SO(d)){const a=part?part(dates.length):Math.max(1e-6,dayAmt(s,d));idx[d]=dates.length;dates.push(d);cum.push(acc);amt.push(a);acc+=a}
+  const dates=[],idx={},cum=[],amt=[],ex={}; let d=st0,g=0,acc=0;let part=null,j=0;
+  // 체크(○△×)한 날은 체크할 때 적어 둔 분량(s.ma) 그대로: 나중에 하루 분량·요일이 바뀌어도 그날 칸·뒤 날짜 시작점이 안 바뀜 (요일에서 빠져도 체크한 날은 남김)
+  const FX=x=>ch[x]&&s.ma&&s.ma[x]!=null&&!(s.pz&&x<s.pz)?s.ma[x]:null;
+  if(s.mode==='period'&&s.end){let N=0,F=0,x=st0,g2=0;while(x<=s.end&&g2<4000){const f=FX(x);if(f!=null)F+=f;else if(SO(x))N++;x=addD(x,1);g2++}
+    const r=Math.max(0,Math.round(rem-F));part=N===0?()=>Math.max(1,r):r>=N?k=>Math.round((k+1)*r/N)-Math.round(k*r/N):()=>1}
+  while((dates.length===0||acc<rem-1e-9)&&g<3000){const f=FX(d);if(f!=null||SO(d)){const a=f!=null?f:part?part(j++):Math.max(1e-6,dayAmt(s,d));idx[d]=dates.length;dates.push(d);cum.push(acc);amt.push(a);acc+=a}
     if(XA[d]&&acc<rem-1e-9){ex[d]=acc;acc+=XA[d]}d=addD(d,1);g++}
   p={before,dates,idx,cum,amt,ex,end:dates[dates.length-1]};return p;
 }
@@ -1763,10 +1765,11 @@ function autoMove(L,M){const mv=[],DE=S.cfg.dayEnd*60,off=S.cfg.pack===false,tag
     const keep=(so,k)=>{const o=so[k];log.push([so,k,o&&d in o,o&&o[d]])};
     const put=(so,k,v)=>{keep(so,k);(so[k]||(so[k]={}))[d]=v};const del=(so,k)=>{if(so[k]&&d in so[k]){keep(so,k);delete so[k][d]}};
     for(let g=0;g<8;g++){const it=itemsOn(d).filter(y=>!lateOn(y,d));if(!it.length||Math.max(...it.map(y=>y.end))<=M)break;
-      const c=it.filter(y=>!y.oo&&!(y.s.mode==='period'&&y.s.end&&!periodLeft(y.s,d))&&!(y.s.keep&&y.s.keep[d])&&!(y.s.asplit&&y.s.asplit[d])&&!y.fx).sort((p,q)=>q.end-p.end)[0];
+      const CK=y=>!!(S.checks[y.s.id]||{})[d]; // 그날 체크한 과목은 안 옮김 (한 기록이라 그날에 남음)
+      const c=it.filter(y=>!y.oo&&!CK(y)&&!(y.s.mode==='period'&&y.s.end&&!periodLeft(y.s,d))&&!(y.s.keep&&y.s.keep[d])&&!(y.s.asplit&&y.s.asplit[d])&&!y.fx).sort((p,q)=>q.end-p.end)[0];
       if(!c){if(g<7&&!off&&slideDay(d))continue;
         // 이미 일부만 남긴(asplit) 과목이 그래도 넘치면 그날은 통째로 다음 날로
-        const sp=it.filter(y=>!y.oo&&!y.fx&&y.s.asplit&&y.s.asplit[d]&&!(y.s.keep&&y.s.keep[d])&&!(y.s.mode==='period'&&y.s.end&&!periodLeft(y.s,d))).sort((p,q)=>q.end-p.end)[0];
+        const sp=it.filter(y=>!y.oo&&!y.fx&&!CK(y)&&y.s.asplit&&y.s.asplit[d]&&!(y.s.keep&&y.s.keep[d])&&!(y.s.mode==='period'&&y.s.end&&!periodLeft(y.s,d))).sort((p,q)=>q.end-p.end)[0];
         if(sp&&sp.end>M){const so=sp.s,e1=dayEndOf(d),n=log.length;del(so,'asplit');del(so,'ovm');put(so,'askip',tag);put(so,'skip',true);touch(so);
           if(dayEndOf(d)<e1){mv.push({d,end:x.end,s:so});continue}
           undoLog(log.splice(n),d)}
@@ -2024,7 +2027,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow bkrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button><button class="btn" data-act="restoreMenu">↺ 이전 내용 되살리기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.17<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.18<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
