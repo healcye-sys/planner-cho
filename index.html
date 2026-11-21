@@ -1579,9 +1579,11 @@ function openSubject(id){
     if(!cc.includes(c)&&!PALETTE.includes(c)){cc.push(c);if(cc.length>12)cc.shift();saveUI()}F.color=c;cbox.innerHTML=colorBtns()});
   const paintDays=()=>SH.querySelectorAll('#fDays button').forEach(x=>{const d=+x.dataset.d;x.classList.toggle('on',F.days.includes(d));x.classList.toggle('fx',F.days.includes(d)&&F.fix.includes(d))});
   SH.querySelector('#fDays').onclick=e=>{const b=e.target.closest('[data-d]');if(!b)return;const x=+b.dataset.d;if(!F.days.includes(x))F.days=[...F.days,x];else if(!F.fix.includes(x))F.fix=[...F.fix,x];else{F.days=F.days.filter(y=>y!==x);F.fix=F.fix.filter(y=>y!==x)}paintDays();updAll()};
-  initRounds(s);updAll();if(!s)setTimeout(()=>{const e=document.getElementById('fName');if(e)e.focus()},50);
+  initRounds(s);updAll();F.sig0=s?FSIG():null;if(!s)setTimeout(()=>{const e=document.getElementById('fName');if(e)e.focus()},50);
 }
 const fv=id=>document.getElementById(id).value.trim();
+// 수정 창에서 시간·날짜·분량·요일·회독에 영향 주는 칸 전부 (이름·색·단위 제외)
+const FSIG=()=>JSON.stringify([[...SH.querySelectorAll('input,select,textarea')].filter(e=>!['fName','fUnit','fColorAdd'].includes(e.id)&&!e.closest('#fColors')).map(e=>e.type==='checkbox'||e.type==='radio'?e.checked:e.value),F.days,F.fix,F.mode,FR,(document.getElementById('fTime')||{dataset:{}}).dataset.cleared||'']);
 let FR=[];const RDD=[1,2,3,4,5,6,0];
 /* the form: any 2 of total / daily / end give the third; end + total wins over a typed daily */
 /* '이미 진행한 양' shows everything done so far (pre + ○△ credit). Typing a new number makes it the truth:
@@ -1682,6 +1684,10 @@ function unitOpts(cur){cur=cur==null?'':String(cur).trim();const list=UNITS.some
 function studyDaysBetween(days,a,b){if(!a||!b||b<a)return 0;let n=0,x=a,g=0;while(x<=b&&g<4000){if(isStudy(days,x))n++;x=addD(x,1);g++}return n}
 function saveSubject(){
   const v=formVals(),name=fv('fName');if(!name)return toast('과목명을 입력해 주세요');
+  // 이름·색·단위만 바꿨으면 그것만 고치고 저장: 시간 다시 맞추기·분량 다시 계산·넘침 정리 안 함
+  if(F.id&&!F.draft&&F.sig0&&F.sig0===FSIG()&&sub(F.id)){const s=sub(F.id),u=fv('fUnit');s.name=name;s.color=F.color;s.unit=u;
+    S.subjects.forEach(r=>{if(r.parent===s.id){r.name=name+' · '+r.round+'회독';r.color=F.color;r.unit=u}});
+    PC.clear();save();closeModal();render();if(S.ui.view==='month')renderBands(s.id);return toast('수정했어요')}
   if(!F.days.length)return toast('공부할 요일을 하나 이상 골라 주세요');
   if(!v.mode){if(F.id)return toast('전체 분량 · 하루 분량 · 종료일 중 2개를 채워 주세요');
     if(v.end&&v.end<v.st)return toast('종료일은 시작일 뒤로 골라 주세요');
@@ -2027,7 +2033,7 @@ function openSettings(){
    <div class="fld"><label>백업</label><div class="note">로그인하면 기록이 클라우드에 저장돼요. 혹시 몰라 가끔 백업 파일도 받아 두세요.</div>
     <div class="inrow bkrow"><button class="btn" data-act="export">⬇ 백업 파일 저장</button><button class="btn" data-act="import">⬆ 백업 불러오기</button><button class="btn" data-act="restoreMenu">↺ 이전 내용 되살리기</button></div></div>
    <div class="fld"><label>기타</label><div class="inrow"><button class="btn" data-act="demo">예시 데이터 추가</button><button class="btn danger" data-act="reset">전체 초기화</button></div></div>
-   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.18<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
+   <div class="hint" style="text-align:center;margin-top:12px;font-size:11.5px">Plan B v2.5.19<br><span style="white-space:nowrap">© 2026 healcye-sys. All rights reserved.</span><br>무단 복제·수정·재배포 금지</div>
    <div class="sheet-acts"><button class="btn" data-act="close">닫기</button><button class="btn pri" data-act="saveSettings">저장</button></div>`);
   hivePreview();
 }
